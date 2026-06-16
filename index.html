@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QR Vault</title>
 
-<script src="https://unpkg.com/html5-qrcode"></script>
-
 <style>
 :root {
     --bg-primary: #0f172a;
     --bg-surface: #1e293b;
     --brand-success: #22c55e;
     --brand-success-hover: #16a34a;
+    --brand-danger: #ef4444;
+    --brand-danger-hover: #dc2626;
     --text-main: #f8fafc;
     --text-muted: #94a3b8;
 }
@@ -51,14 +51,14 @@ body {
     align-items: center;
     scroll-snap-align: start;
     box-sizing: border-box;
-    padding: 40px 20px 110px 20px; /* Protected space at bottom for FABs */
+    padding: 30px 20px 110px 20px;
 }
 
 /* 9:16 ASPECT RATIO CONTAINER */
 .image-container {
     position: relative;
     width: 100%;
-    max-width: 280px; /* Keeps aspect ratio bounded nicely on larger mobile displays */
+    max-width: 270px;
     aspect-ratio: 9 / 16; 
     border-radius: 20px;
     overflow: hidden;
@@ -67,7 +67,6 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Zoomed in and completely fitted cover image */
 .image-container img {
     width: 100%;
     height: 100%;
@@ -93,13 +92,43 @@ body {
     white-space: nowrap;
 }
 
+/* Edit Floating Anchor on Cards */
+.edit-trigger {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    font-size: 16px;
+    z-index: 5;
+    transition: background 0.2s;
+}
+
+.edit-trigger:hover {
+    background: rgba(15, 23, 42, 0.95);
+}
+
+.action-row {
+    text-align: center;
+    width: 100%;
+}
+
 .label {
     font-size: 22px;
     font-weight: 700;
     letter-spacing: -0.5px;
     text-transform: uppercase;
-    margin-top: 15px;
-    margin-bottom: 5px;
+    margin-top: 10px;
+    margin-bottom: 8px;
 }
 
 .open-btn {
@@ -125,9 +154,6 @@ body {
     position: fixed;
     bottom: 24px;
     right: 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
     z-index: 10;
 }
 
@@ -205,26 +231,26 @@ select, input[type="file"] {
     border-radius: 12px;
     font-weight: 600;
     cursor: pointer;
+    margin-bottom: 10px;
 }
 
-#reader {
-    width: 100%;
-    border-radius: 16px;
-    overflow: hidden;
-    display: none;
-    margin-bottom: 16px;
-    background: #000;
+.btn-danger {
+    background: var(--brand-danger);
+    padding: 14px;
+    text-align: center;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
 }
 
-/* Fullscreen Immersive Preview */
+.btn-danger:active { background: var(--brand-danger-hover); }
+
+/* Fullscreen Immersive Preview Context & Carousel Tracking Setup */
 .fullscreen-preview {
     position: fixed;
     inset: 0;
-    background: #000;
+    background: #05070f;
     z-index: 200;
-    display: flex;
-    justify-content: center;
-    align-items: center;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
@@ -235,21 +261,65 @@ select, input[type="file"] {
     pointer-events: auto;
 }
 
-.fullscreen-preview img {
-    max-width: 95%;
-    max-height: 85vh;
+.fullscreen-carousel-track {
+    display: flex;
+    width: 100%;
+    height: 100vh;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+}
+
+.fullscreen-carousel-track::-webkit-scrollbar {
+    display: none;
+}
+
+.fullscreen-slide {
+    min-width: 100%;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    scroll-snap-align: start;
+    box-sizing: border-box;
+    padding: 20px;
+}
+
+.fullscreen-slide img {
+    max-width: 100%;
+    max-height: 90vh;
     object-fit: contain;
+    border-radius: 8px;
 }
 
 .close-preview-btn {
     position: absolute;
     top: 30px;
     right: 24px;
-    background: rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.15);
     border: none;
     color: white;
-    padding: 10px 16px;
+    padding: 10px 18px;
     border-radius: 20px;
+    font-size: 13px;
+    backdrop-filter: blur(8px);
+    z-index: 210;
+    cursor: pointer;
+}
+
+.carousel-indicator {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.6);
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    color: var(--text-main);
+    z-index: 210;
+    pointer-events: none;
+    letter-spacing: 1px;
 }
 
 .toast {
@@ -286,18 +356,16 @@ select, input[type="file"] {
 <div class="viewer" id="viewer"></div>
 
 <div class="fab-group">
-    <button class="fab" id="scanFab" onclick="startScan()" title="Scan QR Code">📷</button>
-    <button class="fab" id="addFab" onclick="openManualModal()" title="Add Manually">+</button>
+    <button class="fab" id="addFab" onclick="openAddModal()" title="Add Manually">+</button>
 </div>
 
+<!-- ENTRY MANAGEMENT MODAL -->
 <div class="modal" id="modal" onclick="closeModal(event)">
     <div class="modal-box">
         <h3 style="margin-top:0; margin-bottom:15px; font-size:18px;" id="modalTitle">Save QR to Vault</h3>
         
-        <div id="reader"></div>
-
-        <select id="bank" onchange="handleBankSelection()">
-            <option value="">Select App to Open</option>
+        <select id="bank">
+            <option value="">Select App Profile</option>
             <option value="gcash">GCash</option>
             <option value="maya">Maya</option>
             <option value="bpi">BPI</option>
@@ -308,25 +376,28 @@ select, input[type="file"] {
             <option value="bdo">BDO Unibank</option>
         </select>
 
-        <div id="manualFields">
+        <div id="fileInputContainer">
             <input type="file" id="file" accept="image/*">
-            <div class="btn-submit" onclick="upload()">Save QR Code</div>
         </div>
         
-        <div class="btn-submit" id="cancelScanBtn" style="display:none; background:#ef4444;" onclick="cancelScanning()">Cancel Scan</div>
+        <div class="btn-submit" id="submitBtn" onclick="handleModalSubmit()">Save QR Code</div>
+        <div class="btn-danger" id="deleteBtn" style="display:none;" onclick="deleteEntry()">Delete Item</div>
     </div>
 </div>
 
-<div class="fullscreen-preview" id="previewContainer" onclick="closeFullscreenPreview()">
-    <button class="close-preview-btn">Close</button>
-    <img id="fullscreenImg" src="" alt="QR Preview">
+<!-- IMMERSIVE CAROUSEL PREVIEW OVERLAY -->
+<div class="fullscreen-preview" id="previewOverlay">
+    <button class="close-preview-btn" onclick="closeFullscreenPreview()">Close View</button>
+    <div class="carousel-indicator" id="carouselIndicator">1 / 1</div>
+    <div class="fullscreen-carousel-track" id="previewTrack"></div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
 let data = JSON.parse(localStorage.getItem("qr")) || [];
-let scanner;
+let targetEditIndex = null;
+let currentPreviewIndex = 0;
 
 function save(){ localStorage.setItem("qr", JSON.stringify(data)); }
 
@@ -335,24 +406,34 @@ function render(){
     viewer.innerHTML = "";
 
     if(data.length === 0){
-        viewer.innerHTML = `<div class="empty-state"><h3>Vault is Empty</h3><p>Tap + to manually save a dynamic template</p></div>`;
+        viewer.innerHTML = `<div class="empty-state"><h3>Vault is Empty</h3><p>Tap + to save your payment QRs</p></div>`;
         return;
     }
 
-    data.forEach((q)=>{
+    data.forEach((q, idx)=>{
         const div = document.createElement("div");
         div.className = "card";
 
         div.innerHTML = `
-            <div class="image-container" onclick="openFullscreenPreview('${q.image}')">
-                <img src="${q.image}" alt="${q.bank} QR">
+            <div class="image-container">
+                <div class="edit-trigger" data-index="${idx}">✏️</div>
+                <img src="${q.image}" alt="${q.bank} QR" data-preview-index="${idx}">
                 <div class="preview-hint">🔎 View Fullscreen</div>
             </div>
-            <div style="text-align: center; width: 100%;">
+            <div class="action-row">
                 <div class="label">${q.bank}</div>
                 <button class="open-btn">Open App</button>
             </div>
         `;
+
+        // Direct Fullscreen Action mapping
+        div.querySelector("img").onclick = () => openFullscreenPreview(idx);
+
+        // Edit Overlay Trigger mapping
+        div.querySelector(".edit-trigger").onclick = (e) => {
+            e.stopPropagation();
+            openEditModal(idx);
+        };
 
         div.querySelector(".open-btn").onclick = (e)=>{
             e.stopPropagation();
@@ -363,99 +444,46 @@ function render(){
     });
 }
 
-function openManualModal(){
+/* MODAL SELECTION ROUTERS */
+function openAddModal(){
+    targetEditIndex = null;
     document.getElementById("modalTitle").innerText = "Save QR to Vault";
-    document.getElementById("manualFields").style.display = "block";
-    document.getElementById("reader").style.display = "none";
-    document.getElementById("cancelScanBtn").style.display = "none";
     document.getElementById("bank").value = "";
+    document.getElementById("bank").disabled = false;
+    document.getElementById("file").value = "";
+    document.getElementById("submitBtn").innerText = "Save QR Code";
+    document.getElementById("deleteBtn").style.display = "none";
+    document.getElementById("modal").classList.add("active");
+}
+
+function openEditModal(index){
+    targetEditIndex = index;
+    const item = data[index];
+    document.getElementById("modalTitle").innerText = `Modify ${item.bank.toUpperCase()} Entry`;
+    document.getElementById("bank").value = item.bank;
+    document.getElementById("bank").disabled = true; // Protect classification structure alignment
+    document.getElementById("file").value = "";
+    document.getElementById("submitBtn").innerText = "Update QR Image";
+    document.getElementById("deleteBtn").style.display = "block";
     document.getElementById("modal").classList.add("active");
 }
 
 function closeModal(e){
     if(e.target.id === "modal"){
         document.getElementById("modal").classList.remove("active");
-        stopScanner();
     }
 }
 
-/* 📷 SEPARATED LIVE SCANNER EXECUTION */
-function startScan(){
-    document.getElementById("modalTitle").innerText = "Scanning Merchant QR Code...";
-    document.getElementById("manualFields").style.display = "none";
-    document.getElementById("cancelScanBtn").style.display = "block";
-    document.getElementById("bank").value = "";
-    
-    const reader = document.getElementById("reader");
-    reader.style.display = "block";
-    
-    document.getElementById("modal").classList.add("active");
-
-    scanner = new Html5Qrcode("reader");
-    scanner.start(
-        { facingMode: "environment" },
-        { fps: 15, qrbox: 260 },
-        onScanSuccess
-    ).catch(err => {
-        showMessage("Camera capture access error.");
-        cancelScanning();
-    });
-}
-
-/* ✅ AUTOMATIC DOWNLOAD AND APP CHOICE REDIRECTION */
-function onScanSuccess(decodedText, result){
-    const video = document.querySelector("#reader video");
-    if(!video) return;
-
-    // Capture visual snapshot image
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    ctx.drawImage(video, 0, 0);
-    const img = canvas.toDataURL("image/png");
-    
-    stopScanner();
-
-    // 💾 Automatic Frame Download Loop
-    const link = document.createElement("a");
-    link.href = img;
-    link.download = "qrph_vault_snapshot.png";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    // Keep modal active, clean layout up to let user select choice of application destination 
-    document.getElementById("modalTitle").innerText = "QR Downloaded! Redirect to App:";
-    document.getElementById("reader").style.display = "none";
-    document.getElementById("cancelScanBtn").style.display = "none";
-    
-    showMessage("Captured! Choose Target Bank App to Complete Payment.");
-}
-
-function handleBankSelection() {
-    const selectedBank = document.getElementById("bank").value;
-    if(selectedBank) {
-        document.getElementById("modal").classList.remove("active");
-        openApp(selectedBank);
+function handleModalSubmit(){
+    if(targetEditIndex === null) {
+        uploadNew();
+    } else {
+        updateExistingImage();
     }
 }
 
-function cancelScanning(){
-    stopScanner();
-    document.getElementById("modal").classList.remove("active");
-}
-
-function stopScanner(){
-    if(scanner && scanner.isScanning){
-        scanner.stop().then(()=>{
-            document.getElementById("reader").style.display = "none";
-        });
-    }
-}
-
-/* FILE UPLOAD PROCESSING */
-function upload(){
+/* DATA MANIPULATION STRATEGIES */
+function uploadNew(){
     const file = document.getElementById("file").files[0];
     const bank = document.getElementById("bank").value;
 
@@ -470,45 +498,107 @@ function upload(){
         save();
         render();
         document.getElementById("modal").classList.remove("active");
-        document.getElementById("file").value = "";
         showMessage("QR stored securely!");
     };
     reader.readAsDataURL(file);
 }
 
-/* IMMERSIVE PREVIEW */
-function openFullscreenPreview(imgSrc) {
-    const container = document.getElementById("previewContainer");
-    document.getElementById("fullscreenImg").src = imgSrc;
-    container.classList.add("active");
+function updateExistingImage(){
+    const file = document.getElementById("file").files[0];
+    if(!file){
+        showMessage("Please select a new image asset first");
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = e=>{
+        data[targetEditIndex].image = e.target.result;
+        save();
+        render();
+        document.getElementById("modal").classList.remove("active");
+        showMessage("QR Image updated successfully!");
+    };
+    reader.readAsDataURL(file);
+}
+
+function deleteEntry(){
+    if(targetEditIndex !== null){
+        data.splice(targetEditIndex, 1);
+        save();
+        render();
+        document.getElementById("modal").classList.remove("active");
+        showMessage("Entry permanently cleared");
+    }
+}
+
+/* IMMERSIVE CAROUSEL PREVIEW LOGIC */
+function openFullscreenPreview(startIndex) {
+    if (data.length === 0) return;
+    currentPreviewIndex = startIndex;
+    const track = document.getElementById("previewTrack");
+    track.innerHTML = "";
+
+    // Generate dynamic sliding viewport list
+    data.forEach((q) => {
+        const slide = document.createElement("div");
+        slide.className = "fullscreen-slide";
+        slide.innerHTML = `<img src="${q.image}" alt="${q.bank} Target">`;
+        track.appendChild(slide);
+    });
+
+    document.getElementById("previewOverlay").classList.add("active");
+    updateCarouselIndicator();
+
+    // Instant layout jump to chosen selection point safely
+    setTimeout(() => {
+        const slides = track.querySelectorAll(".fullscreen-slide");
+        if(slides[startIndex]) {
+            slides[startIndex].scrollIntoView({ behavior: 'auto', inline: 'start' });
+        }
+    }, 10);
 }
 
 function closeFullscreenPreview() {
-    document.getElementById("previewContainer").classList.remove("active");
+    document.getElementById("previewOverlay").classList.remove("active");
 }
 
-/* INTER-APP ROUTING MECHANICS */
+function updateCarouselIndicator() {
+    document.getElementById("carouselIndicator").innerText = `${currentPreviewIndex + 1} / ${data.length}`;
+}
+
+// Fullscreen Tracking Sensor Callback
+document.getElementById("previewTrack").addEventListener("scroll", function(e) {
+    const width = e.target.clientWidth;
+    if(width === 0) return;
+    const calculatedIndex = Math.round(e.target.scrollLeft / width);
+    if(calculatedIndex !== currentPreviewIndex && calculatedIndex >= 0 && calculatedIndex < data.length) {
+        currentPreviewIndex = calculatedIndex;
+        updateCarouselIndicator();
+    }
+});
+
+/* DEEP LINK HANDLERS FOR PH BANKING APP VARIATIONS */
 function openApp(bank){
     const links = {
         gcash: "gcash://", 
         maya: "mvqr://", 
-        bpi: "bpi://",
-        unionbank: "unionbank://",
-        maribank: "maribank://",
-        tonik: "tonik://",
+        bpi: "https://bpi.com.ph",
+        unionbank: "https://unionbankph.com",
+        maribank: "https://www.maribank.com.ph",
+        tonik: "https://tonikbank.com",
         gotyme: "gotyme://",
-        bdo: "bdodigitalbanking://"
+        bdo: "https://bdo.com.ph"
     };
 
     const url = links[bank.toLowerCase()];
     if(!url){
-        showMessage("Application routing profile missing");
+        showMessage("Application deep link routing configuration missing");
         return;
     }
 
     window.location.href = url;
     setTimeout(()=>{
-        showMessage("Opening app... Import downloaded image from your gallery.");
+        showMessage("Redirected! Open your app's QR reader scan window from your gallery imports.");
     }, 600);
 }
 
@@ -519,15 +609,15 @@ function showMessage(msg){
     setTimeout(()=>t.classList.remove("show"), 3200);
 }
 
-/* FAB AUTO HIDE */
-let fabs = document.querySelectorAll(".fab");
+/* FAB TIMEOUT HIDE HANDLING ENGINE */
+let fab = document.getElementById("addFab");
 let interactionTimer;
 
 function showFabs(){
-    fabs.forEach(f => f.classList.add("visible"));
+    fab.classList.add("visible");
     clearTimeout(interactionTimer);
     interactionTimer = setTimeout(()=>{ 
-        fabs.forEach(f => f.classList.remove("visible"));
+        fab.classList.remove("visible");
     }, 2500);
 }
 
@@ -536,7 +626,7 @@ function showFabs(){
 });
 window.addEventListener("load", showFabs);
 
-// Navigation State
+// Swiping Navigation Core (Primary View Control)
 let currentIndex = 0;
 
 function scrollToIndex(index){
@@ -552,8 +642,22 @@ function nextCard(){ scrollToIndex(currentIndex + 1); }
 function prevCard(){ scrollToIndex(currentIndex - 1); }
 
 window.addEventListener('keydown', (e)=>{
-    if(e.key === 'ArrowRight') { e.preventDefault(); nextCard(); }
-    if(e.key === 'ArrowLeft') { e.preventDefault(); prevCard(); }
+    // Primary layout controls mapping
+    if(!document.getElementById("previewOverlay").classList.contains("active")) {
+        if(e.key === 'ArrowRight') { e.preventDefault(); nextCard(); }
+        if(e.key === 'ArrowLeft') { e.preventDefault(); prevCard(); }
+    } else {
+        // Overlay layout controls keyboard mapping overrides
+        const track = document.getElementById("previewTrack");
+        if(e.key === 'ArrowRight' && currentPreviewIndex < data.length - 1) {
+            e.preventDefault();
+            track.querySelectorAll(".fullscreen-slide")[currentPreviewIndex + 1].scrollIntoView({ behavior: 'smooth', inline: 'start' });
+        }
+        if(e.key === 'ArrowLeft' && currentPreviewIndex > 0) {
+            e.preventDefault();
+            track.querySelectorAll(".fullscreen-slide")[currentPreviewIndex - 1].scrollIntoView({ behavior: 'smooth', inline: 'start' });
+        }
+    }
 });
 
 (function(){
@@ -561,6 +665,7 @@ window.addEventListener('keydown', (e)=>{
     let startX = 0;
     viewer.addEventListener('touchstart', (ev)=>{ startX = ev.changedTouches[0].clientX; }, {passive:true});
     viewer.addEventListener('touchend', (ev)=>{
+        if(document.getElementById("previewOverlay").classList.contains("active")) return;
         const endX = ev.changedTouches[0].clientX;
         const dx = startX - endX;
         if(Math.abs(dx) > 60){ if(dx > 0) nextCard(); else prevCard(); }

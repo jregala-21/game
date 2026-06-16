@@ -8,80 +8,166 @@
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <style>
-body {
-    margin: 0;
-    font-family: sans-serif;
-    background: #0f172a;
-    color: #fff;
-    overflow: hidden;
+:root {
+    --bg-primary: #0f172a;
+    --bg-surface: #1e293b;
+    --brand-success: #22c55e;
+    --brand-success-hover: #16a34a;
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
 }
 
-/* Viewer */
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-main);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* Viewer Container */
 .viewer {
     display: flex;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
     height: 100vh;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
 }
 
-/* Card */
+.viewer::-webkit-scrollbar {
+    display: none;
+}
+
+/* Card Presentation */
 .card {
     min-width: 100%;
     height: 100vh;
     display: flex;
     flex-direction: column;
-    justify-content: space-evenly;
+    justify-content: space-between;
     align-items: center;
+    scroll-snap-align: start;
+    box-sizing: border-box;
+    padding: 40px 20px 110px 20px; /* Protected space at bottom for FABs */
 }
 
-/* ✅ AUTO ZOOM IMAGE (NO BLACK BARS) */
-.card img {
-    width: 70%;
-    height: 65vh;
-    object-fit: cover;
-    border-radius: 15px;
+/* 9:16 ASPECT RATIO CONTAINER */
+.image-container {
+    position: relative;
+    width: 100%;
+    max-width: 280px; /* Keeps aspect ratio bounded nicely on larger mobile displays */
+    aspect-ratio: 9 / 16; 
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Text */
+/* Zoomed in and completely fitted cover image */
+.image-container img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; 
+    display: block;
+    cursor: zoom-in;
+}
+
+.preview-hint {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.75);
+    backdrop-filter: blur(4px);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    pointer-events: none;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
 .label {
-    font-size: 18px;
-    font-weight: bold;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    text-transform: uppercase;
+    margin-top: 15px;
+    margin-bottom: 5px;
 }
 
-/* Button */
 .open-btn {
-    padding: 12px 20px;
-    background: #22c55e;
+    padding: 14px 40px;
+    background: var(--brand-success);
     border: none;
-    border-radius: 10px;
+    border-radius: 14px;
     color: white;
     font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.2);
+    transition: background 0.2s, transform 0.1s;
 }
 
-/* FAB */
-.fab {
+.open-btn:active {
+    transform: scale(0.96);
+    background: var(--brand-success-hover);
+}
+
+/* Action Control Actions (FAB Group) */
+.fab-group {
     position: fixed;
-    bottom: 20px;
-    right: 18px;
-    font-size: 22px;
-    color: #22c55e;
-    background: transparent;
-    border: none;
-    opacity: 0;
-    transition: opacity 0.4s;
+    bottom: 24px;
+    right: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 10;
 }
 
-/* MODAL */
+.fab {
+    width: 56px;
+    height: 56px;
+    border-radius: 28px;
+    background: var(--brand-success);
+    color: white;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 24px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease, transform 0.2s ease, background-color 0.2s;
+}
+
+.fab.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Modals & Overlays */
 .modal {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.7);
+    background: rgba(15, 23, 42, 0.8);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     display: flex;
     justify-content: center;
     align-items: center;
     opacity: 0;
     pointer-events: none;
-    transition: .3s;
+    transition: opacity .3s ease;
+    z-index: 100;
 }
 
 .modal.active {
@@ -90,89 +176,150 @@ body {
 }
 
 .modal-box {
-    background: #1e293b;
-    padding: 20px;
-    border-radius: 15px;
-    width: 90%;
-    max-width: 350px;
-    animation: pop .25s ease;
+    background: var(--bg-surface);
+    padding: 24px;
+    border-radius: 24px;
+    width: 88%;
+    max-width: 360px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-@keyframes pop {
-    from { transform: scale(0.8); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
-}
-
-select, input {
+select, input[type="file"] {
     width: 100%;
-    padding: 12px;
-    margin-bottom: 10px;
-    border-radius: 10px;
-    border: none;
+    padding: 14px;
+    margin-bottom: 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--bg-primary);
+    color: white;
+    font-size: 15px;
+    box-sizing: border-box;
+    outline: none;
 }
 
-.btn {
-    background: #22c55e;
-    padding: 12px;
+.btn-submit {
+    background: var(--brand-success);
+    padding: 14px;
     text-align: center;
-    border-radius: 10px;
-    margin-top: 10px;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
 }
 
-/* Scanner */
 #reader {
     width: 100%;
+    border-radius: 16px;
+    overflow: hidden;
     display: none;
-    margin-bottom: 10px;
+    margin-bottom: 16px;
+    background: #000;
 }
 
-/* Toast */
+/* Fullscreen Immersive Preview */
+.fullscreen-preview {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 200;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.fullscreen-preview.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.fullscreen-preview img {
+    max-width: 95%;
+    max-height: 85vh;
+    object-fit: contain;
+}
+
+.close-preview-btn {
+    position: absolute;
+    top: 30px;
+    right: 24px;
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 20px;
+}
+
 .toast {
     position: fixed;
-    bottom: 90px;
+    bottom: 110px;
     left: 50%;
     transform: translateX(-50%);
-    background: #111;
-    padding: 12px 20px;
-    border-radius: 10px;
+    background: rgba(30, 41, 59, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 20px;
+    font-size: 14px;
     opacity: 0;
-    transition: .3s;
+    transition: opacity .3s;
+    z-index: 150;
+    text-align: center;
 }
 
 .toast.show { opacity: 1; }
+
+.empty-state {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: var(--text-muted);
+}
 </style>
 </head>
 <body>
 
 <div class="viewer" id="viewer"></div>
 
-<button class="fab" onclick="openModal()">+</button>
+<div class="fab-group">
+    <button class="fab" id="scanFab" onclick="startScan()" title="Scan QR Code">📷</button>
+    <button class="fab" id="addFab" onclick="openManualModal()" title="Add Manually">+</button>
+</div>
 
-<!-- MODAL -->
 <div class="modal" id="modal" onclick="closeModal(event)">
     <div class="modal-box">
-
-        <!-- Scanner -->
+        <h3 style="margin-top:0; margin-bottom:15px; font-size:18px;" id="modalTitle">Save QR to Vault</h3>
+        
         <div id="reader"></div>
 
-        <select id="bank">
-            <option value="">Select Bank</option>
+        <select id="bank" onchange="handleBankSelection()">
+            <option value="">Select App to Open</option>
             <option value="gcash">GCash</option>
             <option value="maya">Maya</option>
             <option value="bpi">BPI</option>
             <option value="unionbank">UnionBank</option>
-            <option value="maribank">Maribank</option>
-            <option value="tonik">Tonik</option>
-            <option value="gotyme">GoTyme</option>
-            <option value="bdo">BDO</option>
+            <option value="maribank">MariBank</option>
+            <option value="tonik">Tonik Digital</option>
+            <option value="gotyme">GoTyme Bank</option>
+            <option value="bdo">BDO Unibank</option>
         </select>
 
-        <input type="file" id="file" accept="image/*">
-
-        <div class="btn" onclick="startScan()">📷 Scan QR</div>
-        <div class="btn" onclick="upload()">Save QR</div>
-
+        <div id="manualFields">
+            <input type="file" id="file" accept="image/*">
+            <div class="btn-submit" onclick="upload()">Save QR Code</div>
+        </div>
+        
+        <div class="btn-submit" id="cancelScanBtn" style="display:none; background:#ef4444;" onclick="cancelScanning()">Cancel Scan</div>
     </div>
+</div>
+
+<div class="fullscreen-preview" id="previewContainer" onclick="closeFullscreenPreview()">
+    <button class="close-preview-btn">Close</button>
+    <img id="fullscreenImg" src="" alt="QR Preview">
 </div>
 
 <div class="toast" id="toast"></div>
@@ -187,17 +334,28 @@ function render(){
     const viewer = document.getElementById("viewer");
     viewer.innerHTML = "";
 
-    data.forEach(q=>{
+    if(data.length === 0){
+        viewer.innerHTML = `<div class="empty-state"><h3>Vault is Empty</h3><p>Tap + to manually save a dynamic template</p></div>`;
+        return;
+    }
+
+    data.forEach((q)=>{
         const div = document.createElement("div");
         div.className = "card";
 
         div.innerHTML = `
-            <img src="${q.image}">
-            <div class="label">${q.bank.toUpperCase()}</div>
-            <button class="open-btn">Open App</button>
+            <div class="image-container" onclick="openFullscreenPreview('${q.image}')">
+                <img src="${q.image}" alt="${q.bank} QR">
+                <div class="preview-hint">🔎 View Fullscreen</div>
+            </div>
+            <div style="text-align: center; width: 100%;">
+                <div class="label">${q.bank}</div>
+                <button class="open-btn">Open App</button>
+            </div>
         `;
 
-        div.querySelector(".open-btn").onclick = ()=>{
+        div.querySelector(".open-btn").onclick = (e)=>{
+            e.stopPropagation();
             openApp(q.bank);
         };
 
@@ -205,8 +363,12 @@ function render(){
     });
 }
 
-/* MODAL */
-function openModal(){
+function openManualModal(){
+    document.getElementById("modalTitle").innerText = "Save QR to Vault";
+    document.getElementById("manualFields").style.display = "block";
+    document.getElementById("reader").style.display = "none";
+    document.getElementById("cancelScanBtn").style.display = "none";
+    document.getElementById("bank").value = "";
     document.getElementById("modal").classList.add("active");
 }
 
@@ -217,132 +379,164 @@ function closeModal(e){
     }
 }
 
-/* 📷 START SCANNER */
+/* 📷 SEPARATED LIVE SCANNER EXECUTION */
 function startScan(){
+    document.getElementById("modalTitle").innerText = "Scanning Merchant QR Code...";
+    document.getElementById("manualFields").style.display = "none";
+    document.getElementById("cancelScanBtn").style.display = "block";
+    document.getElementById("bank").value = "";
+    
     const reader = document.getElementById("reader");
     reader.style.display = "block";
+    
+    document.getElementById("modal").classList.add("active");
 
     scanner = new Html5Qrcode("reader");
-
     scanner.start(
         { facingMode: "environment" },
-        { fps: 10, qrbox: 250 },
+        { fps: 15, qrbox: 260 },
         onScanSuccess
-    );
+    ).catch(err => {
+        showMessage("Camera capture access error.");
+        cancelScanning();
+    });
 }
 
-/* ✅ SCAN SUCCESS */
+/* ✅ AUTOMATIC DOWNLOAD AND APP CHOICE REDIRECTION */
 function onScanSuccess(decodedText, result){
+    const video = document.querySelector("#reader video");
+    if(!video) return;
 
-    scanner.stop();
-
-    const video = document.querySelector("video");
+    // Capture visual snapshot image
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
     ctx.drawImage(video, 0, 0);
-
     const img = canvas.toDataURL("image/png");
+    
+    stopScanner();
 
-    /* 💾 AUTO DOWNLOAD */
+    // 💾 Automatic Frame Download Loop
     const link = document.createElement("a");
     link.href = img;
-    link.download = "qrph.png";
+    link.download = "qrph_vault_snapshot.png";
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
 
-    /* SAVE LOCALLY */
-    const bank = document.getElementById("bank").value || "gcash";
-    data.push({bank, image: img});
-    save();
-    render();
+    // Keep modal active, clean layout up to let user select choice of application destination 
+    document.getElementById("modalTitle").innerText = "QR Downloaded! Redirect to App:";
+    document.getElementById("reader").style.display = "none";
+    document.getElementById("cancelScanBtn").style.display = "none";
+    
+    showMessage("Captured! Choose Target Bank App to Complete Payment.");
+}
 
-    showMessage("QR saved! Now choose bank");
-
-    /* AUTO OPEN BANK IF SELECTED */
-    if(bank){
-        openApp(bank);
+function handleBankSelection() {
+    const selectedBank = document.getElementById("bank").value;
+    if(selectedBank) {
+        document.getElementById("modal").classList.remove("active");
+        openApp(selectedBank);
     }
+}
+
+function cancelScanning(){
+    stopScanner();
+    document.getElementById("modal").classList.remove("active");
 }
 
 function stopScanner(){
-    if(scanner){
-        scanner.stop();
+    if(scanner && scanner.isScanning){
+        scanner.stop().then(()=>{
+            document.getElementById("reader").style.display = "none";
+        });
     }
 }
 
-/* UPLOAD */
+/* FILE UPLOAD PROCESSING */
 function upload(){
     const file = document.getElementById("file").files[0];
     const bank = document.getElementById("bank").value;
 
     if(!file || !bank){
-        showMessage("Complete all fields");
+        showMessage("Complete all input assignments");
         return;
     }
 
     const reader = new FileReader();
     reader.onload = e=>{
-        data.push({bank, image:e.target.result});
+        data.push({bank: bank, image: e.target.result});
         save();
         render();
         document.getElementById("modal").classList.remove("active");
+        document.getElementById("file").value = "";
+        showMessage("QR stored securely!");
     };
     reader.readAsDataURL(file);
 }
 
-/* OPEN APP */
+/* IMMERSIVE PREVIEW */
+function openFullscreenPreview(imgSrc) {
+    const container = document.getElementById("previewContainer");
+    document.getElementById("fullscreenImg").src = imgSrc;
+    container.classList.add("active");
+}
+
+function closeFullscreenPreview() {
+    document.getElementById("previewContainer").classList.remove("active");
+}
+
+/* INTER-APP ROUTING MECHANICS */
 function openApp(bank){
-    const links={
-        gcash:"gcash://",
-        maya:"maya://",
-        bpi:"bpi://",
-        unionbank:"unionbank://",
-        maribank:"maribank://",
-        tonik:"tonik://",
-        gotyme:"gotyme://",
-        bdo:"bdo://"
+    const links = {
+        gcash: "gcash://", 
+        maya: "mvqr://", 
+        bpi: "bpi://",
+        unionbank: "unionbank://",
+        maribank: "maribank://",
+        tonik: "tonik://",
+        gotyme: "gotyme://",
+        bdo: "bdodigitalbanking://"
     };
 
-    const url = links[bank];
-
+    const url = links[bank.toLowerCase()];
     if(!url){
-        showMessage("App not supported");
+        showMessage("Application routing profile missing");
         return;
     }
 
-    setTimeout(()=>{
-        showMessage("If app didn’t open, install it or upload QR manually");
-    },1200);
-
     window.location.href = url;
+    setTimeout(()=>{
+        showMessage("Opening app... Import downloaded image from your gallery.");
+    }, 600);
 }
 
-/* TOAST */
 function showMessage(msg){
     const t = document.getElementById("toast");
     t.innerText = msg;
     t.classList.add("show");
-
-    setTimeout(()=>t.classList.remove("show"), 2500);
+    setTimeout(()=>t.classList.remove("show"), 3200);
 }
 
 /* FAB AUTO HIDE */
-let fab = document.querySelector(".fab");
-let timer;
+let fabs = document.querySelectorAll(".fab");
+let interactionTimer;
 
-function showFab(){
-    fab.style.opacity = "1";
-    clearTimeout(timer);
-    timer = setTimeout(()=> fab.style.opacity="0", 1500);
+function showFabs(){
+    fabs.forEach(f => f.classList.add("visible"));
+    clearTimeout(interactionTimer);
+    interactionTimer = setTimeout(()=>{ 
+        fabs.forEach(f => f.classList.remove("visible"));
+    }, 2500);
 }
 
 ["touchstart","touchmove","scroll","mousemove"].forEach(e=>{
-    document.addEventListener(e, showFab);
+    document.addEventListener(e, showFabs, {passive: true});
 });
+window.addEventListener("load", showFabs);
 
-window.addEventListener("load", showFab);
-// Navigation state
+// Navigation State
 let currentIndex = 0;
 
 function scrollToIndex(index){
@@ -357,13 +551,11 @@ function scrollToIndex(index){
 function nextCard(){ scrollToIndex(currentIndex + 1); }
 function prevCard(){ scrollToIndex(currentIndex - 1); }
 
-// Keyboard navigation (single press moves one card)
 window.addEventListener('keydown', (e)=>{
     if(e.key === 'ArrowRight') { e.preventDefault(); nextCard(); }
     if(e.key === 'ArrowLeft') { e.preventDefault(); prevCard(); }
 });
 
-// Touch swipe navigation for mobile
 (function(){
     const viewer = document.getElementById('viewer');
     let startX = 0;
@@ -371,20 +563,17 @@ window.addEventListener('keydown', (e)=>{
     viewer.addEventListener('touchend', (ev)=>{
         const endX = ev.changedTouches[0].clientX;
         const dx = startX - endX;
-        if(Math.abs(dx) > 50){ if(dx > 0) nextCard(); else prevCard(); }
+        if(Math.abs(dx) > 60){ if(dx > 0) nextCard(); else prevCard(); }
     }, {passive:true});
 })();
 
-// Ensure render positions to currentIndex after build
 const originalRender = render;
 render = function(){
     originalRender();
-    // clamp index
     const viewer = document.getElementById('viewer');
     const cards = viewer.querySelectorAll('.card');
     if(cards.length === 0) return;
     if(currentIndex >= cards.length) currentIndex = cards.length - 1;
-    // small timeout to allow layout
     setTimeout(()=> scrollToIndex(currentIndex), 50);
 };
 

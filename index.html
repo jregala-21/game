@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>QR Wallet - Saved QR Gallery</title>
+  <style>
+:root {
+  color-scheme: light dark;
+  --bg: #f5f7fb;
+  --card: rgba(255,255,255,.86);
+  --card-solid: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --line: rgba(148,163,184,.35);
+  --accent: #0f766e;
+  --accent-2: #115e59;
+  --danger: #b91c1c;
+  --soft: rgba(15,118,110,.09);
+  --shadow: 0 24px 60px rgba(15,23,42,.10);
+  --radius: 26px;
+  --tap: 48px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #07111f;
+    --card: rgba(15,23,42,.82);
+    --card-solid: #111827;
+    --text: #f8fafc;
+    --muted: #a3adc2;
+    --line: rgba(148,163,184,.22);
+    --soft: rgba(20,184,166,.12);
+    --shadow: 0 24px 70px rgba(0,0,0,.32);
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body {
+  margin: 0;
+  min-height: 100svh;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 10% 0%, rgba(20,184,166,.24), transparent 34%),
+    radial-gradient(circle at 90% 15%, rgba(59,130,246,.10), transparent 30%),
+    linear-gradient(180deg, transparent, rgba(15,118,110,.05)),
+    var(--bg);
+}
+button, .button-like {
+  min-height: var(--tap);
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 18px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 850;
+  font-size: 15px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  text-decoration: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+button:hover, .button-like:hover { background: var(--accent-2); }
+button.ghost, .button-like.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+button.danger { color: var(--danger); }
+button:disabled { opacity: .5; cursor: not-allowed; }
+input, select { font: inherit; }
+h1, h2, h3, p { margin-top: 0; }
+h1 { font-size: clamp(2.15rem, 8vw, 5.25rem); letter-spacing: -.055em; line-height: .92; margin: 0 0 16px; }
+h2 { font-size: clamp(1.25rem, 3vw, 1.8rem); margin-bottom: 8px; }
+h3 { margin-bottom: 8px; }
+small, .muted, .hint, .stat-label { color: var(--muted); }
+.wrap { width: min(1120px, calc(100% - clamp(20px, 5vw, 56px))); margin: 0 auto; }
+.hero {
+  padding: max(24px, env(safe-area-inset-top)) 0 18px;
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: start;
+  gap: clamp(18px, 4vw, 34px);
+}
+.eyebrow { color: var(--accent); font-weight: 900; text-transform: uppercase; letter-spacing: .14em; font-size: .74rem; margin-bottom: 10px; }
+.subhead { color: var(--muted); max-width: 720px; font-size: clamp(1rem, 2.2vw, 1.18rem); line-height: 1.55; }
+.hero-actions { display: grid; gap: 10px; }
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px;
+  backdrop-filter: blur(16px);
+}
+.stat-number { font-size: clamp(2rem, 8vw, 4rem); font-weight: 950; letter-spacing: -.05em; line-height: 1; }
+.panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: clamp(16px, 3vw, 26px);
+  margin: 16px 0;
+  backdrop-filter: blur(16px);
+}
+.save-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 390px);
+  gap: clamp(16px, 3vw, 24px);
+  align-items: stretch;
+}
+.form-grid { display: grid; gap: 12px; }
+.field label { display: block; font-size: .86rem; color: var(--muted); font-weight: 800; margin: 0 0 6px 4px; }
+.text-input {
+  width: 100%;
+  min-height: 50px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--card-solid) 80%, transparent);
+  color: var(--text);
+  padding: 12px 14px;
+  font-weight: 750;
+}
+.dropzone {
+  border: 2px dashed color-mix(in srgb, var(--accent) 55%, var(--line));
+  background: var(--soft);
+  border-radius: 22px;
+  padding: 18px;
+  min-height: 235px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  cursor: pointer;
+  transition: transform .18s ease, border-color .18s ease, background .18s ease;
+}
+.dropzone.dragging { transform: scale(.99); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.dropzone input, .sr-only-file { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.drop-icon { width: 78px; height: 78px; margin: 0 auto 12px; border-radius: 24px; background: var(--card-solid); border: 1px solid var(--line); display: grid; place-items: center; box-shadow: 0 12px 32px rgba(15,23,42,.08); font-size: 34px; }
+.dropzone strong { display: block; font-size: 1.12rem; margin-bottom: 6px; }
+.save-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.saved-list { display: grid; gap: 10px; }
+.empty {
+  border: 1px dashed var(--line);
+  border-radius: 20px;
+  padding: 22px;
+  text-align: center;
+  color: var(--muted);
+}
+.saved-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--card-solid) 74%, transparent);
+  border-radius: 18px;
+  padding: 10px;
+}
+.thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  object-fit: cover;
+  background: #fff;
+  border: 1px solid var(--line);
+}
+.row-meta { color: var(--muted); font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row-actions { display: flex; gap: 8px; }
+.row-actions button { min-height: 40px; padding: 8px 12px; font-size: .86rem; }
+.utility-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.utility-card { border: 1px solid var(--line); border-radius: 20px; padding: 16px; background: color-mix(in srgb, var(--card-solid) 70%, transparent); display: grid; gap: 12px; }
+.hidden { display: none !important; }
+.scanner-tools { display: flex; gap: 10px; flex-wrap: wrap; }
+#reader { width: 100%; overflow: hidden; border-radius: 18px; border: 1px solid var(--line); background: #000; margin-top: 14px; }
+#reader video { width: 100% !important; }
+.status-card, .result-card { border: 1px solid var(--line); border-radius: 18px; padding: 14px; margin-top: 14px; background: rgba(127,127,127,.07); }
+.status-card { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.status-dot { width: 10px; height: 10px; border-radius: 999px; background: var(--accent); flex: 0 0 auto; }
+.status-card.error .status-dot { background: var(--danger); }
+.result-card code { display: block; overflow-wrap: anywhere; white-space: pre-wrap; max-height: 180px; overflow: auto; }
+.action-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.slideshow-modal {
+  width: min(980px, calc(100vw - 18px));
+  max-width: 980px;
+  height: min(92svh, 850px);
+  border: 0;
+  border-radius: 30px;
+  background: var(--card-solid);
+  color: var(--text);
+  padding: 0;
+  box-shadow: 0 36px 120px rgba(0,0,0,.45);
+  overflow: hidden;
+}
+.slideshow-modal::backdrop { background: rgba(2,6,23,.72); backdrop-filter: blur(8px); }
+.slideshow-shell { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.slide-topbar { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 16px; border-bottom: 1px solid var(--line); text-align: center; }
+.slide-title-wrap { min-width: 0; width: 100%; }
+.slide-title { margin: 0; font-size: clamp(1.2rem, 4vw, 1.65rem); font-weight: 950; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.slide-subtitle { margin: 3px 0 0; color: var(--muted); font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.icon-btn { border-radius: 50%; width: 46px; height: 46px; padding: 0; flex: 0 0 auto; }
+.slide-stage {
+  position: relative;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at center, rgba(15,118,110,.11), transparent 38%),
+    linear-gradient(135deg, rgba(148,163,184,.12), transparent);
+  overflow: hidden;
+}
+.slide-image-wrap {
+  width: min(78svh, 82vw, 620px);
+  max-width: calc(100% - 28px);
+  aspect-ratio: 1 / 1;
+  border-radius: 30px;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  padding: clamp(14px, 4vw, 26px);
+  box-shadow: 0 28px 80px rgba(15,23,42,.22);
+  border: 1px solid rgba(148,163,184,.35);
+  animation: popSlide .34s ease both;
+}
+.slide-image { width: 100%; height: 100%; object-fit: contain; }
+@keyframes popSlide { from { transform: translateY(14px) scale(.985); opacity: .35; } to { transform: translateY(0) scale(1); opacity: 1; } }
+.nav-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 54px; height: 54px; border-radius: 50%; padding: 0; background: color-mix(in srgb, var(--accent) 86%, black); }
+.nav-btn.prev { left: 16px; }
+.nav-btn.next { right: 16px; }
+.slide-footer { padding: 12px 14px max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); display: grid; gap: 10px; }
+.slide-dots { display: flex; gap: 7px; overflow-x: auto; padding: 2px; justify-content: center; }
+.dot { width: 9px; height: 9px; min-height: 9px; padding: 0; border-radius: 999px; background: var(--line); border: 0; flex: 0 0 auto; }
+.dot.active { width: 26px; background: var(--accent); }
+.slide-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+@media (orientation: landscape) and (max-height: 620px) {
+  .hero { padding-top: 12px; }
+  h1 { font-size: clamp(1.9rem, 6vw, 3.4rem); }
+  .panel { margin: 10px 0; padding: 14px; }
+  .slideshow-modal { height: calc(100svh - 12px); }
+  .slide-image-wrap { width: min(72svh, 56vw); }
+}
+@media (max-width: 860px) {
+  .hero, .save-grid { grid-template-columns: 1fr; align-items: stretch; }
+  .hero-actions { grid-template-columns: 1fr 1fr; }
+  .utility-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .wrap { width: min(100% - 18px, 1120px); }
+  .hero-actions, .save-actions, .scanner-tools, .action-grid, .slide-actions { display: grid; grid-template-columns: 1fr; }
+  .dropzone { min-height: 205px; }
+  .saved-row { grid-template-columns: 46px minmax(0, 1fr); }
+  .thumb { width: 46px; height: 46px; }
+  .row-actions { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); }
+  .row-actions button { width: 100%; }
+  .slide-image-wrap { max-width: calc(100% - 28px); width: min(76svh, 88vw); border-radius: 24px; }
+  .nav-btn { top: auto; bottom: 92px; width: 48px; height: 48px; }
+  .nav-btn.prev { left: 18px; }
+  .nav-btn.next { right: 18px; }
+}
+  </style>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+</head>
+<body>
+  <header class="hero wrap">
+    <div>
+      <p class="eyebrow">Personal QR Wallet</p>
+      <h1>Save QR codes first. Preview only when needed.</h1>
+      <p class="subhead">Store GCash, Maya, QR Ph, and digital bank QR images with a bank or wallet name. The home page stays clean, and saved QR codes open in an animated slideshow preview.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="panel save-grid" aria-labelledby="save-title">
+      <div>
+        <h2 id="save-title">Save QR image</h2>
+        <p class="muted">The QR picture is saved locally in this browser. Add the digital bank or wallet name so it is easy to find later.</p>
+        <div class="form-grid">
+          <div class="field">
+            <label for="bankInput">Digital bank / wallet</label>
+            <input id="bankInput" class="text-input" placeholder="e.g., GCash, Maya, GoTyme, Maribank, UnoBank" list="bankOptions" />
+            <datalist id="bankOptions">
+              <option value="GCash"></option>
+              <option value="Maya"></option>
+              <option value="GoTyme"></option>
+              <option value="Maribank"></option>
+              <option value="CIMB"></option>
+              <option value="Tonik"></option>
+              <option value="Paypal"></option>
+              <option value="UnionBank"></option>
+              <option value="BDO"></option>
+              <option value="BPI"></option>
+              <option value="UnoBank"></option>
+            </datalist>
+          </div>
+          <p class="hint">Tip: If you upload multiple images, the same bank/wallet value will be applied to all selected files. You can edit the bank/wallet name afterward.</p>
+          <div class="save-actions">
+            <button id="previewButton">Preview saved QRs</button>
+            <button id="clearAll" class="danger ghost">Clear all</button>
+          </div>
+        </div>
+      </div>
+
+      <label class="dropzone" id="dropzone">
+        <input id="fileInput" type="file" accept="image/*" multiple />
+        <div>
+          <div class="drop-icon">＋</div>
+          <strong>Choose or drop QR images</strong>
+          <small>PNG, JPG, WEBP, GIF. No full QR gallery is shown here until you tap Preview.</small>
+        </div>
+      </label>
+    </section>
+
+    <section class="panel" aria-label="Saved QR list">
+      <div id="savedList" class="saved-list" aria-live="polite"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="tools-title">
+      <h2 id="tools-title">Tools</h2>
+      <div class="utility-grid">
+        <div class="utility-card">
+          <h3>Camera scan</h3>
+          <p class="muted">Use the phone or computer camera to detect a QR code and show available actions.</p>
+          <button id="cameraButton2">Open camera scanner</button>
+        </div>
+        <div class="utility-card">
+          <h3>Upload QR to scan</h3>
+          <p class="muted">Read a QR code from a screenshot or saved image without opening the camera.</p>
+          <label class="button-like ghost" for="scanFileInput">Upload QR to Scan</label>
+          <input id="scanFileInput" class="sr-only-file" type="file" accept="image/*" />
+        </div>
+      </div>
+    </section>
+
+    <section id="scannerPanel" class="panel hidden" aria-labelledby="scanner-title">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <div>
+          <h2 id="scanner-title">QR scanner</h2>
+          <p class="muted">Point your camera at a QR code or upload a QR screenshot. Results appear below.</p>
+        </div>
+        <div class="scanner-tools">
+          <label class="button-like ghost" for="scanFileInput2">Upload QR</label>
+          <input id="scanFileInput2" class="sr-only-file" type="file" accept="image/*" />
+          <button id="closeScanner" class="ghost">Close scanner</button>
+        </div>
+      </div>
+      <div id="reader"></div>
+      <div id="scanStatus" class="status-card hidden"><span class="status-dot"></span><span id="scanStatusText">Waiting for QR...</span></div>
+      <div id="scanResult" class="result-card hidden"></div>
+    </section>
+  </main>
+
+  <template id="rowTemplate">
+    <article class="saved-row">
+      <img class="thumb" alt="Saved QR thumbnail" />
+      <div style="min-width:0">
+        <div class="row-meta"></div>
+      </div>
+      <div class="row-actions">
+        <button class="edit-btn ghost">Edit</button>
+        <button class="view-btn">View</button>
+        <button class="delete-btn danger ghost">Delete</button>
+      </div>
+    </article>
+  </template>
+
+  <dialog id="slideshowModal" class="slideshow-modal">
+    <div class="slideshow-shell">
+      <div class="slide-topbar">
+        <div class="slide-title-wrap">
+          <h2 id="slideTitle" class="slide-title">Digital bank / wallet</h2>
+        </div>
+      </div>
+      <div class="slide-stage" id="slideStage" title="Tap to show next QR. Press Esc to close.">
+        <div id="slideImageWrap" class="slide-image-wrap">
+          <img id="slideImage" class="slide-image" alt="Saved QR code preview" />
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+const STORAGE_KEY = 'qr-wallet-items-v3';
+const fileInput = document.querySelector('#fileInput');
+const dropzone = document.querySelector('#dropzone');
+const bankInput = document.querySelector('#bankInput');
+const savedList = document.querySelector('#savedList');
+const clearAll = document.querySelector('#clearAll');
+const rowTemplate = document.querySelector('#rowTemplate');
+const previewButton = document.querySelector('#previewButton');
+const slideshowModal = document.querySelector('#slideshowModal');
+const slideTitle = document.querySelector('#slideTitle');
+const slideImage = document.querySelector('#slideImage');
+const slideImageWrap = document.querySelector('#slideImageWrap');
+const slideStage = document.querySelector('#slideStage');
+const cameraButton2 = document.querySelector('#cameraButton2');
+const closeScanner = document.querySelector('#closeScanner');
+const scanFileInput = document.querySelector('#scanFileInput');
+const scanFileInput2 = document.querySelector('#scanFileInput2');
+const scannerPanel = document.querySelector('#scannerPanel');
+const scanResult = document.querySelector('#scanResult');
+const scanStatus = document.querySelector('#scanStatus');
+const scanStatusText = document.querySelector('#scanStatusText');
+const reader = document.querySelector('#reader');
+
+let items = loadItems();
+let currentSlide = 0;
+let qrScanner = null;
+let nativeStream = null;
+let nativeScanTimer = null;
+let lastScan = '';
+let lastScanAt = 0;
+
+renderSavedList();
+
+fileInput.addEventListener('change', event => addFiles([...event.target.files]));
+dropzone.addEventListener('dragover', event => { event.preventDefault(); dropzone.classList.add('dragging'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragging'));
+dropzone.addEventListener('drop', event => {
+  event.preventDefault();
+  dropzone.classList.remove('dragging');
+  addFiles([...event.dataTransfer.files].filter(file => file.type.startsWith('image/')));
+});
+clearAll.addEventListener('click', () => {
+  if (!items.length) return;
+  if (confirm('Delete all saved QR images from this browser?')) {
+    items = [];
+    saveItems();
+    renderSavedList();
+  }
+});
+previewButton.addEventListener('click', () => openSlideshow(0));
+slideStage.addEventListener('click', event => { if (event.target === slideStage || event.target === slideImage || event.target === slideImageWrap) moveSlide(1); });
+slideshowModal.addEventListener('click', event => { if (event.target === slideshowModal) slideshowModal.close(); });
+slideshowModal.addEventListener('keydown', event => {
+  if (event.key === 'ArrowLeft') moveSlide(-1);
+  if (event.key === 'ArrowRight') moveSlide(1);
+});
+cameraButton2.addEventListener('click', startScanner);
+closeScanner.addEventListener('click', stopScanner);
+scanFileInput.addEventListener('change', event => scanUploadedFile(event.target));
+scanFileInput2.addEventListener('change', event => scanUploadedFile(event.target));
+
+let touchStartX = 0;
+slideImageWrap.addEventListener('touchstart', event => { touchStartX = event.changedTouches[0].clientX; }, { passive: true });
+slideImageWrap.addEventListener('touchend', event => {
+  const delta = event.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(delta) > 45) moveSlide(delta > 0 ? -1 : 1);
+}, { passive: true });
+
+async function addFiles(files) {
+  const imageFiles = files.filter(file => file.type.startsWith('image/'));
+  if (!imageFiles.length) return;
+  const bank = bankInput.value.trim();
+  const newItems = await Promise.all(imageFiles.map((file, index) => fileToItem(file, bank, index, imageFiles.length)));
+  items = [...newItems, ...items];
+  saveItems();
+  renderSavedList();
+  fileInput.value = '';
+}
+
+function fileToItem(file, bank, index, total) {
+  return new Promise((resolve, reject) => {
+    const readerObj = new FileReader();
+    readerObj.onload = () => {
+      const guessedBank = bank || classify(file.name);
+      const nameFromFile = file.name.replace(/\.[^/.]+$/, '') || 'Saved QR';
+      const finalName = nameFromFile;
+      resolve({
+        id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random()),
+        name: finalName,
+        bank: guessedBank === 'QR image' ? '' : guessedBank,
+        image: readerObj.result,
+        createdAt: new Date().toISOString(),
+        type: guessedBank || 'QR image'
+      });
+    };
+    readerObj.onerror = reject;
+    readerObj.readAsDataURL(file);
+  });
+}
+
+function renderSavedList() {
+  savedList.innerHTML = '';
+  previewButton.disabled = !items.length;
+  clearAll.disabled = !items.length;
+
+  if (!items.length) {
+    savedList.innerHTML = '<div class="empty">Upload your first QR image and add the digital bank / wallet name.</div>';
+    return;
+  }
+
+  for (const [index, item] of items.entries()) {
+    const row = rowTemplate.content.cloneNode(true);
+    row.querySelector('.thumb').src = item.image;
+    row.querySelector('.thumb').alt = `${item.bank || 'Saved QR'} thumbnail`;
+    row.querySelector('.row-meta').textContent = `${item.bank || 'No bank/wallet set'} • Saved ${formatDate(item.createdAt)}`;
+    row.querySelector('.view-btn').addEventListener('click', () => openSlideshow(index));
+    row.querySelector('.edit-btn').addEventListener('click', () => editItem(item.id));
+    row.querySelector('.delete-btn').addEventListener('click', () => deleteItem(item.id));
+    savedList.appendChild(row);
+  }
+}
+
+function openSlideshow(index = 0) {
+  if (!items.length) {
+    alert('No saved QR images yet. Upload one first.');
+    return;
+  }
+  currentSlide = Math.max(0, Math.min(index, items.length - 1));
+  updateSlide(true);
+  slideshowModal.showModal();
+}
+
+function updateSlide(animate = false) {
+  const item = items[currentSlide];
+  if (!item) return;
+  slideTitle.textContent = item.bank || 'No bank/wallet set';
+  slideImage.src = item.image;
+  slideImage.alt = `${item.bank || 'Saved QR'} preview`;
+  if (animate) {
+    slideImageWrap.style.animation = 'none';
+    slideImageWrap.offsetHeight;
+    slideImageWrap.style.animation = '';
+  }
+}
+
+function moveSlide(direction) {
+  if (items.length <= 1) return;
+  currentSlide = (currentSlide + direction + items.length) % items.length;
+  updateSlide(true);
+}
+
+function editItem(id) {
+  const item = items.find(candidate => candidate.id === id);
+  if (!item) return;
+  const bank = prompt('Digital bank / wallet:', item.bank || '');
+  if (bank === null) return;
+  item.bank = bank.trim();
+  item.type = item.bank || item.type || 'QR image';
+  saveItems();
+  renderSavedList();
+  if (slideshowModal.open) updateSlide();
+}
+
+function editCurrentSlide() {
+  const item = items[currentSlide];
+  if (item) editItem(item.id);
+}
+
+function deleteItem(id) {
+  const item = items.find(candidate => candidate.id === id);
+  if (!item) return;
+  if (!confirm(`Delete this ${item.bank || 'QR'} image from this browser?`)) return;
+  const deletedIndex = items.findIndex(candidate => candidate.id === id);
+  items = items.filter(candidate => candidate.id !== id);
+  if (currentSlide >= items.length) currentSlide = Math.max(0, items.length - 1);
+  saveItems();
+  renderSavedList();
+  if (slideshowModal.open) {
+    if (items.length) updateSlide(true);
+    else slideshowModal.close();
+  }
+}
+
+async function copyCurrentSlideImage() {
+  const item = items[currentSlide];
+  if (!item) return;
+  try {
+    const blob = await (await fetch(item.image)).blob();
+    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+    alert('QR image copied.');
+  } catch {
+    alert('Copy image is not supported in this browser. You can download the image instead.');
+  }
+}
+
+function downloadCurrentSlideImage() {
+  const item = items[currentSlide];
+  if (!item) return;
+  const link = document.createElement('a');
+  link.href = item.image;
+  link.download = `${safeFileName(item.name || 'qr-code')}.png`;
+  link.click();
+}
+
+async function startScanner() {
+  scannerPanel.classList.remove('hidden');
+  scannerPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  scanResult.classList.add('hidden');
+  reader.classList.remove('hidden');
+  setStatus('Starting camera. Allow camera permission when asked.');
+  await stopScanner(false);
+  if (window.Html5Qrcode) {
+    qrScanner = new Html5Qrcode('reader');
+    try {
+      await qrScanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: qrboxSize() }, onScanSuccess, () => {});
+      setStatus('Scanning... Place the full QR code inside the camera box.');
+    } catch (error) {
+      setStatus(`Camera could not start: ${error.message || error}. Use HTTPS or localhost, then allow camera permission.`, true);
+    }
+    return;
+  }
+  if ('BarcodeDetector' in window) return startNativeCameraScanner();
+  setStatus('Scanner library did not load and this browser has no built-in QR detector. Connect to the internet, refresh, or use Chrome/Edge.', true);
+}
+
+function qrboxSize() {
+  const side = Math.max(210, Math.min(320, Math.floor(Math.min(window.innerWidth, window.innerHeight) * 0.62)));
+  return { width: side, height: side };
+}
+
+async function startNativeCameraScanner() {
+  try {
+    nativeStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    reader.innerHTML = '';
+    const video = document.createElement('video');
+    video.setAttribute('playsinline', 'true');
+    video.muted = true;
+    video.srcObject = nativeStream;
+    reader.appendChild(video);
+    await video.play();
+    setStatus('Scanning with the browser QR detector... Keep the QR steady and well-lit.');
+    const detector = new BarcodeDetector({ formats: ['qr_code'] });
+    nativeScanTimer = setInterval(async () => {
+      try {
+        const codes = await detector.detect(video);
+        if (codes && codes.length) onScanSuccess(codes[0].rawValue || codes[0].rawValueText || '');
+      } catch {}
+    }, 350);
+  } catch (error) {
+    setStatus(`Camera could not start: ${error.message || error}. Use HTTPS or localhost, then allow camera permission.`, true);
+  }
+}
+
+async function scanUploadedFile(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  scannerPanel.classList.remove('hidden');
+  scannerPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  scanResult.classList.add('hidden');
+  reader.classList.add('hidden');
+  setStatus(`Reading ${file.name}...`);
+  await stopScanner(false);
+  try {
+    let decodedText = '';
+    if (window.Html5Qrcode) {
+      reader.classList.remove('hidden');
+      const imageScanner = new Html5Qrcode('reader');
+      decodedText = await imageScanner.scanFile(file, true);
+      try { await imageScanner.clear(); } catch {}
+      reader.classList.add('hidden');
+    } else if ('BarcodeDetector' in window) {
+      decodedText = await detectFromUploadedImage(file);
+    } else {
+      throw new Error('No QR scanner is available in this browser. Connect to the internet and refresh, or use Chrome/Edge.');
+    }
+    onScanSuccess(decodedText);
+  } catch (error) {
+    setStatus(`No QR code was detected in ${file.name}. Try a clearer image, crop around the QR, or increase brightness. Details: ${error.message || error}`, true);
+  }
+}
+
+async function detectFromUploadedImage(file) {
+  const detector = new BarcodeDetector({ formats: ['qr_code'] });
+  const img = await fileToImage(file);
+  const codes = await detector.detect(img);
+  if (!codes || !codes.length) throw new Error('No QR found.');
+  return codes[0].rawValue || codes[0].rawValueText || '';
+}
+function fileToImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+async function stopScanner(hidePanel = true) {
+  if (qrScanner) { try { await qrScanner.stop(); } catch {} try { await qrScanner.clear(); } catch {} qrScanner = null; }
+  if (nativeScanTimer) { clearInterval(nativeScanTimer); nativeScanTimer = null; }
+  if (nativeStream) { nativeStream.getTracks().forEach(track => track.stop()); nativeStream = null; }
+  if (hidePanel) scannerPanel.classList.add('hidden');
+}
+async function onScanSuccess(decodedText) {
+  const now = Date.now();
+  if (!decodedText) return;
+  if (decodedText === lastScan && now - lastScanAt < 2500) return;
+  lastScan = decodedText;
+  lastScanAt = now;
+  if (navigator.vibrate) navigator.vibrate(120);
+  setStatus('QR detected. Choose what to do next.');
+  await stopScanner(false);
+  reader.classList.add('hidden');
+  showScanResult(decodedText, analyzeQr(decodedText));
+}
+function showScanResult(text, info = analyzeQr(text)) {
+  scanResult.classList.remove('hidden');
+  const actions = buildActions(text).map(action => `<button data-action="${action.id}" class="${action.ghost ? 'ghost' : ''}">${action.label}</button>`).join('');
+  scanResult.innerHTML = `<strong>${escapeHtml(info.title)}</strong><p>${escapeHtml(info.message)}</p><code>${escapeHtml(text)}</code><div class="action-grid">${actions}</div>`;
+  for (const action of buildActions(text)) scanResult.querySelector(`[data-action="${action.id}"]`)?.addEventListener('click', action.run);
+}
+function setStatus(message, isError = false) {
+  scanStatus.classList.remove('hidden');
+  scanStatus.classList.toggle('error', isError);
+  scanStatusText.textContent = message;
+}
+function analyzeQr(text) {
+  const value = String(text || '').trim();
+  const upper = value.toUpperCase();
+  const isUrl = /^https?:\/\//i.test(value);
+  const gcashUrl = isUrl && /(gcash|g-xchange|mynt|alipayplus)/i.test(value);
+  const mayaUrl = isUrl && /(maya|paymaya)/i.test(value);
+  const looksPayment = /^000201/.test(value) || upper.includes('PH.QR') || upper.includes('QRPH') || upper.includes('COM.P2PQRPH') || upper.includes('A000000677010111') || upper.includes('GCASH') || upper.includes('MAYA') || upper.includes('PAYMAYA');
+  if (gcashUrl || mayaUrl) return { title: gcashUrl ? 'GCash QR link detected' : 'Maya QR link detected', message: 'Tap Open scanned link to continue. Browsers may ask before opening another app.' };
+  if (looksPayment) return { title: 'Payment QR detected', message: 'This looks like a QR Ph / EMV payment code. Open your preferred app below, then use that app’s Scan/Pay QR option if needed.' };
+  if (isUrl) return { title: 'QR link detected', message: 'Open the scanned link or copy the content.' };
+  return { title: 'QR content detected', message: 'Copy the content, or open a payment app manually if this is a payment QR.' };
+}
+function buildActions(text) {
+  const isUrl = /^https?:\/\//i.test(text);
+  const actions = [];
+  if (isUrl) actions.push({ id: 'open-link', label: 'Open scanned link', run: () => window.open(text, '_blank', 'noopener') });
+  actions.push(
+    { id: 'copy', label: 'Copy QR text', ghost: true, run: () => copyText(text) },
+    { id: 'gcash', label: 'Open GCash', run: () => openWallet('gcash') },
+    { id: 'maya', label: 'Open Maya', run: () => openWallet('maya') },
+    { id: 'gotyme', label: 'Open GoTyme', run: () => openWallet('gotyme') },
+    { id: 'seabank', label: 'Open SeaBank', run: () => openWallet('seabank') },
+    { id: 'share', label: 'Share QR text', ghost: true, run: () => navigator.share ? navigator.share({ text }) : copyText(text) }
+  );
+  return actions;
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); alert('QR text copied.'); }
+  catch { prompt('Copy this QR text:', text); }
+}
+function openWallet(wallet) {
+  const androidIntents = {
+    gcash: 'intent://scan/#Intent;package=com.globe.gcash.android;scheme=gcash;end',
+    maya: 'intent://scan/#Intent;package=com.paymaya;scheme=paymaya;end',
+    gotyme: 'intent://scan/#Intent;package=ph.com.gotyme;scheme=gotyme;end',
+    seabank: 'intent://scan/#Intent;package=ph.seabank.seabank;scheme=seabank;end'
+  };
+  const webFallbacks = { gcash: 'https://www.gcash.com/', maya: 'https://www.maya.ph/', gotyme: 'https://www.gotyme.com.ph/', seabank: 'https://www.seabank.ph/' };
+  if (/Android/i.test(navigator.userAgent)) {
+    window.location.href = androidIntents[wallet];
+    setTimeout(() => { window.location.href = webFallbacks[wallet]; }, 1200);
+  } else {
+    window.open(webFallbacks[wallet], '_blank', 'noopener');
+  }
+}
+function classify(name = '') {
+  const upper = name.toUpperCase();
+  if (upper.includes('GCASH')) return 'GCash';
+  if (upper.includes('MAYA') || upper.includes('PAYMAYA')) return 'Maya';
+  if (upper.includes('GOTYME')) return 'GoTyme';
+  if (upper.includes('SEABANK')) return 'SeaBank';
+  if (upper.includes('CIMB')) return 'CIMB';
+  if (upper.includes('QRPH') || upper.includes('QR PH')) return 'QR Ph';
+  return 'QR image';
+}
+function loadItems() {
+  try {
+    const current = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (Array.isArray(current)) return current;
+    const legacy = JSON.parse(localStorage.getItem('qr-wallet-items-v2'));
+    return Array.isArray(legacy) ? legacy : [];
+  } catch { return []; }
+}
+function saveItems() { localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); }
+function formatDate(date) { return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(new Date(date)); }
+function safeFileName(value) { return String(value).replace(/[^a-z0-9-_]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'qr-code'; }
+function escapeHtml(value) { return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char])); }
+  </script>
+</body>
+</html>

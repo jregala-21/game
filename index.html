@@ -208,8 +208,24 @@ small, .muted, .hint, .stat-label { color: var(--muted); }
     radial-gradient(circle at center, rgba(15,118,110,.11), transparent 38%),
     linear-gradient(135deg, rgba(148,163,184,.12), transparent);
   overflow: hidden;
+  touch-action: pan-y;
 }
+.slide-stage::before, .slide-stage::after {
+  content: '';
+  position: absolute;
+  width: 170px;
+  height: 170px;
+  border-radius: 999px;
+  background: rgba(15,118,110,.10);
+  filter: blur(14px);
+  animation: floatGlow 5.5s ease-in-out infinite alternate;
+}
+.slide-stage::before { top: 9%; left: -70px; }
+.slide-stage::after { right: -70px; bottom: 11%; animation-delay: -2s; }
+@keyframes floatGlow { from { transform: translate3d(0,0,0) scale(.9); opacity: .48; } to { transform: translate3d(28px,-16px,0) scale(1.08); opacity: .9; } }
 .slide-image-wrap {
+  position: relative;
+  z-index: 1;
   width: min(78svh, 82vw, 620px);
   max-width: calc(100% - 28px);
   aspect-ratio: 1 / 1;
@@ -221,9 +237,16 @@ small, .muted, .hint, .stat-label { color: var(--muted); }
   box-shadow: 0 28px 80px rgba(15,23,42,.22);
   border: 1px solid rgba(148,163,184,.35);
   animation: popSlide .34s ease both;
+  will-change: transform, opacity;
 }
+.slide-image-wrap.swipe-next { animation: slideInNext .38s cubic-bezier(.22,1,.36,1) both; }
+.slide-image-wrap.swipe-prev { animation: slideInPrev .38s cubic-bezier(.22,1,.36,1) both; }
+.slide-image-wrap.tap-pulse { animation: tapPulse .22s ease both; }
 .slide-image { width: 100%; height: 100%; object-fit: contain; }
 @keyframes popSlide { from { transform: translateY(14px) scale(.985); opacity: .35; } to { transform: translateY(0) scale(1); opacity: 1; } }
+@keyframes slideInNext { from { transform: translateX(28vw) rotate(1.5deg) scale(.965); opacity: .15; } to { transform: translateX(0) rotate(0) scale(1); opacity: 1; } }
+@keyframes slideInPrev { from { transform: translateX(-28vw) rotate(-1.5deg) scale(.965); opacity: .15; } to { transform: translateX(0) rotate(0) scale(1); opacity: 1; } }
+@keyframes tapPulse { 0% { transform: scale(1); } 50% { transform: scale(.985); } 100% { transform: scale(1); } }
 .nav-btn { position: absolute; top: 50%; transform: translateY(-50%); width: 54px; height: 54px; border-radius: 50%; padding: 0; background: color-mix(in srgb, var(--accent) 86%, black); }
 .nav-btn.prev { left: 16px; }
 .nav-btn.next { right: 16px; }
@@ -232,6 +255,45 @@ small, .muted, .hint, .stat-label { color: var(--muted); }
 .dot { width: 9px; height: 9px; min-height: 9px; padding: 0; border-radius: 999px; background: var(--line); border: 0; flex: 0 0 auto; }
 .dot.active { width: 26px; background: var(--accent); }
 .slide-actions { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.slide-appbar {
+  position: absolute;
+  z-index: 2;
+  left: max(14px, env(safe-area-inset-left));
+  right: max(14px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.slide-app-button {
+  pointer-events: auto;
+  width: min(420px, 100%);
+  min-height: 56px;
+  border-radius: 18px;
+  box-shadow: 0 18px 45px rgba(15,23,42,.28);
+  font-size: 1rem;
+  backdrop-filter: blur(14px);
+}
+.slide-app-button.secondary {
+  background: color-mix(in srgb, var(--card-solid) 88%, transparent);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+.swipe-hint {
+  position: absolute;
+  z-index: 2;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--muted);
+  background: color-mix(in srgb, var(--card-solid) 76%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 7px 11px;
+  font-size: .78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
 @media (orientation: landscape) and (max-height: 620px) {
   .hero { padding-top: 12px; }
   h1 { font-size: clamp(1.9rem, 6vw, 3.4rem); }
@@ -264,8 +326,8 @@ small, .muted, .hint, .stat-label { color: var(--muted); }
   <header class="hero wrap">
     <div>
       <p class="eyebrow">Personal QR Wallet</p>
-      <h1>Save QR codes first. Preview only when needed.</h1>
-      <p class="subhead">Store GCash, Maya, QR Ph, and digital bank QR images with a bank or wallet name. The home page stays clean, and saved QR codes open in an animated slideshow preview.</p>
+      <h1>Save bank QR codes. Open apps from preview.</h1>
+      <p class="subhead">Store GCash, Maya, QR Ph, and digital bank QR images with a bank or wallet name. Preview is mobile-first: swipe between QR codes and open the matching bank app from the preview.</p>
     </div>
   </header>
 
@@ -277,19 +339,19 @@ small, .muted, .hint, .stat-label { color: var(--muted); }
         <div class="form-grid">
           <div class="field">
             <label for="bankInput">Digital bank / wallet</label>
-            <input id="bankInput" class="text-input" placeholder="e.g., GCash, Maya, GoTyme, Maribank, UnoBank" list="bankOptions" />
+            <input id="bankInput" class="text-input" placeholder="e.g., GCash, Maya, GoTyme, SeaBank, QR Ph" list="bankOptions" />
             <datalist id="bankOptions">
               <option value="GCash"></option>
               <option value="Maya"></option>
               <option value="GoTyme"></option>
-              <option value="Maribank"></option>
+              <option value="SeaBank"></option>
               <option value="CIMB"></option>
               <option value="Tonik"></option>
-              <option value="Paypal"></option>
+              <option value="OwnBank"></option>
               <option value="UnionBank"></option>
               <option value="BDO"></option>
               <option value="BPI"></option>
-              <option value="UnoBank"></option>
+              <option value="QR Ph"></option>
             </datalist>
           </div>
           <p class="hint">Tip: If you upload multiple images, the same bank/wallet value will be applied to all selected files. You can edit the bank/wallet name afterward.</p>
@@ -370,9 +432,13 @@ small, .muted, .hint, .stat-label { color: var(--muted); }
           <h2 id="slideTitle" class="slide-title">Digital bank / wallet</h2>
         </div>
       </div>
-      <div class="slide-stage" id="slideStage" title="Tap to show next QR. Press Esc to close.">
+      <div class="slide-stage" id="slideStage" title="Swipe left or right to move between saved QR codes. Press Esc to close.">
+        <div class="swipe-hint" id="swipeHint">Swipe left or right</div>
         <div id="slideImageWrap" class="slide-image-wrap">
           <img id="slideImage" class="slide-image" alt="Saved QR code preview" />
+        </div>
+        <div class="slide-appbar">
+          <button id="slideAppButton" class="slide-app-button">Open App</button>
         </div>
       </div>
     </div>
@@ -392,6 +458,8 @@ const slideTitle = document.querySelector('#slideTitle');
 const slideImage = document.querySelector('#slideImage');
 const slideImageWrap = document.querySelector('#slideImageWrap');
 const slideStage = document.querySelector('#slideStage');
+const slideAppButton = document.querySelector('#slideAppButton');
+const swipeHint = document.querySelector('#swipeHint');
 const cameraButton2 = document.querySelector('#cameraButton2');
 const closeScanner = document.querySelector('#closeScanner');
 const scanFileInput = document.querySelector('#scanFileInput');
@@ -429,7 +497,10 @@ clearAll.addEventListener('click', () => {
   }
 });
 previewButton.addEventListener('click', () => openSlideshow(0));
-slideStage.addEventListener('click', event => { if (event.target === slideStage || event.target === slideImage || event.target === slideImageWrap) moveSlide(1); });
+slideStage.addEventListener('click', event => {
+  if (event.target === slideAppButton) return;
+  if (event.target === slideStage || event.target === slideImage || event.target === slideImageWrap) pulseCurrentSlide();
+});
 slideshowModal.addEventListener('click', event => { if (event.target === slideshowModal) slideshowModal.close(); });
 slideshowModal.addEventListener('keydown', event => {
   if (event.key === 'ArrowLeft') moveSlide(-1);
@@ -439,12 +510,26 @@ cameraButton2.addEventListener('click', startScanner);
 closeScanner.addEventListener('click', stopScanner);
 scanFileInput.addEventListener('change', event => scanUploadedFile(event.target));
 scanFileInput2.addEventListener('change', event => scanUploadedFile(event.target));
+slideAppButton.addEventListener('click', () => openWalletForCurrentSlide());
 
 let touchStartX = 0;
-slideImageWrap.addEventListener('touchstart', event => { touchStartX = event.changedTouches[0].clientX; }, { passive: true });
-slideImageWrap.addEventListener('touchend', event => {
+let touchMoveX = 0;
+slideStage.addEventListener('touchstart', event => {
+  touchStartX = event.changedTouches[0].clientX;
+  touchMoveX = touchStartX;
+  slideImageWrap.style.transition = 'transform .08s linear';
+}, { passive: true });
+slideStage.addEventListener('touchmove', event => {
+  touchMoveX = event.changedTouches[0].clientX;
+  const delta = Math.max(-90, Math.min(90, touchMoveX - touchStartX));
+  slideImageWrap.style.transform = `translateX(${delta}px) rotate(${delta / 70}deg) scale(${1 - Math.min(Math.abs(delta) / 900, .06)})`;
+}, { passive: true });
+slideStage.addEventListener('touchend', event => {
+  slideImageWrap.style.transition = '';
+  slideImageWrap.style.transform = '';
   const delta = event.changedTouches[0].clientX - touchStartX;
-  if (Math.abs(delta) > 45) moveSlide(delta > 0 ? -1 : 1);
+  if (Math.abs(delta) > 48) moveSlide(delta > 0 ? -1 : 1);
+  else pulseCurrentSlide();
 }, { passive: true });
 
 async function addFiles(files) {
@@ -511,23 +596,38 @@ function openSlideshow(index = 0) {
   slideshowModal.showModal();
 }
 
-function updateSlide(animate = false) {
+function updateSlide(animate = false, direction = 0) {
   const item = items[currentSlide];
   if (!item) return;
-  slideTitle.textContent = item.bank || 'No bank/wallet set';
+  const bankTitle = item.bank || 'No bank/wallet set';
+  slideTitle.textContent = bankTitle;
   slideImage.src = item.image;
-  slideImage.alt = `${item.bank || 'Saved QR'} preview`;
-  if (animate) {
-    slideImageWrap.style.animation = 'none';
-    slideImageWrap.offsetHeight;
-    slideImageWrap.style.animation = '';
-  }
+  slideImage.alt = `${bankTitle} preview`;
+  const walletInfo = walletFromBank(bankTitle);
+  slideAppButton.textContent = walletInfo ? `Open ${walletInfo.label}` : 'Open payment app';
+  slideAppButton.classList.toggle('secondary', !walletInfo);
+  swipeHint.textContent = items.length > 1 ? 'Swipe left or right' : 'Saved QR preview';
+  if (animate) animateSlide(direction);
+}
+
+function animateSlide(direction = 0) {
+  slideImageWrap.classList.remove('swipe-next', 'swipe-prev', 'tap-pulse');
+  slideImageWrap.style.animation = 'none';
+  slideImageWrap.offsetHeight;
+  slideImageWrap.style.animation = '';
+  if (direction > 0) slideImageWrap.classList.add('swipe-next');
+  else if (direction < 0) slideImageWrap.classList.add('swipe-prev');
+  else slideImageWrap.classList.add('tap-pulse');
+}
+
+function pulseCurrentSlide() {
+  animateSlide(0);
 }
 
 function moveSlide(direction) {
   if (items.length <= 1) return;
   currentSlide = (currentSlide + direction + items.length) % items.length;
-  updateSlide(true);
+  updateSlide(true, direction);
 }
 
 function editItem(id) {
@@ -735,6 +835,30 @@ async function copyText(text) {
   try { await navigator.clipboard.writeText(text); alert('QR text copied.'); }
   catch { prompt('Copy this QR text:', text); }
 }
+function openWalletForCurrentSlide() {
+  const item = items[currentSlide];
+  if (!item) return;
+  const walletInfo = walletFromBank(item.bank || '');
+  if (walletInfo) {
+    openWallet(walletInfo.key);
+    return;
+  }
+  const choice = prompt('Which app do you want to open? Type: gcash, maya, gotyme, seabank', 'gcash');
+  if (!choice) return;
+  const normalized = choice.toLowerCase().replace(/[^a-z]/g, '');
+  if (['gcash','maya','gotyme','seabank'].includes(normalized)) openWallet(normalized);
+  else alert('Supported app buttons are GCash, Maya, GoTyme, and SeaBank.');
+}
+
+function walletFromBank(bank = '') {
+  const value = String(bank).toLowerCase().replace(/\s+/g, '');
+  if (value.includes('gcash') || value.includes('g-cash')) return { key: 'gcash', label: 'GCash' };
+  if (value.includes('maya') || value.includes('paymaya')) return { key: 'maya', label: 'Maya' };
+  if (value.includes('gotyme') || value.includes('go-tyme')) return { key: 'gotyme', label: 'GoTyme' };
+  if (value.includes('seabank') || value.includes('sea-bank')) return { key: 'seabank', label: 'SeaBank' };
+  return null;
+}
+
 function openWallet(wallet) {
   const androidIntents = {
     gcash: 'intent://scan/#Intent;package=com.globe.gcash.android;scheme=gcash;end',

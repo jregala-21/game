@@ -860,19 +860,58 @@ function walletFromBank(bank = '') {
 }
 
 function openWallet(wallet) {
-  const androidIntents = {
-    gcash: 'intent://scan/#Intent;package=com.globe.gcash.android;scheme=gcash;end',
-    maya: 'intent://scan/#Intent;package=com.paymaya;scheme=paymaya;end',
-    gotyme: 'intent://scan/#Intent;package=ph.com.gotyme;scheme=gotyme;end',
-    seabank: 'intent://scan/#Intent;package=ph.seabank.seabank;scheme=seabank;end'
+  const configs = {
+    gcash: {
+      label: 'GCash',
+      package: 'com.globe.gcash.android',
+      schemes: ['gcash://', 'gcash://scan']
+    },
+    maya: {
+      label: 'Maya',
+      package: 'com.paymaya',
+      schemes: ['paymaya://', 'maya://']
+    },
+    gotyme: {
+      label: 'GoTyme',
+      package: 'ph.com.gotyme',
+      schemes: ['gotyme://']
+    },
+    seabank: {
+      label: 'SeaBank',
+      package: 'ph.seabank.seabank',
+      schemes: ['seabank://']
+    }
   };
-  const webFallbacks = { gcash: 'https://www.gcash.com/', maya: 'https://www.maya.ph/', gotyme: 'https://www.gotyme.com.ph/', seabank: 'https://www.seabank.ph/' };
-  if (/Android/i.test(navigator.userAgent)) {
-    window.location.href = androidIntents[wallet];
-    setTimeout(() => { window.location.href = webFallbacks[wallet]; }, 1200);
-  } else {
-    window.open(webFallbacks[wallet], '_blank', 'noopener');
+  const config = configs[wallet];
+  if (!config) return;
+
+  showAppOpenHint(config.label);
+
+  // Important: do not auto-fallback to a website. Auto-fallback is what made
+  // mobile browsers open the GCash/Maya website instead of leaving the page.
+  // App launch only works if the wallet installed on the phone handles this URI.
+  const isAndroid = /Android/i.test(navigator.userAgent);
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  if (isAndroid) {
+    // Android intent with package limits the handoff to the app instead of a website.
+    const scheme = config.schemes[0].replace('://', '');
+    window.location.href = `intent://#Intent;scheme=${scheme};package=${config.package};end`;
+    return;
   }
+
+  if (isIOS) {
+    window.location.href = config.schemes[0];
+    return;
+  }
+
+  alert(`Open this on your phone, then tap this button again to launch ${config.label}.`);
+}
+
+function showAppOpenHint(label) {
+  const message = `Trying to open ${label} app... If it stays here, open ${label} manually and tap Scan/Pay QR.`;
+  if (slideshowModal.open) swipeHint.textContent = message;
+  else setStatus(message);
 }
 function classify(name = '') {
   const upper = name.toUpperCase();

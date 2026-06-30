@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Game Hub</title>
+  <style>
+    :root {
+      --bg: #080b18;
+      --panel: rgba(15, 20, 45, 0.78);
+      --text: #eef4ff;
+      --muted: #95a3c7;
+      --accent: #5df2ff;
+      --accent-2: #b46bff;
+      --shadow: 0 20px 70px rgba(0, 0, 0, 0.45);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 15%, rgba(93, 242, 255, 0.24), transparent 28rem),
+        radial-gradient(circle at 85% 20%, rgba(180, 107, 255, 0.24), transparent 30rem),
+        linear-gradient(135deg, #070916 0%, #0b1028 48%, #11091f 100%);
+      overflow-x: hidden;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: linear-gradient(to bottom, black, transparent 88%);
+    }
+    .app {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 32px 0 48px;
+      position: relative;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 24px;
+      margin-bottom: 70px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      font-size: 1.2rem;
+    }
+    .logo {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      box-shadow: 0 0 32px rgba(93, 242, 255, 0.32);
+    }
+    nav a {
+      color: var(--muted);
+      text-decoration: none;
+      margin-left: 18px;
+      font-weight: 700;
+    }
+    .hero {
+      max-width: 830px;
+      margin-bottom: 42px;
+    }
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-size: 0.75rem;
+      font-weight: 900;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(2.8rem, 8vw, 6.8rem);
+      line-height: 0.88;
+      letter-spacing: -0.08em;
+      text-shadow: 0 0 30px rgba(93, 242, 255, 0.22);
+    }
+    h1 span { color: var(--accent); }
+    .subtitle {
+      margin: 18px 0 0;
+      max-width: 650px;
+      color: var(--muted);
+      font-size: 1.06rem;
+      line-height: 1.65;
+    }
+    .section-title {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 34px 0 18px;
+    }
+    .section-title h2 {
+      margin: 0;
+      font-size: 1.4rem;
+    }
+    .section-title p {
+      margin: 0;
+      color: var(--muted);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+    }
+    .game-card {
+      position: relative;
+      display: block;
+      min-height: 310px;
+      padding: 22px;
+      color: inherit;
+      text-decoration: none;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: linear-gradient(180deg, var(--panel), rgba(6, 9, 24, 0.86));
+      border-radius: 28px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+    }
+    .game-card:hover {
+      transform: translateY(-6px);
+      border-color: rgba(93, 242, 255, 0.45);
+      box-shadow: 0 24px 90px rgba(93, 242, 255, 0.16);
+    }
+    .game-art {
+      height: 142px;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      grid-auto-rows: 1fr;
+      gap: 6px;
+      margin-bottom: 20px;
+      transform: rotate(-4deg) scale(1.02);
+    }
+    .cyan { background: #5df2ff; }
+    .purple { background: #bd7bff; }
+    .yellow { background: #ffe66d; }
+    .green { background: #5dff9d; }
+    .red { background: #ff5370; }
+    .orange { background: #ffb65d; }
+    .blue { background: #6587ff; }
+
+    .sudoku-art {
+      grid-template-columns: repeat(8, 1fr);
+      transform: rotate(3deg) scale(1.02);
+    }
+    .sudoku-art span, .crossword-art span {
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      background: rgba(255,255,255,0.075);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: var(--text);
+      font-weight: 900;
+    }
+    .sudoku-art span:not(:empty) {
+      color: #06101a;
+      background: linear-gradient(135deg, #ffe66d, #5df2ff);
+      box-shadow: 0 0 20px rgba(93, 242, 255, 0.18);
+    }
+    .crossword-art {
+      grid-template-columns: repeat(6, 1fr);
+      transform: rotate(-2deg) scale(1.02);
+    }
+    .crossword-art span.dark {
+      background: rgba(6, 9, 24, 0.6);
+      border-color: transparent;
+    }
+    .crossword-art span.filled {
+      color: #06101a;
+      background: linear-gradient(135deg, #b46bff, #5df2ff);
+      box-shadow: 0 0 20px rgba(180, 107, 255, 0.3);
+    }
+    .wordhunt-art {
+      grid-template-columns: repeat(7, 1fr);
+      transform: rotate(2deg) scale(1.02);
+    }
+    .wordhunt-art span {
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      background: rgba(255,255,255,0.075);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: var(--text);
+      font-weight: 900;
+    }
+    .wordhunt-art span.hot {
+      color: #06101a;
+      background: linear-gradient(135deg, #5dff9d, #5df2ff);
+      box-shadow: 0 0 20px rgba(93,255,176,0.24);
+    }
+
+    .flappy-art {
+      grid-template-columns: repeat(8, 1fr);
+      transform: rotate(-3deg) scale(1.02);
+    }
+    .flappy-art span {
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      background: rgba(255,255,255,0.075);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: var(--text);
+      font-weight: 900;
+    }
+    .flappy-art span.sky { background: rgba(80,244,255,.18); border-color: rgba(80,244,255,.22); }
+    .flappy-art span.pipe { background: linear-gradient(135deg, #5dff9d, #1cc88a); color: #06101a; box-shadow: 0 0 18px rgba(93,255,176,.22); }
+    .flappy-art span.bird { background: linear-gradient(135deg, #ffe66d, #ffb65d); color: #06101a; box-shadow: 0 0 18px rgba(255,230,109,.24); }
+
+    .colorswitch-art {
+      grid-template-columns: repeat(6, 1fr);
+      transform: rotate(5deg) scale(1.02);
+    }
+    .colorswitch-art span {
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+    }
+
+    .game-card h3 {
+      margin: 0;
+      font-size: 2rem;
+      letter-spacing: -0.06em;
+    }
+    .game-card p {
+      margin: 10px 0 20px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+    .play {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 12px 18px;
+      color: #06101a;
+      background: linear-gradient(135deg, var(--accent), #9efcff);
+      font-weight: 900;
+      box-shadow: 0 0 28px rgba(93, 242, 255, 0.28);
+    }
+    @media (max-width: 640px) {
+      header { margin-bottom: 42px; align-items: flex-start; flex-direction: column; }
+      nav a { margin: 0 18px 0 0; }
+      .section-title { align-items: flex-start; flex-direction: column; }
+    }
+
+    /* === UI REDESIGN: Neon Arcade Console Theme === */
+    :root {
+      --bg: #050814;
+      --panel: rgba(12, 18, 42, 0.72);
+      --panel-2: rgba(255,255,255,0.075);
+      --text: #f4f8ff;
+      --muted: #aab7df;
+      --accent: #50f4ff;
+      --accent-2: #c77dff;
+      --warning: #ff5d7a;
+      --danger: #ff5d7a;
+      --good: #5dffb0;
+      --shadow: 0 24px 80px rgba(0,0,0,.48);
+      --ring: 0 0 0 1px rgba(80,244,255,.22), 0 0 36px rgba(80,244,255,.12);
+    }
+    html { color-scheme: dark; }
+    body {
+      background:
+        radial-gradient(circle at 8% 8%, rgba(80,244,255,.28), transparent 24rem),
+        radial-gradient(circle at 92% 18%, rgba(199,125,255,.25), transparent 26rem),
+        radial-gradient(circle at 52% 105%, rgba(93,255,176,.12), transparent 22rem),
+        linear-gradient(140deg, #030611 0%, #090e25 48%, #180a26 100%) !important;
+    }
+    body::before {
+      opacity: .75;
+      background-size: 34px 34px !important;
+    }
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(180deg, rgba(255,255,255,.045), transparent 18%, rgba(0,0,0,.22));
+      mix-blend-mode: screen;
+      opacity: .36;
+    }
+    .app {
+      isolation: isolate;
+    }
+    header, .hero, .game-shell, .layout, .game-layout, .grid, .controls-container {
+      position: relative;
+      z-index: 1;
+    }
+    header {
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.025));
+      box-shadow: 0 18px 50px rgba(0,0,0,.25);
+      backdrop-filter: blur(16px) saturate(130%);
+    }
+    .brand, .home-link, nav a {
+      text-shadow: 0 0 20px rgba(80,244,255,.14);
+    }
+    .logo {
+      border-radius: 12px !important;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.28), transparent 40%),
+        linear-gradient(135deg, var(--accent), var(--accent-2)) !important;
+      box-shadow: 0 0 28px rgba(80,244,255,.34), inset 0 0 18px rgba(255,255,255,.18) !important;
+    }
+    nav a, .home-link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      color: var(--muted) !important;
+      background: rgba(255,255,255,.045);
+      border: 1px solid rgba(255,255,255,.07);
+      transition: transform .18s ease, border-color .18s ease, background .18s ease, color .18s ease;
+    }
+    nav a:hover, .home-link:hover {
+      color: var(--text) !important;
+      background: rgba(80,244,255,.12);
+      border-color: rgba(80,244,255,.32);
+      transform: translateY(-1px);
+      text-decoration: none !important;
+    }
+    .eyebrow {
+      color: var(--accent) !important;
+      text-shadow: 0 0 18px rgba(80,244,255,.35);
+    }
+    h1 {
+      background: linear-gradient(135deg, #ffffff 0%, #dffbff 42%, var(--accent) 72%, var(--accent-2) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent !important;
+      text-shadow: none !important;
+    }
+    h1 span { color: inherit !important; }
+    .subtitle, .section-title p, .modal-note, .rules, .message, .clue-text, .stats span, .card h2 {
+      color: var(--muted) !important;
+    }
+    .card, .board-wrap, .side, .grid-container, .clue-box, .game-card, .modal-card, .modal-content, .stat, .controls-container, .tracker-panel {
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.025)),
+        linear-gradient(135deg, rgba(80,244,255,.07), rgba(199,125,255,.055)),
+        rgba(7, 12, 31, .72) !important;
+      border: 1px solid rgba(255,255,255,.13) !important;
+      box-shadow: var(--shadow), var(--ring) !important;
+      backdrop-filter: blur(18px) saturate(135%) !important;
+    }
+    .card, .board-wrap, .side, .grid-container, .clue-box, .game-card, .modal-card, .modal-content, .stat, .controls-container, .tracker-panel {
+      border-radius: 22px !important;
+    }
+    button, .btn, .selector-btn, .play, .control-button, #saveControlBtn {
+      border: 1px solid rgba(255,255,255,.16) !important;
+      background: linear-gradient(135deg, var(--accent), #9ffcff) !important;
+      color: #05101d !important;
+      font-weight: 900 !important;
+      box-shadow: 0 0 24px rgba(80,244,255,.22) !important;
+      letter-spacing: .01em;
+    }
+    button.secondary, .btn-secondary, .modal-close, #cancelControlBtn, #resetControlBtn, .selector-btn {
+      color: var(--text) !important;
+      background: rgba(255,255,255,.075) !important;
+      box-shadow: none !important;
+    }
+    button:hover:not(:disabled), .btn:hover:not(:disabled), .selector-btn:hover:not(:disabled), .play:hover {
+      transform: translateY(-2px) scale(1.01) !important;
+      filter: brightness(1.06);
+    }
+    button:disabled, .btn:disabled, .selector-btn:disabled {
+      opacity: .36 !important;
+      filter: grayscale(.6);
+    }
+    .overlay, .modal-backdrop {
+      background: rgba(2, 6, 19, .78) !important;
+      backdrop-filter: blur(12px) saturate(130%);
+    }
+    .overlay h2, .panel-title, .level-readout, .clue-box h2, .card h2 {
+      letter-spacing: .02em;
+    }
+    @media (max-width: 720px) {
+      header { border-radius: 18px; }
+      nav { display: flex; flex-wrap: wrap; gap: 8px; }
+      nav a { margin: 0 !important; }
+    }
+
+    /* Homepage polish */
+    .app { padding-top: 22px !important; }
+    header { margin-bottom: 42px !important; }
+    .hero {
+      max-width: none !important;
+      margin-bottom: 30px !important;
+      padding: clamp(22px, 4vw, 44px);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 34px;
+      background: linear-gradient(135deg, rgba(80,244,255,.08), rgba(199,125,255,.08));
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .hero::after {
+      content: "PLAY MODE";
+      position: absolute;
+      right: clamp(14px, 3vw, 34px);
+      bottom: 14px;
+      color: rgba(255,255,255,.06);
+      font-weight: 1000;
+      font-size: clamp(2.2rem, 8vw, 7rem);
+      letter-spacing: -.08em;
+      pointer-events: none;
+    }
+    .section-title {
+      padding: 0 4px;
+    }
+    .grid { gap: 18px !important; }
+    .game-card {
+      min-height: 300px !important;
+      padding: 20px !important;
+    }
+    .game-card::before {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      background: radial-gradient(circle at 20% 0%, rgba(80,244,255,.16), transparent 35%), radial-gradient(circle at 100% 10%, rgba(199,125,255,.18), transparent 32%);
+      pointer-events: none;
+    }
+    .game-art { position: relative; z-index: 1; filter: drop-shadow(0 18px 22px rgba(0,0,0,.28)); }
+    .game-card h3, .game-card p, .game-card .play { position: relative; z-index: 1; }
+    .play { text-decoration: none; }
+
+    .account-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      color: var(--text);
+      background: rgba(80,244,255,.10);
+      border: 1px solid rgba(80,244,255,.24);
+      font-weight: 900;
+    }
+    
+    .level-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--accent-2), #ff5d7a);
+      color: #ffffff;
+      font-size: 0.72rem;
+      font-weight: 900;
+      padding: 2px 7px;
+      border-radius: 6px;
+      min-width: 20px;
+      box-shadow: 0 0 10px rgba(199,125,255,0.4);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .logout-btn {
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.075);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+  </style>
+
+  <script>
+    (function () {
+      const DB_URL = "https://gamelibrary-882b6-default-rtdb.asia-southeast1.firebasedatabase.app";
+      const SESSION_KEY = "gamehub_current_user";
+      const LOCAL_USER_KEY = "__gamehub_local_user__";
+      const GAMEHUB_KEYS = ["gamehub_profile_v1",
+        "tetris_highScore", "tetris_highLevel", "tetris_keyMap",
+        "sudoku_v2_visited", "sudoku_v2_save_state",
+        "crossword_progression", "crossword_reveal_used_at", "crossword_hint_usage_v1",
+        "wordhunt_save_state", "colorswitch_highScore"
+      ];
+
+      function safeUsernameKey(username) {
+        return String(username || "").trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
+      }
+      function getCurrentUser() {
+        try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); }
+        catch (err) { return null; }
+      }
+      function firebaseUrl(parts) {
+        return DB_URL.replace(/\/$/, "") + "/" + parts.map(encodeURIComponent).join("/") + ".json";
+      }
+      const currentUser = getCurrentUser();
+      if (!currentUser || !currentUser.username) {
+        window.location.replace("index.html");
+        return;
+      }
+      const userKey = safeUsernameKey(currentUser.username);
+      const originalSetItem = localStorage.setItem.bind(localStorage);
+      const originalRemoveItem = localStorage.removeItem.bind(localStorage);
+
+      function cloudSet(key, value) {
+        if (key === LOCAL_USER_KEY) return;
+        fetch(firebaseUrl(["users", userKey, "gameData", key]), {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(String(value))
+        }).catch(function (err) { console.warn("Firebase save failed:", err); });
+        fetch(firebaseUrl(["users", userKey, "lastActiveAt"]), {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(new Date().toISOString())
+        }).catch(function () {});
+      }
+      function cloudRemove(key) {
+        if (key === LOCAL_USER_KEY) return;
+        fetch(firebaseUrl(["users", userKey, "gameData", key]), { method: "DELETE" })
+          .catch(function (err) { console.warn("Firebase remove failed:", err); });
+      }
+
+      localStorage.setItem = function (key, value) {
+        originalSetItem(key, value);
+        cloudSet(key, value);
+      };
+      localStorage.removeItem = function (key) {
+        originalRemoveItem(key);
+        cloudRemove(key);
+      };
+
+      window.GameHubAuth = {
+        dbUrl: DB_URL,
+        user: currentUser,
+        username: currentUser.username,
+        safeUsernameKey: safeUsernameKey,
+        logout: function () {
+          sessionStorage.removeItem(SESSION_KEY);
+          window.location.href = "index.html";
+        },
+        saveNow: function () {
+          GAMEHUB_KEYS.forEach(function (key) {
+            const value = localStorage.getItem(key);
+            if (value !== null) cloudSet(key, value);
+          });
+        }
+      };
+    })();
+  </script>
+
+  <script>
+    (function () {
+      const PROFILE_KEY = "gamehub_profile_v1";
+      const MAX_RECENT = 12;
+
+      function nowIso() { return new Date().toISOString(); }
+      function getUsername() {
+        return (window.GameHubAuth && window.GameHubAuth.username) || "Player";
+      }
+      function blankGame() {
+        return { successes: 0, bestScore: 0, bestLevel: 0, lastPlayedAt: null };
+      }
+      function defaultProfile() {
+        const username = getUsername();
+        return {
+          username,
+          displayName: username,
+          avatar: "🎮",
+          level: 1,
+          xp: 0,
+          successfulPlays: 0,
+          createdAt: nowIso(),
+          updatedAt: nowIso(),
+          games: {},
+          recentActivity: [],
+          completedSuccessIds: {}
+        };
+      }
+      function readProfile() {
+        let profile = null;
+        try { profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || "null"); }
+        catch (err) { profile = null; }
+        const base = defaultProfile();
+        profile = profile && typeof profile === "object" ? profile : base;
+        profile.username = getUsername();
+        profile.displayName = profile.displayName || profile.username;
+        profile.avatar = profile.avatar || "🎮";
+        profile.level = Math.max(1, Number(profile.level || 1));
+        profile.xp = Math.max(0, Number(profile.xp || 0));
+        profile.successfulPlays = Math.max(0, Number(profile.successfulPlays || 0));
+        profile.games = profile.games && typeof profile.games === "object" ? profile.games : {};
+        profile.recentActivity = Array.isArray(profile.recentActivity) ? profile.recentActivity : [];
+        profile.completedSuccessIds = profile.completedSuccessIds && typeof profile.completedSuccessIds === "object" ? profile.completedSuccessIds : {};
+        return profile;
+      }
+      function saveProfile(profile) {
+        profile.updatedAt = nowIso();
+        localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+        return profile;
+      }
+      function xpForNext(level) { return Math.max(50, level * 100); }
+      function showToast(text) {
+        if (!document.body) return;
+        const toast = document.createElement("div");
+        toast.textContent = text;
+        toast.style.cssText = "position:fixed;right:18px;bottom:18px;z-index:9999;padding:13px 15px;border-radius:16px;background:linear-gradient(135deg,rgba(80,244,255,.95),rgba(199,125,255,.95));color:#05101d;font-weight:1000;box-shadow:0 18px 50px rgba(0,0,0,.34);font-family:inherit;max-width:min(340px,calc(100vw - 36px));";
+        document.body.appendChild(toast);
+        setTimeout(function () { toast.style.opacity = "0"; toast.style.transform = "translateY(8px)"; toast.style.transition = "all .35s ease"; }, 2400);
+        setTimeout(function () { toast.remove(); }, 2850);
+      }
+      function recordSuccess(gameName, details) {
+        details = details || {};
+        const profile = readProfile();
+        const successId = details.successId ? String(details.successId) : "";
+        if (successId && profile.completedSuccessIds[successId]) return profile;
+        if (successId) profile.completedSuccessIds[successId] = nowIso();
+
+        const game = String(gameName || details.game || "Game");
+        const xp = Math.max(10, Number(details.xp || 50));
+        const beforeLevel = Number(profile.level || 1);
+        profile.successfulPlays += 1;
+        profile.level += 1;
+        profile.xp += xp;
+
+        if (!profile.games[game]) profile.games[game] = blankGame();
+        profile.games[game].successes = Number(profile.games[game].successes || 0) + 1;
+        profile.games[game].bestScore = Math.max(Number(profile.games[game].bestScore || 0), Number(details.score || 0));
+        profile.games[game].bestLevel = Math.max(Number(profile.games[game].bestLevel || 0), Number(details.level || 0));
+        profile.games[game].lastPlayedAt = nowIso();
+
+        profile.recentActivity.unshift({
+          game,
+          title: details.title || ("Successful " + game + " play"),
+          score: Number(details.score || 0),
+          level: Number(details.level || 0),
+          xp,
+          at: nowIso()
+        });
+        profile.recentActivity = profile.recentActivity.slice(0, MAX_RECENT);
+        saveProfile(profile);
+        showToast("Profile Level Up! Lv " + beforeLevel + " → " + profile.level);
+        return profile;
+      }
+      function resetProfile() {
+        const profile = defaultProfile();
+        saveProfile(profile);
+        return profile;
+      }
+      window.GameHubProfile = { PROFILE_KEY, readProfile, saveProfile, recordSuccess, resetProfile, xpForNext };
+    })();
+  </script>
+
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="brand"><span class="logo" aria-hidden="true"></span>Game Hub</div>
+      <nav aria-label="Main navigation">
+        <a href="profile.html">Profile</a>
+        <span class="account-pill">
+          👤 <span id="accountName">Player</span>
+          <span class="level-badge" id="accountLevel">LV 1</span>
+        </span>
+        <button class="logout-btn" type="button" onclick="GameHubAuth.logout()">Logout</button>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <p class="eyebrow">Choose your game</p>
+      <h1>Game Hub</h1>
+      <p class="subtitle">Jump into a polished mini-arcade with matching neon UI, fast game cards, and puzzle pages styled as one cohesive suite.</p>
+    </section>
+
+    <section id="games" aria-labelledby="games-title">
+      <div class="section-title">
+        <div>
+          <p class="eyebrow">Game Library</p>
+          <h2 id="games-title">Available games</h2>
+        </div>
+        <p>Unified arcade UI across every game.</p>
+      </div>
+
+      <div class="grid">
+        <a class="game-card" href="tetris.html" aria-label="Play Tetris">
+          <div class="game-art" aria-hidden="true">
+            <span></span><span></span><span class="cyan"></span><span class="cyan"></span><span class="cyan"></span><span class="cyan"></span><span></span><span></span>
+            <span></span><span class="purple"></span><span class="purple"></span><span class="purple"></span><span></span><span class="yellow"></span><span class="yellow"></span><span></span>
+            <span></span><span></span><span class="purple"></span><span></span><span></span><span class="yellow"></span><span class="yellow"></span><span></span>
+            <span class="green"></span><span class="green"></span><span></span><span></span><span class="red"></span><span class="red"></span><span></span><span></span>
+            <span></span><span class="green"></span><span class="green"></span><span></span><span></span><span class="red"></span><span class="red"></span><span></span>
+            <span class="blue"></span><span></span><span></span><span class="orange"></span><span class="orange"></span><span class="orange"></span><span></span><span></span>
+            <span class="blue"></span><span class="blue"></span><span class="blue"></span><span></span><span class="orange"></span><span></span><span></span><span></span>
+          </div>
+          <h3>Tetris</h3>
+          <p>Stack blocks, clear lines, use hold, preview next pieces, and chase a higher score.</p>
+          <span class="play">Play now →</span>
+        </a>
+
+        <a class="game-card" href="sudoku.html" aria-label="Play Sudoku">
+          <div class="game-art sudoku-art" aria-hidden="true">
+            <span>5</span><span></span><span>3</span><span></span><span>7</span><span></span><span></span><span></span>
+            <span>6</span><span></span><span></span><span>1</span><span>9</span><span>5</span><span></span><span></span>
+            <span></span><span>9</span><span>8</span><span></span><span></span><span></span><span></span><span>6</span>
+            <span>8</span><span></span><span></span><span></span><span>6</span><span></span><span></span><span>3</span>
+            <span>4</span><span></span><span></span><span>8</span><span></span><span>3</span><span></span><span>1</span>
+            <span>7</span><span></span><span></span><span></span><span>2</span><span></span><span></span><span>6</span>
+            <span></span><span>6</span><span></span><span></span><span></span><span></span><span>2</span><span>8</span>
+          </div>
+          <h3>Sudoku</h3>
+          <p>Choose Easy, Medium, or Hard. Fill the grid, check your answer, and start a fresh puzzle anytime.</p>
+          <span class="play">Play now →</span>
+        </a>
+
+        <a class="game-card" href="crossword.html" aria-label="Play Crossword">
+          <div class="game-art crossword-art" aria-hidden="true">
+            <span class="filled">B</span><span>I</span><span>O</span><span>S</span><span class="dark"></span><span class="dark"></span>
+            <span>U</span><span class="dark"></span><span class="dark"></span><span>L</span><span class="dark"></span><span class="dark"></span>
+            <span class="filled">S</span><span>L</span><span>O</span><span>O</span><span>P</span><span class="dark"></span>
+            <span class="dark"></span><span class="dark"></span><span class="dark"></span><span>T</span><span class="dark"></span><span>R</span>
+            <span class="dark"></span><span class="filled">R</span><span>A</span><span>M</span><span class="dark"></span><span>A</span>
+            <span class="dark"></span><span class="dark"></span><span class="dark"></span><span class="dark"></span><span class="dark"></span><span>M</span>
+          </div>
+          <h3>Crossword</h3>
+          <p>Explore dev themes across multiple difficulty levels. Complete grids and inspect errors cleanly.</p>
+          <span class="play">Play now →</span>
+        </a>
+
+        <a class="game-card" href="wordhunt.html" aria-label="Play Word Hunt">
+          <div class="game-art wordhunt-art" aria-hidden="true">
+            <span class="hot">W</span><span>O</span><span>R</span><span>D</span><span></span><span></span><span></span>
+            <span></span><span class="hot">H</span><span></span><span></span><span>G</span><span>A</span><span>M</span>
+            <span></span><span>U</span><span class="hot">N</span><span></span><span></span><span>E</span><span></span>
+            <span>P</span><span></span><span>T</span><span class="hot">A</span><span></span><span></span><span></span>
+            <span>L</span><span>A</span><span>Y</span><span></span><span class="hot">S</span><span></span><span></span>
+            <span></span><span></span><span></span><span></span><span>E</span><span class="hot">E</span><span></span>
+            <span></span><span>Q</span><span>U</span><span>E</span><span>S</span><span>T</span><span class="hot">X</span>
+          </div>
+          <h3>Word Hunt</h3>
+          <p>Search connected letters across 100 levels, scaling from Easy word paths to Extreme word challenges.</p>
+          <span class="play">Play now →</span>
+        </a>
+
+        <a class="game-card" href="flappybird.html" aria-label="Play Flappy Bird">
+          <div class="game-art flappy-art" aria-hidden="true">
+            <span class="sky"></span><span class="sky"></span><span></span><span></span><span class="pipe"></span><span class="pipe"></span><span></span><span></span>
+            <span></span><span></span><span class="bird">●</span><span></span><span class="pipe"></span><span class="pipe"></span><span></span><span></span>
+            <span class="sky"></span><span></span><span></span><span></span><span class="pipe"></span><span class="pipe"></span><span></span><span class="sky"></span>
+            <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            <span></span><span class="pipe"></span><span class="pipe"></span><span></span><span></span><span></span><span class="bird">→</span><span></span>
+            <span></span><span class="pipe"></span><span class="pipe"></span><span></span><span class="sky"></span><span></span><span></span><span></span>
+            <span class="sky"></span><span class="pipe"></span><span class="pipe"></span><span></span><span></span><span></span><span></span><span class="sky"></span>
+          </div>
+          <h3>Flappy Bird</h3>
+          <p>Tap through neon pipes, build your score, and survive faster flight speeds every five points.</p>
+          <span class="play">Play now →</span>
+        </a>
+
+        <a class="game-card" href="colorswitch.html" aria-label="Play Color Switch">
+          <div class="game-art colorswitch-art" aria-hidden="true">
+            <span class="cyan"></span><span class="purple"></span><span class="yellow"></span><span class="red"></span><span class="cyan"></span><span class="purple"></span>
+            <span class="purple"></span><span></span><span></span><span></span><span></span><span class="red"></span>
+            <span class="yellow"></span><span></span><span></span><span></span><span></span><span class="yellow"></span>
+            <span class="red"></span><span></span><span></span><span></span><span></span><span class="cyan"></span>
+            <span class="cyan"></span><span></span><span></span><span></span><span></span><span class="purple"></span>
+            <span class="purple"></span><span class="yellow"></span><span class="red"></span><span class="cyan"></span><span class="purple"></span><span class="yellow"></span>
+          </div>
+          <h3>Color Switch</h3>
+          <p>Match your ball's color to the rotating segments, collect stars, and bounce upward to survive.</p>
+          <span class="play">Play now →</span>
+        </a>
+      </div>
+    </section>
+  </main>
+  
+  <script>
+    const username = window.GameHubAuth ? window.GameHubAuth.username : "Player";
+    document.getElementById("accountName").textContent = username;
+
+    if (window.GameHubProfile && typeof window.GameHubProfile.readProfile === "function") {
+      const liveProfile = window.GameHubProfile.readProfile();
+      if (liveProfile && liveProfile.level) {
+        document.getElementById("accountLevel").textContent = "LV " + liveProfile.level;
+      }
+    }
+  </script>
+</body>
+</html>

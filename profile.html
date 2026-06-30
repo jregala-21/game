@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Profile | Game Hub</title>
+  <style>
+    :root { --bg:#050814; --panel:rgba(12,18,42,.72); --text:#f4f8ff; --muted:#aab7df; --accent:#50f4ff; --accent-2:#c77dff; --good:#5dffb0; --danger:#ff5d7a; --shadow:0 24px 80px rgba(0,0,0,.48); --ring:0 0 0 1px rgba(80,244,255,.22),0 0 36px rgba(80,244,255,.12); }
+    * { box-sizing:border-box; }
+    html { color-scheme: dark; }
+    body { margin:0; min-height:100vh; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--text); background:radial-gradient(circle at 8% 8%,rgba(80,244,255,.28),transparent 24rem),radial-gradient(circle at 92% 18%,rgba(199,125,255,.25),transparent 26rem),radial-gradient(circle at 52% 105%,rgba(93,255,176,.12),transparent 22rem),linear-gradient(140deg,#030611 0%,#090e25 48%,#180a26 100%); overflow-x:hidden; }
+    body::before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.75; background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px); background-size:34px 34px; mask-image:linear-gradient(to bottom,black,transparent 88%); }
+    .app { width:min(1180px,calc(100% - 24px)); margin:0 auto; padding:16px 0 32px; position:relative; z-index:1; }
+    header, .hero, .card, .stat { background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.025)),linear-gradient(135deg,rgba(80,244,255,.07),rgba(199,125,255,.055)),rgba(7,12,31,.72); border:1px solid rgba(255,255,255,.13); box-shadow:var(--shadow),var(--ring); backdrop-filter:blur(18px) saturate(135%); }
+    header { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 12px; border-radius:24px; margin-bottom:16px; flex-wrap:wrap; }
+    .brand { display:flex; align-items:center; gap:12px; font-weight:1000; letter-spacing:-.04em; font-size:1.15rem; }
+    .logo { width:42px; height:42px; border-radius:12px; background:linear-gradient(135deg,rgba(255,255,255,.28),transparent 40%),linear-gradient(135deg,var(--accent),var(--accent-2)); box-shadow:0 0 28px rgba(80,244,255,.34),inset 0 0 18px rgba(255,255,255,.18); }
+    nav { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    nav a, .account-pill, .logout-btn, button { display:inline-flex; align-items:center; min-height:34px; padding:8px 12px; border-radius:999px; color:var(--muted); background:rgba(255,255,255,.045); border:1px solid rgba(255,255,255,.07); text-decoration:none; font-weight:900; font:inherit; }
+    nav a:hover { color:var(--text); background:rgba(80,244,255,.12); border-color:rgba(80,244,255,.32); }
+    .account-pill { color:var(--text); background:rgba(80,244,255,.10); border-color:rgba(80,244,255,.24); gap:8px; }
+    .logout-btn, button.secondary { color:var(--text); cursor:pointer; background:rgba(255,255,255,.075); }
+    .hero { border-radius:34px; padding:clamp(20px,4vw,42px); display:grid; grid-template-columns:auto 1fr auto; gap:22px; align-items:center; margin-bottom:18px; }
+    .avatar { width:110px; height:110px; display:grid; place-items:center; border-radius:32px; font-size:4rem; background:linear-gradient(135deg,var(--accent),var(--accent-2)); box-shadow:0 0 42px rgba(80,244,255,.28); }
+    .eyebrow { margin:0 0 8px; color:var(--accent); text-transform:uppercase; letter-spacing:.18em; font-size:.74rem; font-weight:1000; }
+    h1 { margin:0; font-size:clamp(2.5rem,7vw,5.8rem); line-height:.9; letter-spacing:-.08em; background:linear-gradient(135deg,#fff,#dffbff 42%,var(--accent) 72%,var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .subtitle { color:var(--muted); line-height:1.55; margin:10px 0 0; }
+    .level-badge { text-align:center; padding:18px; min-width:160px; border-radius:26px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); }
+    .level-badge span { display:block; color:var(--muted); font-weight:900; text-transform:uppercase; letter-spacing:.12em; font-size:.72rem; }
+    .level-badge strong { display:block; font-size:3.4rem; color:var(--accent); line-height:1; }
+    .stats { display:grid; grid-template-columns:repeat(4,minmax(140px,1fr)); gap:12px; margin-bottom:18px; }
+    .stat { border-radius:20px; padding:16px; }
+    .stat span { display:block; color:var(--muted); font-size:.72rem; font-weight:1000; text-transform:uppercase; letter-spacing:.1em; }
+    .stat strong { display:block; margin-top:6px; font-size:1.45rem; color:var(--text); }
+    .grid { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr); gap:16px; align-items:start; }
+    .card { border-radius:26px; padding:18px; }
+    .card h2 { margin:0 0 12px; color:var(--accent); letter-spacing:-.03em; }
+    .game-row, .activity-row { display:grid; grid-template-columns:1fr auto; gap:10px; padding:12px; border-radius:16px; background:rgba(255,255,255,.055); border:1px solid rgba(255,255,255,.08); margin-bottom:10px; }
+    .game-row strong, .activity-row strong { color:var(--text); }
+    .muted { color:var(--muted); font-size:.9rem; line-height:1.4; }
+    .progress { height:12px; border-radius:999px; overflow:hidden; background:rgba(255,255,255,.08); margin-top:12px; border:1px solid rgba(255,255,255,.08); }
+    .progress > div { height:100%; width:0%; background:linear-gradient(135deg,var(--accent),var(--accent-2)); }
+    .actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+    button.primary { background:linear-gradient(135deg,var(--accent),#9ffcff); color:#05101d; font-weight:1000; cursor:pointer; box-shadow:0 0 24px rgba(80,244,255,.22); }
+    select { border:1px solid rgba(255,255,255,.14); border-radius:14px; background:rgba(255,255,255,.07); color:var(--text); padding:10px 12px; font:inherit; font-weight:900; }
+    @media (max-width:900px) { .hero, .grid { grid-template-columns:1fr; } .level-badge { text-align:left; } .stats { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media (max-width:520px) { .stats { grid-template-columns:1fr; } .avatar { width:86px; height:86px; font-size:3rem; } }
+
+     .level-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--accent-2), #ff5d7a);
+      color: #ffffff;
+      font-size: 0.72rem;
+      font-weight: 900;
+      padding: 2px 7px;
+      border-radius: 6px;
+      min-width: 20px;
+      box-shadow: 0 0 10px rgba(199,125,255,0.4);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+  </style>
+  <script>
+    (function () {
+      const DB_URL = "https://gamelibrary-882b6-default-rtdb.asia-southeast1.firebasedatabase.app";
+      const SESSION_KEY = "gamehub_current_user";
+      const LOCAL_USER_KEY = "__gamehub_local_user__";
+      const GAMEHUB_KEYS = ["gamehub_profile_v1","tetris_highScore","tetris_highLevel","tetris_keyMap","sudoku_v2_visited","sudoku_v2_save_state","crossword_progression","crossword_reveal_used_at","crossword_hint_usage_v1","wordhunt_save_state","flappy_bestScore","flappy_bestLevel","flappy_gamesPlayed","flappy_lastScore"];
+      function safeUsernameKey(username) { return String(username || "").trim().toLowerCase().replace(/[^a-z0-9_]/g, "_"); }
+      function getCurrentUser() { try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); } catch (err) { return null; } }
+      function firebaseUrl(parts) { return DB_URL.replace(/\/$/, "") + "/" + parts.map(encodeURIComponent).join("/") + ".json"; }
+      const currentUser = getCurrentUser();
+      if (!currentUser || !currentUser.username) { window.location.replace("index.html"); return; }
+      const userKey = safeUsernameKey(currentUser.username);
+      const originalSetItem = localStorage.setItem.bind(localStorage);
+      localStorage.setItem = function (key, value) {
+        originalSetItem(key, value);
+        if (key === LOCAL_USER_KEY) return;
+        fetch(firebaseUrl(["users", userKey, "gameData", key]), { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(String(value)) }).catch(function () {});
+        fetch(firebaseUrl(["users", userKey, "lastActiveAt"]), { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(new Date().toISOString()) }).catch(function () {});
+      };
+      window.GameHubAuth = { dbUrl: DB_URL, user: currentUser, username: currentUser.username, safeUsernameKey, logout: function () { sessionStorage.removeItem(SESSION_KEY); window.location.href = "index.html"; }, saveNow: function () { GAMEHUB_KEYS.forEach(function (key) { const value = localStorage.getItem(key); if (value !== null) localStorage.setItem(key, value); }); } };
+    })();
+  </script>
+
+  <script>
+    (function () {
+      const PROFILE_KEY = "gamehub_profile_v1";
+      const MAX_RECENT = 12;
+
+      function nowIso() { return new Date().toISOString(); }
+      function getUsername() {
+        return (window.GameHubAuth && window.GameHubAuth.username) || "Player";
+      }
+      function blankGame() {
+        return { successes: 0, bestScore: 0, bestLevel: 0, lastPlayedAt: null };
+      }
+      function defaultProfile() {
+        const username = getUsername();
+        return {
+          username,
+          displayName: username,
+          avatar: "🎮",
+          level: 1,
+          xp: 0,
+          successfulPlays: 0,
+          createdAt: nowIso(),
+          updatedAt: nowIso(),
+          games: {},
+          recentActivity: [],
+          completedSuccessIds: {}
+        };
+      }
+      function readProfile() {
+        let profile = null;
+        try { profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || "null"); }
+        catch (err) { profile = null; }
+        const base = defaultProfile();
+        profile = profile && typeof profile === "object" ? profile : base;
+        profile.username = getUsername();
+        profile.displayName = profile.displayName || profile.username;
+        profile.avatar = profile.avatar || "🎮";
+        profile.level = Math.max(1, Number(profile.level || 1));
+        profile.xp = Math.max(0, Number(profile.xp || 0));
+        profile.successfulPlays = Math.max(0, Number(profile.successfulPlays || 0));
+        profile.games = profile.games && typeof profile.games === "object" ? profile.games : {};
+        profile.recentActivity = Array.isArray(profile.recentActivity) ? profile.recentActivity : [];
+        profile.completedSuccessIds = profile.completedSuccessIds && typeof profile.completedSuccessIds === "object" ? profile.completedSuccessIds : {};
+        return profile;
+      }
+      function saveProfile(profile) {
+        profile.updatedAt = nowIso();
+        localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+        return profile;
+      }
+      function xpForNext(level) { return Math.max(50, level * 100); }
+      function showToast(text) {
+        if (!document.body) return;
+        const toast = document.createElement("div");
+        toast.textContent = text;
+        toast.style.cssText = "position:fixed;right:18px;bottom:18px;z-index:9999;padding:13px 15px;border-radius:16px;background:linear-gradient(135deg,rgba(80,244,255,.95),rgba(199,125,255,.95));color:#05101d;font-weight:1000;box-shadow:0 18px 50px rgba(0,0,0,.34);font-family:inherit;max-width:min(340px,calc(100vw - 36px));";
+        document.body.appendChild(toast);
+        setTimeout(function () { toast.style.opacity = "0"; toast.style.transform = "translateY(8px)"; toast.style.transition = "all .35s ease"; }, 2400);
+        setTimeout(function () { toast.remove(); }, 2850);
+      }
+      function recordSuccess(gameName, details) {
+        details = details || {};
+        const profile = readProfile();
+        const successId = details.successId ? String(details.successId) : "";
+        if (successId && profile.completedSuccessIds[successId]) return profile;
+        if (successId) profile.completedSuccessIds[successId] = nowIso();
+
+        const game = String(gameName || details.game || "Game");
+        const xp = Math.max(10, Number(details.xp || 50));
+        const beforeLevel = Number(profile.level || 1);
+        profile.successfulPlays += 1;
+        profile.level += 1;
+        profile.xp += xp;
+
+        if (!profile.games[game]) profile.games[game] = blankGame();
+        profile.games[game].successes = Number(profile.games[game].successes || 0) + 1;
+        profile.games[game].bestScore = Math.max(Number(profile.games[game].bestScore || 0), Number(details.score || 0));
+        profile.games[game].bestLevel = Math.max(Number(profile.games[game].bestLevel || 0), Number(details.level || 0));
+        profile.games[game].lastPlayedAt = nowIso();
+
+        profile.recentActivity.unshift({
+          game,
+          title: details.title || ("Successful " + game + " play"),
+          score: Number(details.score || 0),
+          level: Number(details.level || 0),
+          xp,
+          at: nowIso()
+        });
+        profile.recentActivity = profile.recentActivity.slice(0, MAX_RECENT);
+        saveProfile(profile);
+        showToast("Profile Level Up! Lv " + beforeLevel + " → " + profile.level);
+        return profile;
+      }
+      function resetProfile() {
+        const profile = defaultProfile();
+        saveProfile(profile);
+        return profile;
+      }
+      window.GameHubProfile = { PROFILE_KEY, readProfile, saveProfile, recordSuccess, resetProfile, xpForNext };
+    })();
+  </script>
+
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="brand"><span class="logo" aria-hidden="true"></span>Game Hub</div>
+      <nav aria-label="Main navigation">
+        <a href="homepage.html">Home</a>
+        <span class="account-pill">
+          👤 <span id="accountName">Player</span>
+          <span class="level-badge" id="accountLevel">LV 1</span>
+        </span>
+        <button class="logout-btn" type="button" onclick="GameHubAuth.logout()">Logout</button>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div class="avatar" id="avatar">🎮</div>
+      <div>
+        <p class="eyebrow">Player Profile</p>
+        <h1 id="displayName">Player</h1>
+        <p class="subtitle">Your profile level increases by 1 every time you successfully complete or win a game. Progress is saved to your Game Hub account.</p>
+        <div class="progress" aria-label="Experience progress"><div id="xpProgress"></div></div>
+      </div>
+      <div class="level-badge"><span>Profile Level</span><strong id="profileLevel">1</strong></div>
+    </section>
+
+    <section class="stats" aria-label="Profile stats">
+      <div class="stat"><span>Successful Plays</span><strong id="successfulPlays">0</strong></div>
+      <div class="stat"><span>Total XP</span><strong id="totalXp">0</strong></div>
+      <div class="stat"><span>Games Played</span><strong id="gamesCount">0</strong></div>
+      <div class="stat"><span>Latest Game</span><strong id="latestGame">None</strong></div>
+    </section>
+
+    <section class="grid">
+      <div class="card">
+        <h2>Game Progress</h2>
+        <div id="gameStats"></div>
+      </div>
+      <div class="card">
+        <h2>Profile Settings</h2>
+        <p class="muted">Choose an avatar for your profile card.</p>
+        <div class="actions">
+          <select id="avatarPicker" aria-label="Choose profile avatar">
+            <option>🎮</option><option>🚀</option><option>🧩</option><option>🏆</option><option>⭐</option><option>🐤</option><option>🔢</option><option>🧠</option>
+          </select>
+          <button class="primary" id="saveProfileBtn" type="button">Save Profile</button>
+          <button class="secondary" id="resetProfileBtn" type="button">Reset Profile</button>
+        </div>
+        <h2 style="margin-top:22px;">Recent Activity</h2>
+        <div id="activity"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    function fmtDate(value) {
+      if (!value) return "Never";
+      try { return new Date(value).toLocaleString(); } catch (err) { return "Recently"; }
+    }
+    function renderProfile() {
+      const p = GameHubProfile.readProfile();
+      document.getElementById("accountName").textContent = p.username;
+      document.getElementById("displayName").textContent = p.displayName || p.username;
+      document.getElementById("avatar").textContent = p.avatar || "🎮";
+      document.getElementById("avatarPicker").value = p.avatar || "🎮";
+      document.getElementById("profileLevel").textContent = p.level;
+      document.getElementById("successfulPlays").textContent = p.successfulPlays;
+      document.getElementById("totalXp").textContent = p.xp.toLocaleString();
+      const gameNames = Object.keys(p.games || {});
+      document.getElementById("gamesCount").textContent = gameNames.length;
+      document.getElementById("latestGame").textContent = (p.recentActivity && p.recentActivity[0] && p.recentActivity[0].game) || "None";
+      const next = GameHubProfile.xpForNext(p.level);
+      document.getElementById("xpProgress").style.width = Math.min(100, Math.round((p.xp % next) / next * 100)) + "%";
+
+      document.getElementById("gameStats").innerHTML = gameNames.length ? gameNames.sort().map(function (name) {
+        const g = p.games[name] || {};
+        return `<div class="game-row"><div><strong>${name}</strong><div class="muted">${g.successes || 0} successful play${Number(g.successes || 0) === 1 ? "" : "s"} · Last: ${fmtDate(g.lastPlayedAt)}</div></div><div class="muted">Best score ${g.bestScore || 0}<br>Best level ${g.bestLevel || 0}</div></div>`;
+      }).join("") : `<p class="muted">No successful plays yet. Complete a puzzle or finish a scoring run to level up.</p>`;
+
+      document.getElementById("activity").innerHTML = (p.recentActivity || []).length ? p.recentActivity.map(function (a) {
+        return `<div class="activity-row"><div><strong>${a.title || a.game}</strong><div class="muted">${fmtDate(a.at)}</div></div><div class="muted">+${a.xp || 0} XP<br>Lv ${a.level || "-"}</div></div>`;
+      }).join("") : `<p class="muted">Your recent level-ups will appear here.</p>`;
+    }
+    document.getElementById("saveProfileBtn").addEventListener("click", function () { const p = GameHubProfile.readProfile(); p.avatar = document.getElementById("avatarPicker").value; GameHubProfile.saveProfile(p); renderProfile(); });
+    document.getElementById("resetProfileBtn").addEventListener("click", function () { if (confirm("Reset profile level and activity for this account?")) { GameHubProfile.resetProfile(); renderProfile(); } });
+    renderProfile();
+    window.addEventListener("beforeunload", function () { if (window.GameHubAuth) window.GameHubAuth.saveNow(); });
+
+    // Extract verified Auth credentials and live profile parameters 
+    const username = window.GameHubAuth ? window.GameHubAuth.username : "Player";
+    document.getElementById("accountName").textContent = username;
+
+    if (window.GameHubProfile && typeof window.GameHubProfile.readProfile === "function") {
+      const liveProfile = window.GameHubProfile.readProfile();
+      if (liveProfile && liveProfile.level) {
+        document.getElementById("accountLevel").textContent = "LV " + liveProfile.level;
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,1324 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sudoku | Game Hub</title>
+  <style>
+    :root {
+      --bg: #080b18;
+      --panel: rgba(15, 20, 45, 0.82);
+      --panel-2: rgba(255,255,255,0.055);
+      --text: #eef4ff;
+      --muted: #95a3c7;
+      --accent: #5df2ff;
+      --accent-2: #b46bff;
+      --warning: #ff5370;
+      --good: #5dff9d;
+      --given: #ffe66d;
+      --shadow: 0 20px 70px rgba(0,0,0,0.45);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 15%, rgba(93,242,255,.22), transparent 28rem),
+        radial-gradient(circle at 85% 20%, rgba(180,107,255,.22), transparent 30rem),
+        linear-gradient(135deg,#070916 0%,#0b1028 48%,#11091f 100%);
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image: linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+      background-size: 42px 42px;
+      mask-image: linear-gradient(to bottom, black, transparent 88%);
+    }
+    .app { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 42px; position: relative; }
+    header { display:flex; justify-content:space-between; align-items:center; gap:18px; margin-bottom:28px; }
+    .brand { display:flex; align-items:center; gap:12px; font-weight:900; letter-spacing:-.04em; font-size:1.15rem; }
+    .logo { width:42px; height:42px; border-radius:14px; background:linear-gradient(135deg,var(--accent),var(--accent-2)); box-shadow:0 0 32px rgba(93,242,255,.32); }
+    a { color: inherit; }
+    nav a { color:var(--muted); text-decoration:none; margin-left:18px; font-weight:800; }
+    nav a:hover { color: var(--accent); }
+    .hero { display:flex; justify-content:space-between; gap:24px; align-items:end; margin-bottom:22px; }
+    .eyebrow { margin:0 0 8px; color:var(--accent); text-transform:uppercase; letter-spacing:.18em; font-size:.74rem; font-weight:900; }
+    h1 { margin:0; font-size:clamp(2.4rem, 6vw, 5.2rem); line-height:.9; letter-spacing:-.08em; }
+    .subtitle { margin:14px 0 0; max-width:680px; color:var(--muted); line-height:1.6; }
+    .stats { display:grid; grid-template-columns:repeat(4, minmax(80px, 1fr)); gap:12px; min-width:min(480px,100%); }
+    .stat { padding:14px; border:1px solid rgba(255,255,255,.1); background:var(--panel); border-radius:18px; box-shadow:var(--shadow); }
+    .stat span { display:block; color:var(--muted); font-size:.78rem; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+    .stat strong { display:block; margin-top:4px; font-size:1.25rem; }
+    
+    .layout { display:grid; grid-template-columns: minmax(300px, 1fr) 340px; gap:24px; align-items:start; }
+    .board-wrap, .side { border:1px solid rgba(255,255,255,.12); background:linear-gradient(180deg,var(--panel),rgba(6,9,24,.88)); border-radius:28px; box-shadow:var(--shadow); backdrop-filter: blur(14px); }
+    .board-wrap { padding:clamp(12px, 2vw, 24px); }
+    
+    .board { 
+      display: grid; 
+      grid-template-columns: repeat(9, 1fr); 
+      width: min(720px, 100%); 
+      aspect-ratio: 1; 
+      margin: 0 auto; 
+      background: #ffffff; 
+      border: 3px solid #2f4560; 
+      border-radius: 0; 
+      overflow: hidden; 
+      box-shadow: 0 18px 42px rgba(0,0,0,.28); 
+    }
+    .cell { 
+      width: 100%; 
+      height: 100%; 
+      display: grid; 
+      place-items: center; 
+      border: 1px solid #b9c7d8; 
+      background: #ffffff; 
+      color: #2f4560; 
+      font-size: clamp(1.8rem, 5vw, 3.15rem); 
+      font-weight: 400; 
+      line-height: 1; 
+      text-align: center; 
+      outline: none; 
+      caret-color: transparent;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .cell.box-right { border-right: 3px solid #2f4560; }
+    .cell.box-bottom { border-bottom: 3px solid #2f4560; }
+    .cell.edge-right { border-right: 0; }
+    .cell.edge-bottom { border-bottom: 0; }
+
+    .cell.given { background: #dfe9f3; color: #2f4560; }
+    .cell.same { background: #dfe9f3; color: #2f4560; }
+    .cell.selected { background: #b7d9f5; color: #2f4560; box-shadow: inset 0 0 0 1px #7fb6df; }
+    .cell.same.selected { background: #b7d9f5; color: #2f4560; }
+    .cell.bad { background: #2f4560; color: #ffffff; text-decoration: line-through; }
+    .cell.good { background: #dfe9f3; color: #2f4560; }
+
+    .cell.fade-appear {
+      animation: solutionFlash 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    }
+    @keyframes solutionFlash {
+      0% { opacity: 0.2; color: #ffffff; background: #2f4560; }
+      100% { opacity: 1; }
+    }
+    
+    .side { padding:22px; }
+    .panel-title { margin:0 0 12px; font-size:1.35rem; letter-spacing:-.04em; }
+    .mode-container { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+    .levels-row { display: flex; align-items: center; gap: 8px; }
+    
+    button { border:0; border-radius:14px; padding:12px 14px; color:#06101a; background:linear-gradient(135deg,var(--accent),#9efcff); font-weight:900; cursor:pointer; box-shadow:0 0 24px rgba(93,242,255,.22); transition: all 0.2s; }
+    button:hover:not(:disabled) { transform:translateY(-1px); filter: brightness(1.05); }
+    button:disabled { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.05); cursor: not-allowed; box-shadow: none; transform: none; }
+    button.secondary { color:var(--text); background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); box-shadow:none; }
+    button.active { background:linear-gradient(135deg,var(--accent-2),var(--accent)); color: #fff; }
+    button.blitz-btn { width: 100%; background: linear-gradient(135deg, var(--warning), #ff8396); color: #06101a; }
+    button.blitz-btn.active { background: var(--warning); color: #fff; box-shadow: 0 0 20px rgba(255,83,112,0.4); }
+    button.daily-btn { width: 100%; background: linear-gradient(135deg, #1cc88a, #4e73df); color: #fff; box-shadow: 0 4px 15px rgba(28, 200, 138, 0.3); }
+    button.daily-btn.active { background: #1cc88a; border: 2px solid var(--accent); }
+
+    /* Date Tracker Layout Overview Dashboard Styling */
+    .tracker-panel { margin-top: 20px; padding: 14px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; }
+    .tracker-title { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 10px; font-weight: 800; display: flex; justify-content: space-between; }
+    .tracker-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .tracker-day { aspect-ratio: 1; font-size: 0.75rem; display: grid; place-items: center; border-radius: 8px; background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid transparent; font-weight: 700; }
+    .tracker-day.done { background: rgba(28, 200, 138, 0.25); color: var(--good); border-color: rgba(28, 200, 138, 0.4); box-shadow: 0 0 8px rgba(28,200,138,0.2); }
+    .tracker-day.current { border-color: var(--accent); color: #fff; }
+
+    .actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top: 10px; }
+    .message { min-height:52px; margin:16px 0 0; padding:14px; border-radius:16px; background:var(--panel-2); color:var(--muted); line-height:1.45; }
+    .message.good { color:var(--good); }
+    .message.bad { color:#ffb6c3; }
+    .rules { margin-top:18px; padding-top:18px; border-top:1px solid rgba(255,255,255,.1); color:var(--muted); line-height:1.55; }
+    kbd { display:inline-block; padding:2px 7px; border-radius:7px; background:rgba(255,255,255,.12); color:var(--text); font-weight:900; }
+
+    /* Compact, scroll-friendly instruction panel */
+    .modal-overlay {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      width: min(360px, calc(100% - 32px));
+      max-height: min(70vh, 520px);
+      background: transparent;
+      backdrop-filter: none;
+      display: block;
+      z-index: 1000;
+      opacity: 1;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+    .modal-overlay.hidden { display: none; pointer-events: none; opacity: 0; }
+    .modal-content {
+      background: #0c1026;
+      border: 1px solid rgba(93, 242, 255, 0.25);
+      box-shadow: 0 16px 38px rgba(0,0,0,0.55);
+      padding: 16px;
+      border-radius: 18px;
+      width: 100%;
+      max-height: inherit;
+      overflow-y: auto;
+      text-align: center;
+      pointer-events: auto;
+    }
+    .modal-content h3 { margin: 0 0 10px; font-size: 1.15rem; color: var(--accent); letter-spacing: -0.02em; }
+    .modal-content p { color: var(--muted); font-size: 0.85rem; line-height: 1.45; margin: 0 0 12px; text-align: left; }
+    .modal-content ul { text-align: left; padding-left: 18px; color: var(--text); margin: 0 0 14px; }
+    .modal-content li { margin-bottom: 8px; font-size: 0.82rem; line-height: 1.35; }
+    
+    @media (max-width: 900px) { .hero, header { align-items:flex-start; flex-direction:column; } nav a { margin:0 18px 0 0; } .layout { grid-template-columns:1fr; } .stats { width:100%; } }
+    @media (max-width: 520px) {
+      .app { width:min(100% - 18px, 1180px); }
+      .board { border-radius:12px; }
+      .cell { font-size:1.05rem; }
+      .actions { grid-template-columns:1fr; }
+      .modal-overlay {
+        right: 9px;
+        bottom: 9px;
+        width: min(320px, calc(100% - 18px));
+        max-height: 50vh;
+      }
+      .modal-content { padding: 12px; }
+      .modal-content h3 { font-size: 1rem; }
+      .modal-content p,
+      .modal-content li { font-size: 0.78rem; }
+    }
+  
+
+/* === UI REDESIGN: Neon Arcade Console Theme === */
+:root {
+  --bg: #050814;
+  --panel: rgba(12, 18, 42, 0.72);
+  --panel-2: rgba(255,255,255,0.075);
+  --text: #f4f8ff;
+  --muted: #aab7df;
+  --accent: #50f4ff;
+  --accent-2: #c77dff;
+  --warning: #ff5d7a;
+  --danger: #ff5d7a;
+  --good: #5dffb0;
+  --shadow: 0 24px 80px rgba(0,0,0,.48);
+  --ring: 0 0 0 1px rgba(80,244,255,.22), 0 0 36px rgba(80,244,255,.12);
+}
+html { color-scheme: dark; }
+body {
+  background:
+    radial-gradient(circle at 8% 8%, rgba(80,244,255,.28), transparent 24rem),
+    radial-gradient(circle at 92% 18%, rgba(199,125,255,.25), transparent 26rem),
+    radial-gradient(circle at 52% 105%, rgba(93,255,176,.12), transparent 22rem),
+    linear-gradient(140deg, #030611 0%, #090e25 48%, #180a26 100%) !important;
+}
+body::before {
+  opacity: .75;
+  background-size: 34px 34px !important;
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,.045), transparent 18%, rgba(0,0,0,.22));
+  mix-blend-mode: screen;
+  opacity: .36;
+}
+.app {
+  isolation: isolate;
+}
+header, .hero, .game-shell, .layout, .game-layout, .grid, .controls-container {
+  position: relative;
+  z-index: 1;
+}
+header {
+  padding: 10px 12px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.025));
+  box-shadow: 0 18px 50px rgba(0,0,0,.25);
+  backdrop-filter: blur(16px) saturate(130%);
+}
+.brand, .home-link, nav a {
+  text-shadow: 0 0 20px rgba(80,244,255,.14);
+}
+.logo {
+  border-radius: 12px !important;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.28), transparent 40%),
+    linear-gradient(135deg, var(--accent), var(--accent-2)) !important;
+  box-shadow: 0 0 28px rgba(80,244,255,.34), inset 0 0 18px rgba(255,255,255,.18) !important;
+}
+nav a, .home-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: var(--muted) !important;
+  background: rgba(255,255,255,.045);
+  border: 1px solid rgba(255,255,255,.07);
+  transition: transform .18s ease, border-color .18s ease, background .18s ease, color .18s ease;
+}
+nav a:hover, .home-link:hover {
+  color: var(--text) !important;
+  background: rgba(80,244,255,.12);
+  border-color: rgba(80,244,255,.32);
+  transform: translateY(-1px);
+  text-decoration: none !important;
+}
+.eyebrow {
+  color: var(--accent) !important;
+  text-shadow: 0 0 18px rgba(80,244,255,.35);
+}
+h1 {
+  background: linear-gradient(135deg, #ffffff 0%, #dffbff 42%, var(--accent) 72%, var(--accent-2) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent !important;
+  text-shadow: none !important;
+}
+h1 span { color: inherit !important; }
+.subtitle, .section-title p, .modal-note, .rules, .message, .clue-text, .stats span, .card h2 {
+  color: var(--muted) !important;
+}
+.card, .board-wrap, .side, .grid-container, .clue-box, .game-card, .modal-card, .modal-content, .stat, .controls-container, .tracker-panel {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.025)),
+    linear-gradient(135deg, rgba(80,244,255,.07), rgba(199,125,255,.055)),
+    rgba(7, 12, 31, .72) !important;
+  border: 1px solid rgba(255,255,255,.13) !important;
+  box-shadow: var(--shadow), var(--ring) !important;
+  backdrop-filter: blur(18px) saturate(135%) !important;
+}
+.card, .board-wrap, .side, .grid-container, .clue-box, .game-card, .modal-card, .modal-content, .stat, .controls-container, .tracker-panel {
+  border-radius: 22px !important;
+}
+button, .btn, .selector-btn, .play, .control-button, #saveControlBtn {
+  border: 1px solid rgba(255,255,255,.16) !important;
+  background: linear-gradient(135deg, var(--accent), #9ffcff) !important;
+  color: #05101d !important;
+  font-weight: 900 !important;
+  box-shadow: 0 0 24px rgba(80,244,255,.22) !important;
+  letter-spacing: .01em;
+}
+button.secondary, .btn-secondary, .modal-close, #cancelControlBtn, #resetControlBtn, .selector-btn {
+  color: var(--text) !important;
+  background: rgba(255,255,255,.075) !important;
+  box-shadow: none !important;
+}
+button:hover:not(:disabled), .btn:hover:not(:disabled), .selector-btn:hover:not(:disabled), .play:hover {
+  transform: translateY(-2px) scale(1.01) !important;
+  filter: brightness(1.06);
+}
+button:disabled, .btn:disabled, .selector-btn:disabled {
+  opacity: .36 !important;
+  filter: grayscale(.6);
+}
+.overlay, .modal-backdrop {
+  background: rgba(2, 6, 19, .78) !important;
+  backdrop-filter: blur(12px) saturate(130%);
+}
+.overlay h2, .panel-title, .level-readout, .clue-box h2, .card h2 {
+  letter-spacing: .02em;
+}
+@media (max-width: 720px) {
+  header { border-radius: 18px; }
+  nav { display: flex; flex-wrap: wrap; gap: 8px; }
+  nav a { margin: 0 !important; }
+}
+
+.level-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--accent-2), #ff5d7a);
+      color: #ffffff;
+      font-size: 0.72rem;
+      font-weight: 900;
+      padding: 2px 7px;
+      border-radius: 6px;
+      min-width: 20px;
+      box-shadow: 0 0 10px rgba(199,125,255,0.4);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+
+/* Sudoku compact console */
+html, body { min-height: 100%; }
+.app { width: min(1240px, calc(100% - 22px)) !important; padding: 14px 0 20px !important; }
+header { margin-bottom: 14px !important; }
+.hero {
+  align-items: center !important;
+  gap: 16px !important;
+  margin-bottom: 14px !important;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 24px;
+  background: rgba(255,255,255,.035);
+}
+h1 { font-size: clamp(2rem, 4.2vw, 4rem) !important; }
+.subtitle { margin-top: 8px !important; font-size: .92rem; }
+.stats { gap: 8px !important; min-width: min(520px,100%) !important; }
+.stat { padding: 10px 12px !important; border-radius: 16px !important; }
+.stat span { font-size: .66rem !important; }
+.stat strong { font-size: 1rem !important; }
+.layout { grid-template-columns: minmax(340px, 1fr) minmax(300px, 330px) !important; gap: 16px !important; align-items: stretch !important; }
+.board-wrap { display: grid; place-items: center; padding: 14px !important; }
+.board {
+  width: min(72vh, 690px, 100%) !important;
+  border: 4px solid rgba(80,244,255,.38) !important;
+  border-radius: 18px !important;
+  background: #071022 !important;
+  box-shadow: inset 0 0 28px rgba(0,0,0,.35), 0 0 38px rgba(80,244,255,.14) !important;
+}
+.cell {
+  background: #eef7ff !important;
+  color: #1c3452 !important;
+  border-color: #bad0e4 !important;
+  font-size: clamp(1.15rem, 4.6vw, 2.85rem) !important;
+  font-weight: 700 !important;
+}
+.cell.given, .cell.same, .cell.good { background: #d8e7f5 !important; color: #203955 !important; }
+.cell.selected, .cell.same.selected { background: #8eeeff !important; box-shadow: inset 0 0 0 3px rgba(32,57,85,.35) !important; }
+.cell.bad { background: #ff5d7a !important; color: #fff !important; }
+
+/* Reference-style Sudoku highlighting:
+   selected row/column + 3x3 box are softly shaded,
+   the active cell is darker, and player-entered values are blue. */
+.cell.line-highlight { background: #e7f0f8 !important; }
+.cell.box-highlight { background: #dce8f2 !important; }
+.cell.line-highlight.box-highlight { background: #d4e4f1 !important; }
+.cell.user-entry { color: #2b5fb8 !important; font-weight: 700 !important; }
+.cell.given { color: #2f4058 !important; }
+.cell.same { color: #2b5fb8 !important; box-shadow: inset 0 0 0 2px rgba(43,95,184,.20) !important; }
+.cell.selected,
+.cell.same.selected {
+  background: #a9d1f0 !important;
+  color: #203955 !important;
+  box-shadow: inset 0 0 0 3px rgba(32,57,85,.45) !important;
+}
+.cell.bad { background: #ff5d7a !important; color: #fff !important; }
+.cell.box-right { border-right-color: #203955 !important; }
+.cell.box-bottom { border-bottom-color: #203955 !important; }
+.side { padding: 16px !important; }
+.panel-title { font-size: 1.05rem !important; }
+.mode-container { gap: 8px !important; margin-bottom: 12px !important; }
+.tracker-panel { margin-top: 12px !important; padding: 10px !important; }
+.tracker-grid { gap: 4px !important; }
+.tracker-day { border-radius: 6px !important; font-size: .66rem !important; }
+.actions { gap: 8px !important; }
+.message { margin-top: 10px !important; padding: 10px !important; min-height: 42px !important; font-size: .86rem; }
+.rules { margin-top: 10px !important; padding-top: 10px !important; font-size: .84rem; }
+.modal-overlay { right: 14px !important; bottom: 14px !important; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr !important; } .board { width: min(92vw, 620px) !important; } }
+
+
+
+/* Final Sudoku board visibility fix: no cropping + clear 3x3 sections */
+html, body {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+.app {
+  min-height: 100vh !important;
+  height: auto !important;
+}
+.layout {
+  align-items: start !important;
+}
+.board-wrap {
+  overflow: visible !important;
+  padding: clamp(8px, 1.6vw, 16px) !important;
+}
+.board {
+  width: min(100%, 620px, calc(100vh - 250px)) !important;
+  min-width: 0 !important;
+  aspect-ratio: 1 / 1 !important;
+  display: grid !important;
+  grid-template-columns: repeat(9, minmax(0, 1fr)) !important;
+  grid-template-rows: repeat(9, minmax(0, 1fr)) !important;
+  gap: 0 !important;
+  border: 4px solid #2f4058 !important;
+  border-radius: 6px !important;
+  overflow: hidden !important;
+  background: #ffffff !important;
+}
+.cell {
+  min-width: 0 !important;
+  min-height: 0 !important;
+  border-radius: 0 !important;
+  border: 1px solid #b8c6d7 !important;
+  box-shadow: none !important;
+  font-size: clamp(1rem, min(4.2vw, 4.2vh), 2.75rem) !important;
+  line-height: 1 !important;
+}
+.cell.box-right { border-right: 4px solid #2f4058 !important; }
+.cell.box-bottom { border-bottom: 4px solid #2f4058 !important; }
+.cell.edge-right { border-right: 1px solid #b8c6d7 !important; }
+.cell.edge-bottom { border-bottom: 1px solid #b8c6d7 !important; }
+.cell.selected,
+.cell.same.selected {
+  background: #acd4f3 !important;
+  box-shadow: inset 0 0 0 3px rgba(47,64,88,.55) !important;
+}
+
+@media (max-width: 900px) {
+  .app { width: min(100% - 16px, 1180px) !important; padding: 10px 0 18px !important; }
+  .hero { padding: 10px !important; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .board { width: min(94vw, 600px) !important; }
+  .side { padding: 14px !important; }
+}
+
+@media (max-height: 760px) and (min-width: 901px) {
+  header { margin-bottom: 8px !important; }
+  .hero { margin-bottom: 10px !important; padding: 10px !important; }
+  h1 { font-size: clamp(1.7rem, 3vw, 3rem) !important; }
+  .subtitle { display: none !important; }
+  .board { width: min(100%, calc(100vh - 190px), 560px) !important; }
+  .side { padding: 14px !important; }
+  .tracker-panel { margin-top: 10px !important; padding: 10px !important; }
+  .message { min-height: 40px !important; margin-top: 10px !important; padding: 10px !important; }
+  .rules { margin-top: 10px !important; padding-top: 10px !important; }
+}
+
+  
+/* Keep player-entered Sudoku numbers the same weight as default/given numbers. */
+.cell.user-entry { font-weight: 700 !important; }
+
+
+    .account-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      color: var(--text);
+      background: rgba(80,244,255,.10);
+      border: 1px solid rgba(80,244,255,.24);
+      font-weight: 900;
+    }
+    .logout-btn {
+      border: 1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.075);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+</style>
+
+  <script>
+    (function () {
+      const DB_URL = "https://gamelibrary-882b6-default-rtdb.asia-southeast1.firebasedatabase.app";
+      const SESSION_KEY = "gamehub_current_user";
+      const LOCAL_USER_KEY = "__gamehub_local_user__";
+      const GAMEHUB_KEYS = ["gamehub_profile_v1",
+        "tetris_highScore", "tetris_highLevel", "tetris_keyMap",
+        "sudoku_v2_visited", "sudoku_v2_save_state",
+        "crossword_progression", "crossword_reveal_used_at", "crossword_hint_usage_v1"
+      ];
+
+      function safeUsernameKey(username) {
+        return String(username || "").trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
+      }
+      function getCurrentUser() {
+        try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); }
+        catch (err) { return null; }
+      }
+      function firebaseUrl(parts) {
+        return DB_URL.replace(/\/$/, "") + "/" + parts.map(encodeURIComponent).join("/") + ".json";
+      }
+      const currentUser = getCurrentUser();
+      if (!currentUser || !currentUser.username) {
+        window.location.replace("index.html");
+        return;
+      }
+      const userKey = safeUsernameKey(currentUser.username);
+      const originalSetItem = localStorage.setItem.bind(localStorage);
+      const originalRemoveItem = localStorage.removeItem.bind(localStorage);
+
+      function cloudSet(key, value) {
+        if (key === LOCAL_USER_KEY) return;
+        fetch(firebaseUrl(["users", userKey, "gameData", key]), {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(String(value))
+        }).catch(function (err) { console.warn("Firebase save failed:", err); });
+        fetch(firebaseUrl(["users", userKey, "lastActiveAt"]), {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(new Date().toISOString())
+        }).catch(function () {});
+      }
+      function cloudRemove(key) {
+        if (key === LOCAL_USER_KEY) return;
+        fetch(firebaseUrl(["users", userKey, "gameData", key]), { method: "DELETE" })
+          .catch(function (err) { console.warn("Firebase remove failed:", err); });
+      }
+
+      localStorage.setItem = function (key, value) {
+        originalSetItem(key, value);
+        cloudSet(key, value);
+      };
+      localStorage.removeItem = function (key) {
+        originalRemoveItem(key);
+        cloudRemove(key);
+      };
+
+      window.GameHubAuth = {
+        dbUrl: DB_URL,
+        user: currentUser,
+        username: currentUser.username,
+        safeUsernameKey: safeUsernameKey,
+        logout: function () {
+          sessionStorage.removeItem(SESSION_KEY);
+          window.location.href = "index.html";
+        },
+        saveNow: function () {
+          GAMEHUB_KEYS.forEach(function (key) {
+            const value = localStorage.getItem(key);
+            if (value !== null) cloudSet(key, value);
+          });
+        }
+      };
+    })();
+  </script>
+
+  <script>
+    (function () {
+      const PROFILE_KEY = "gamehub_profile_v1";
+      const MAX_RECENT = 12;
+
+      function nowIso() { return new Date().toISOString(); }
+      function getUsername() {
+        return (window.GameHubAuth && window.GameHubAuth.username) || "Player";
+      }
+      function blankGame() {
+        return { successes: 0, bestScore: 0, bestLevel: 0, lastPlayedAt: null };
+      }
+      function defaultProfile() {
+        const username = getUsername();
+        return {
+          username,
+          displayName: username,
+          avatar: "🎮",
+          level: 1,
+          xp: 0,
+          successfulPlays: 0,
+          createdAt: nowIso(),
+          updatedAt: nowIso(),
+          games: {},
+          recentActivity: [],
+          completedSuccessIds: {}
+        };
+      }
+      function readProfile() {
+        let profile = null;
+        try { profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || "null"); }
+        catch (err) { profile = null; }
+        const base = defaultProfile();
+        profile = profile && typeof profile === "object" ? profile : base;
+        profile.username = getUsername();
+        profile.displayName = profile.displayName || profile.username;
+        profile.avatar = profile.avatar || "🎮";
+        profile.level = Math.max(1, Number(profile.level || 1));
+        profile.xp = Math.max(0, Number(profile.xp || 0));
+        profile.successfulPlays = Math.max(0, Number(profile.successfulPlays || 0));
+        profile.games = profile.games && typeof profile.games === "object" ? profile.games : {};
+        profile.recentActivity = Array.isArray(profile.recentActivity) ? profile.recentActivity : [];
+        profile.completedSuccessIds = profile.completedSuccessIds && typeof profile.completedSuccessIds === "object" ? profile.completedSuccessIds : {};
+        return profile;
+      }
+      function saveProfile(profile) {
+        profile.updatedAt = nowIso();
+        localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+        return profile;
+      }
+      function xpForNext(level) { return Math.max(50, level * 100); }
+      function showToast(text) {
+        if (!document.body) return;
+        const toast = document.createElement("div");
+        toast.textContent = text;
+        toast.style.cssText = "position:fixed;right:18px;bottom:18px;z-index:9999;padding:13px 15px;border-radius:16px;background:linear-gradient(135deg,rgba(80,244,255,.95),rgba(199,125,255,.95));color:#05101d;font-weight:1000;box-shadow:0 18px 50px rgba(0,0,0,.34);font-family:inherit;max-width:min(340px,calc(100vw - 36px));";
+        document.body.appendChild(toast);
+        setTimeout(function () { toast.style.opacity = "0"; toast.style.transform = "translateY(8px)"; toast.style.transition = "all .35s ease"; }, 2400);
+        setTimeout(function () { toast.remove(); }, 2850);
+      }
+      function recordSuccess(gameName, details) {
+        details = details || {};
+        const profile = readProfile();
+        const successId = details.successId ? String(details.successId) : "";
+        if (successId && profile.completedSuccessIds[successId]) return profile;
+        if (successId) profile.completedSuccessIds[successId] = nowIso();
+
+        const game = String(gameName || details.game || "Game");
+        const xp = Math.max(10, Number(details.xp || 50));
+        const beforeLevel = Number(profile.level || 1);
+        profile.successfulPlays += 1;
+        profile.level += 1;
+        profile.xp += xp;
+
+        if (!profile.games[game]) profile.games[game] = blankGame();
+        profile.games[game].successes = Number(profile.games[game].successes || 0) + 1;
+        profile.games[game].bestScore = Math.max(Number(profile.games[game].bestScore || 0), Number(details.score || 0));
+        profile.games[game].bestLevel = Math.max(Number(profile.games[game].bestLevel || 0), Number(details.level || 0));
+        profile.games[game].lastPlayedAt = nowIso();
+
+        profile.recentActivity.unshift({
+          game,
+          title: details.title || ("Successful " + game + " play"),
+          score: Number(details.score || 0),
+          level: Number(details.level || 0),
+          xp,
+          at: nowIso()
+        });
+        profile.recentActivity = profile.recentActivity.slice(0, MAX_RECENT);
+        saveProfile(profile);
+        showToast("Profile Level Up! Lv " + beforeLevel + " → " + profile.level);
+        return profile;
+      }
+      function resetProfile() {
+        const profile = defaultProfile();
+        saveProfile(profile);
+        return profile;
+      }
+      window.GameHubProfile = { PROFILE_KEY, readProfile, saveProfile, recordSuccess, resetProfile, xpForNext };
+    })();
+  </script>
+
+</head>
+<body>
+
+  <div id="instructionModal" class="modal-overlay">
+    <div class="modal-content">
+      <h3>Sudoku Instructions</h3>
+      <p>Welcome to Sudoku! Here are your system configurations and rules for this level:</p>
+      <ul>
+        <li><strong>Progression Locking:</strong> Level 2 and all future levels are locked until you successfully clear the previous level.</li>
+        <li><strong>📅 Daily Sudoku:</strong> Play a unique puzzle generated directly based on today's calendar date!</li>
+        <li><strong>History Tracker:</strong> Review the date widget dashboard below the game menu to track completed challenges.</li>
+        <li><strong>Assists:</strong> Check Button provides 1 free filled position (3 left per level). Show solution flashes the answers for 0.5s (2 left per level).</li>
+      </ul>
+      <button id="closeModalBtn" style="width: 100%;">Got it!</button>
+    </div>
+  </div>
+
+  <main class="app">
+    <header>
+      <div class="brand"><span class="logo" aria-hidden="true"></span>Game Hub</div>
+      <nav aria-label="Main navigation">
+        <a href="homepage.html">Home</a>
+      <a href="profile.html">Profile</a>
+        <span class="account-pill">
+          👤 <span id="accountName">Player</span>
+          <span class="level-badge" id="accountLevel">LV 1</span>
+        </span>
+        <button class="logout-btn" type="button" onclick="GameHubAuth.logout()">Logout</button></nav>
+    </header>
+
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Number puzzle</p>
+        <h1>Sudoku</h1>
+        <p class="subtitle">Fill every row, column, and 3×3 box with the numbers 1 to 9 using your keyboard layout.</p>
+      </div>
+      <div class="stats" aria-label="Game stats">
+        <div class="stat"><span>Mode / Lv</span><strong id="levelLabel">Game Mode: Lv 1</strong></div>
+        <div class="stat"><span>Timer</span><strong id="timerLabel">--:--</strong></div>
+        <div class="stat"><span>Filled</span><strong id="filledLabel">0/81</strong></div>
+        <div class="stat"><span>Mistakes Found</span><strong id="mistakeLabel">0</strong></div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="board-wrap">
+        <div id="board" class="board" aria-label="Sudoku board"></div>
+      </div>
+
+      <aside class="side">
+        <h2 class="panel-title">Game Modes</h2>
+        <div class="mode-container">
+          <div class="levels-row">
+            <button id="prevLevelBtn" class="secondary">◀</button>
+            <button id="gameModeBtn" class="active" style="flex: 1;">Game Mode: Level 1</button>
+            <button id="nextLevelBtn" class="secondary">▶</button>
+          </div>
+          <button id="blitzModeBtn" class="secondary blitz-btn">⚡ Blitz Mode (5 Mins)</button>
+          <button id="dailyModeBtn" class="secondary daily-btn">📅 Daily Challenge</button>
+        </div>
+
+        <div class="tracker-panel">
+          <div class="tracker-title">
+            <span>Daily History Cache</span>
+            <span id="streakCounter">0 Done</span>
+          </div>
+          <div id="trackerGrid" class="tracker-grid"></div>
+        </div>
+
+        <div class="actions">
+          <button id="checkBtn">Check (3 Left)</button>
+          <button id="newBtn" class="secondary">New puzzle</button>
+          <button id="solveBtn" class="secondary">Show solution (2 Left)</button>
+          <button id="clearBtn" class="secondary">Clear mine</button>
+        </div>
+        <div id="message" class="message">Select a cell, then type a number on your keyboard.</div>
+        <div class="rules">
+          <strong>Controls:</strong> Click a square to highlight it. Type <kbd>1</kbd>-<kbd>9</kbd> to input data, <kbd>Backspace</kbd> or <kbd>0</kbd> to wipe entries, and your keyboard arrow keys to navigate.
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    const PUZZLES = {
+      easy: [
+        { puzzle: '530070000600195000098000060800060003400803001700020006060000280000419005000080079', solution: '534678912672195348198342567859761423426853791713924856961537284287419635345286179' },
+        { puzzle: '006100300400060001010004020800000040000802000070000003090300070700020006004001900', solution: '926178354485263791317594628832719645649852137571436283298345176753927416164681932' }
+      ],
+      medium: [
+        { puzzle: '000260701680070090190004500820100040004602900050003028009300074040050036703018000', solution: '435269781682571493197834562826195347374682915951743628519326874248957136763418259' },
+        { puzzle: '300000000005009000200504000020000700160000058704310600000890100000067000000005437', solution: '349786512675129843218534976523648791961972358784315629436893175152467389897251437' }
+      ],
+      hard: [
+        { puzzle: '000000907000420180000705026100904000050000040000507009920108000034059000507000000', solution: '483621957765429183219735426176984532359216748248573619924168375631857294587342861' },
+        { puzzle: '000900002050123400030000160908000000070000090000000205091000030007459020400006000', solution: '186974352759123486234685179928531764675248913314769245591812637867459821442376598' }
+      ]
+    };
+
+    const board = document.getElementById('board');
+    const levelLabel = document.getElementById('levelLabel');
+    const filledLabel = document.getElementById('filledLabel');
+    const mistakeLabel = document.getElementById('mistakeLabel');
+    const timerLabel = document.getElementById('timerLabel');
+    const message = document.getElementById('message');
+    
+    const gameModeBtn = document.getElementById('gameModeBtn');
+    const blitzModeBtn = document.getElementById('blitzModeBtn');
+    const dailyModeBtn = document.getElementById('dailyModeBtn');
+    const prevLevelBtn = document.getElementById('prevLevelBtn');
+    const nextLevelBtn = document.getElementById('nextLevelBtn');
+    
+    const checkBtn = document.getElementById('checkBtn');
+    const solveBtn = document.getElementById('solveBtn');
+    const newBtn = document.getElementById('newBtn');
+    const modal = document.getElementById('instructionModal');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const trackerGrid = document.getElementById('trackerGrid');
+    const streakCounter = document.getElementById('streakCounter');
+
+    // Extract verified Auth credentials and live profile parameters 
+    const username = window.GameHubAuth ? window.GameHubAuth.username : "Player";
+    document.getElementById("accountName").textContent = username;
+
+    if (window.GameHubProfile && typeof window.GameHubProfile.readProfile === "function") {
+      const liveProfile = window.GameHubProfile.readProfile();
+      if (liveProfile && liveProfile.level) {
+        document.getElementById("accountLevel").textContent = "LV " + liveProfile.level;
+      }
+    }
+
+    let currentMode = 'game'; 
+    let currentLevel = 1;
+    let maxLevelUnlocked = 1; // Locked linear progression tracking benchmarks
+    let puzzle = '';
+    let solution = '';
+    let values = [];
+    let givens = [];
+    let selected = 0;
+    let puzzleIndex = 0;
+    let isChecking = false; 
+    let isFadingInSolution = false;
+    
+    let checkClicksRemaining = 3;
+    let solveClicksRemaining = 2;
+
+    let blitzTimer = null;
+    let blitzTimeRemaining = 300; 
+    let gameActive = true;
+
+    // Daily Mode Complete History logs arrays storage
+    let dailyHistory = [];
+
+    if (!localStorage.getItem('sudoku_v2_visited')) {
+      modal.classList.remove('hidden');
+      localStorage.setItem('sudoku_v2_visited', 'true');
+    } else {
+      modal.classList.add('hidden');
+    }
+
+    closeModalBtn.addEventListener('click', () => { modal.classList.add('hidden'); });
+
+    function getFormattedDateToday() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    // Real-Time Local Storage Mechanics
+    function saveToLocalStorage() {
+      const state = {
+        currentMode,
+        currentLevel,
+        maxLevelUnlocked,
+        puzzle,
+        solution,
+        values,
+        givens,
+        selected,
+        puzzleIndex,
+        checkClicksRemaining,
+        solveClicksRemaining,
+        blitzTimeRemaining,
+        gameActive,
+        dailyHistory
+      };
+      localStorage.setItem('sudoku_v2_save_state', JSON.stringify(state));
+    }
+
+    function loadFromLocalStorage() {
+      const saved = localStorage.getItem('sudoku_v2_save_state');
+      if (saved) {
+        try {
+          const state = JSON.parse(saved);
+          currentMode = state.currentMode || 'game';
+          currentLevel = state.currentLevel || 1;
+          maxLevelUnlocked = state.maxLevelUnlocked || 1;
+          puzzle = state.puzzle;
+          solution = state.solution;
+          values = state.values;
+          givens = state.givens;
+          selected = state.selected || 0;
+          puzzleIndex = state.puzzleIndex || 0;
+          checkClicksRemaining = state.checkClicksRemaining !== undefined ? state.checkClicksRemaining : 3;
+          solveClicksRemaining = state.solveClicksRemaining !== undefined ? state.solveClicksRemaining : 2;
+          blitzTimeRemaining = state.blitzTimeRemaining !== undefined ? state.blitzTimeRemaining : 300;
+          gameActive = state.gameActive !== undefined ? state.gameActive : true;
+          dailyHistory = state.dailyHistory || [];
+          
+          gameModeBtn.textContent = `Game Mode: Level ${currentLevel}`;
+          
+          // Re-toggle matching button states visual highlights 
+          if (currentMode === 'blitz') {
+            setModeUI(blitzModeBtn);
+            if (gameActive) startBlitzTimer(true);
+          } else if (currentMode === 'daily') {
+            setModeUI(dailyModeBtn);
+          } else {
+            setModeUI(gameModeBtn);
+          }
+          
+          updateActionButtonsState();
+          render();
+          buildDateTrackerUI();
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
+      return false;
+    }
+
+    function setModeUI(activeBtn) {
+      [gameModeBtn, blitzModeBtn, dailyModeBtn].forEach(btn => {
+        btn.classList.remove('active');
+        btn.classList.add('secondary');
+      });
+      activeBtn.classList.add('active');
+      activeBtn.classList.remove('secondary');
+    }
+
+    function updateActionButtonsState() {
+      checkBtn.textContent = `Check (${checkClicksRemaining} Left)`;
+      checkBtn.disabled = (checkClicksRemaining <= 0 || !gameActive || isFadingInSolution);
+
+      solveBtn.textContent = `Show solution (${solveClicksRemaining} Left)`;
+      solveBtn.disabled = (solveClicksRemaining <= 0 || !gameActive || isFadingInSolution);
+
+      // Level navigation lock button checker triggers
+      prevLevelBtn.disabled = (currentLevel <= 1 || currentMode !== 'game');
+      nextLevelBtn.disabled = (currentLevel >= maxLevelUnlocked || currentMode !== 'game');
+
+      if (currentMode === 'game' && (currentLevel === 1 || (currentLevel - 1) % 5 === 0)) {
+        newBtn.disabled = false;
+      } else {
+        newBtn.disabled = true;
+      }
+    }
+
+    function generateDailySudokuIndex(dateStr) {
+      // Create seed integer value from YYYY-MM-DD format
+      let seed = 0;
+      for (let i = 0; i < dateStr.length; i++) {
+        seed += dateStr.charCodeAt(i);
+      }
+      return seed;
+    }
+
+    function startGame(next = false) {
+      clearInterval(blitzTimer);
+      gameActive = true;
+      isChecking = false;
+      isFadingInSolution = false;
+
+      checkClicksRemaining = 3;
+      solveClicksRemaining = 2;
+
+      let difficulties = ['easy', 'medium', 'hard'];
+      let randomDiff = difficulties[Math.floor(Math.random() * difficulties.length)];
+      let list = PUZZLES[randomDiff];
+
+      if (currentMode === 'game') {
+        if (next) puzzleIndex = (puzzleIndex + 1) % list.length;
+        else puzzleIndex = (currentLevel - 1) % list.length; 
+        timerLabel.textContent = "--:--";
+      } else if (currentMode === 'blitz') {
+        puzzleIndex = Math.floor(Math.random() * list.length);
+        blitzTimeRemaining = 300; 
+        startBlitzTimer();
+      } else if (currentMode === 'daily') {
+        const todayStr = getFormattedDateToday();
+        const dailySeed = generateDailySudokuIndex(todayStr);
+        // Select deterministic configuration depending entirely on date sequence seed
+        const targetDiff = difficulties[dailySeed % difficulties.length];
+        list = PUZZLES[targetDiff];
+        puzzleIndex = dailySeed % list.length;
+        timerLabel.textContent = "DAILY";
+      }
+
+      puzzle = list[puzzleIndex].puzzle;
+      solution = list[puzzleIndex].solution;
+
+      values = puzzle.split('').map(v => v === '0' ? '' : v);
+      givens = puzzle.split('').map(v => v !== '0');
+      selected = values.findIndex((v, i) => !givens[i]);
+      if (selected < 0) selected = 0;
+      
+      updateActionButtonsState();
+      saveToLocalStorage();
+      render();
+      buildDateTrackerUI();
+      setMessage(currentMode === 'daily' ? `Daily challenge loaded for ${getFormattedDateToday()}!` : 'Select a cell, then type a number on your keyboard.');
+    }
+
+    function startBlitzTimer(resume = false) {
+      if (!resume) updateTimerDisplay();
+      blitzTimer = setInterval(() => {
+        blitzTimeRemaining--;
+        updateTimerDisplay();
+        if (blitzTimeRemaining <= 0) {
+          clearInterval(blitzTimer);
+          gameActive = false;
+          setMessage("Time's up! Puzzle locked.", 'bad');
+          updateActionButtonsState();
+          render();
+        }
+        saveToLocalStorage();
+      }, 1000);
+    }
+
+    function updateTimerDisplay() {
+      const minutes = Math.floor(blitzTimeRemaining / 60);
+      const seconds = blitzTimeRemaining % 60;
+      timerLabel.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    function buildDateTrackerUI() {
+      trackerGrid.innerHTML = '';
+      const today = new Date();
+      const currentDayNum = today.getDate();
+      const totalDaysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      
+      let yearMonthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      let completedCounter = 0;
+
+      for (let day = 1; day <= totalDaysInMonth; day++) {
+        const loopDateStr = `${yearMonthPrefix}-${String(day).padStart(2, '0')}`;
+        const dayBadge = document.createElement('div');
+        dayBadge.className = 'tracker-day';
+        dayBadge.textContent = day;
+
+        if (dailyHistory.includes(loopDateStr)) {
+          dayBadge.classList.add('done');
+          completedCounter++;
+        }
+        if (day === currentDayNum) {
+          dayBadge.classList.add('current');
+        }
+
+        trackerGrid.appendChild(dayBadge);
+      }
+      streakCounter.textContent = `${completedCounter} Done`;
+    }
+
+    function render() {
+      board.innerHTML = '';
+      let userMistakes = 0;
+
+      for (let i = 0; i < 81; i++) {
+        const cell = document.createElement('button');
+        const row = Math.floor(i / 9);
+        const col = i % 9;
+        cell.className = 'cell';
+        
+        if (col === 2 || col === 5) cell.classList.add('box-right');
+        if (row === 2 || row === 5) cell.classList.add('box-bottom');
+        if (col === 8) cell.classList.add('edge-right');
+        if (row === 8) cell.classList.add('edge-bottom');
+        
+        cell.type = 'button';
+        cell.textContent = values[i];
+        cell.setAttribute('aria-label', `Row ${Math.floor(i/9)+1}, column ${i%9+1}`);
+        
+        const selectedRow = Math.floor(selected / 9);
+        const selectedCol = selected % 9;
+        const selectedBoxRow = Math.floor(selectedRow / 3);
+        const selectedBoxCol = Math.floor(selectedCol / 3);
+        const cellBoxRow = Math.floor(row / 3);
+        const cellBoxCol = Math.floor(col / 3);
+        const selectedValue = values[selected];
+
+        if (row === selectedRow || col === selectedCol) cell.classList.add('line-highlight');
+        if (cellBoxRow === selectedBoxRow && cellBoxCol === selectedBoxCol) cell.classList.add('box-highlight');
+        if (givens[i]) cell.classList.add('given');
+        if (!givens[i] && values[i]) cell.classList.add('user-entry');
+        if (selectedValue && values[i] === selectedValue) cell.classList.add('same');
+        if (i === selected) cell.classList.add('selected');
+        
+        if (!givens[i] && values[i] && values[i] !== solution[i]) {
+          userMistakes++;
+          if (isChecking) {
+            cell.classList.add('bad');
+          }
+        }
+
+        if (isFadingInSolution) {
+          cell.classList.add('fade-appear');
+        }
+        
+        cell.addEventListener('click', () => { 
+          if (!gameActive || isFadingInSolution) return;
+          selected = i; 
+          isChecking = false; 
+          render(); 
+        });
+        board.appendChild(cell);
+      }
+      
+      if (currentMode === 'game') {
+        levelLabel.textContent = `Level ${currentLevel}`;
+      } else if (currentMode === 'blitz') {
+        levelLabel.textContent = `⚡ Blitz Mode`;
+      } else {
+        levelLabel.textContent = `📅 Daily Challenge`;
+      }
+      
+      filledLabel.textContent = `${values.filter(Boolean).length}/81`;
+      mistakeLabel.textContent = userMistakes;
+    }
+
+    function placeNumber(num) {
+      if (!gameActive || isFadingInSolution) return;
+      if (givens[selected]) {
+        setMessage('That is a starting number, so it cannot be changed.', 'bad');
+        return;
+      }
+      
+      isChecking = false; 
+      values[selected] = num || '';
+      
+      if (num) setMessage('Value entered.');
+      else setMessage('Cell cleared.');
+      
+      saveToLocalStorage();
+      render();
+      
+      if (values.join('') === solution) {
+        clearInterval(blitzTimer);
+        recordSudokuSuccess("entry");
+        
+        // Handle Game Mode unlocks progression logic updates
+        if (currentMode === 'game') {
+          if (currentLevel === maxLevelUnlocked) {
+            maxLevelUnlocked++;
+            setMessage(`Puzzle solved! Level ${currentLevel + 1} is now unlocked!`, 'good');
+          } else {
+            setMessage('Puzzle solved successfully. Great job!', 'good');
+          }
+        } 
+        // Handle Daily challenge log tracking mechanics updates
+        else if (currentMode === 'daily') {
+          const todayDateStr = getFormattedDateToday();
+          if (!dailyHistory.includes(todayDateStr)) {
+            dailyHistory.push(todayDateStr);
+          }
+          buildDateTrackerUI();
+          setMessage("Fantastic! You've completed today's daily challenge puzzle!", "good");
+        } else {
+          setMessage('Puzzle solved. Great job!', 'good');
+        }
+        
+        updateActionButtonsState();
+        saveToLocalStorage();
+      }
+    }
+
+    function setMessage(text, kind = '') {
+      message.textContent = text;
+      message.className = 'message' + (kind ? ' ' + kind : '');
+    }
+
+    function recordSudokuSuccess(source) {
+      if (!window.GameHubProfile) return;
+      const successId = currentMode === 'daily' ? ('sudoku-daily-' + getFormattedDateToday()) : ('sudoku-' + currentMode + '-level-' + currentLevel + '-puzzle-' + puzzleIndex);
+      window.GameHubProfile.recordSuccess('Sudoku', { level: currentMode === 'game' ? currentLevel : 0, xp: currentMode === 'blitz' ? 80 : 65, successId, title: 'Solved Sudoku ' + (currentMode === 'daily' ? 'Daily Challenge' : ('Level ' + currentLevel)) });
+    }
+
+    function checkBoard() {
+      if (!gameActive || checkClicksRemaining <= 0 || isFadingInSolution) return;
+      
+      checkClicksRemaining--;
+      isChecking = true;
+
+      const empty = values.filter(v => !v).length;
+      const wrong = values.reduce((count, v, i) => count + (!givens[i] && v && v !== solution[i] ? 1 : 0), 0);
+      
+      let suggested = false;
+      let incorrectOrEmptyIndices = [];
+      
+      for(let i=0; i<81; i++) {
+        if(!givens[i] && (values[i] === '' || values[i] !== solution[i])) {
+          incorrectOrEmptyIndices.push(i);
+        }
+      }
+
+      if(incorrectOrEmptyIndices.length > 0) {
+        let randIndex = incorrectOrEmptyIndices[Math.floor(Math.random() * incorrectOrEmptyIndices.length)];
+        values[randIndex] = solution[randIndex];
+        suggested = true;
+      }
+
+      saveToLocalStorage();
+      render();
+      updateActionButtonsState();
+      
+      let bonusMsg = suggested ? " Bonus Feature: 1 correct number has been suggested and filled!" : "";
+
+      if (wrong) {
+        setMessage(`${wrong} square${wrong > 1 ? 's were' : ' is'} incorrect.${bonusMsg}`, 'bad');
+      } else if (empty) {
+        setMessage(`No mistakes found so far!${bonusMsg}`);
+      } else {
+        clearInterval(blitzTimer);
+        if (currentMode === 'game' && currentLevel === maxLevelUnlocked) {
+          maxLevelUnlocked++;
+        } else if (currentMode === 'daily') {
+          const todayDateStr = getFormattedDateToday();
+          if (!dailyHistory.includes(todayDateStr)) dailyHistory.push(todayDateStr);
+        }
+        buildDateTrackerUI();
+        recordSudokuSuccess("check");
+        setMessage(`Perfect. You solved the puzzle!${bonusMsg}`, 'good');
+      }
+      saveToLocalStorage();
+    }
+
+    function clearMine() {
+      if (!gameActive || isFadingInSolution) return;
+      isChecking = false;
+      values = values.map((v, i) => givens[i] ? v : '');
+      saveToLocalStorage();
+      render();
+      setMessage('Your entries were cleared.');
+    }
+
+    gameModeBtn.addEventListener('click', () => {
+      currentMode = 'game';
+      setModeUI(gameModeBtn);
+      startGame();
+    });
+
+    blitzModeBtn.addEventListener('click', () => {
+      currentMode = 'blitz';
+      setModeUI(blitzModeBtn);
+      startGame();
+    });
+
+    dailyModeBtn.addEventListener('click', () => {
+      currentMode = 'daily';
+      setModeUI(dailyModeBtn);
+      startGame();
+    });
+
+    prevLevelBtn.addEventListener('click', () => {
+      if (currentLevel > 1 && !isFadingInSolution && currentMode === 'game') {
+        currentLevel--;
+        gameModeBtn.textContent = `Game Mode: Level ${currentLevel}`;
+        startGame();
+      }
+    });
+
+    nextLevelBtn.addEventListener('click', () => {
+      if (!isFadingInSolution && currentMode === 'game' && currentLevel < maxLevelUnlocked) {
+        currentLevel++;
+        gameModeBtn.textContent = `Game Mode: Level ${currentLevel}`;
+        startGame();
+      }
+    });
+
+    checkBtn.addEventListener('click', checkBoard);
+    newBtn.addEventListener('click', () => startGame(true));
+    
+    solveBtn.addEventListener('click', () => { 
+      if (!gameActive || solveClicksRemaining <= 0 || isFadingInSolution) return;
+      
+      solveClicksRemaining--;
+      isFadingInSolution = true;
+      isChecking = false;
+      
+      const cachedUserValues = [...values];
+      values = solution.split(''); 
+      render(); 
+      updateActionButtonsState();
+      setMessage('Peek look activated! Returning to game state in 0.5s...', 'good');
+      
+      setTimeout(() => {
+        values = cachedUserValues;
+        isFadingInSolution = false;
+        render();
+        updateActionButtonsState();
+        setMessage('Returned back to your layout entries.');
+        saveToLocalStorage();
+      }, 500);
+    });
+    
+    document.getElementById('clearBtn').addEventListener('click', clearMine);
+
+    window.addEventListener('keydown', e => {
+      if (!gameActive || isFadingInSolution) return;
+      if (/^[1-9]$/.test(e.key)) placeNumber(e.key);
+      else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === '0') placeNumber('');
+      else if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+        const row = Math.floor(selected / 9), col = selected % 9;
+        if (e.key === 'ArrowUp') selected = Math.max(0, row - 1) * 9 + col;
+        if (e.key === 'ArrowDown') selected = Math.min(8, row + 1) * 9 + col;
+        if (e.key === 'ArrowLeft') selected = row * 9 + Math.max(0, col - 1);
+        if (e.key === 'ArrowRight') selected = row * 9 + Math.min(8, col + 1);
+        isChecking = false;
+        render();
+      }
+    });
+
+    if (!loadFromLocalStorage()) {
+      startGame();
+    }
+  </script>
+  <script>document.querySelectorAll(".accountName").forEach(el => el.textContent = window.GameHubAuth ? window.GameHubAuth.username : "Player"); window.addEventListener("beforeunload", () => { if (window.GameHubAuth) window.GameHubAuth.saveNow(); });</script>
+</body>
+</html>

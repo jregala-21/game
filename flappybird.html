@@ -1,0 +1,909 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Flappy Bird | Game Hub</title>
+  <style>
+    :root {
+      --bg: #050814;
+      --panel: rgba(12, 18, 42, 0.72);
+      --text: #f4f8ff;
+      --muted: #aab7df;
+      --accent: #50f4ff;
+      --accent-2: #c77dff;
+      --good: #5dffb0;
+      --danger: #ff5d7a;
+      --shadow: 0 24px 80px rgba(0,0,0,.48);
+      --ring: 0 0 0 1px rgba(80,244,255,.22), 0 0 36px rgba(80,244,255,.12);
+    }
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 8% 8%, rgba(80,244,255,.28), transparent 24rem),
+        radial-gradient(circle at 92% 18%, rgba(199,125,255,.25), transparent 26rem),
+        radial-gradient(circle at 52% 105%, rgba(93,255,176,.12), transparent 22rem),
+        linear-gradient(140deg, #030611 0%, #090e25 48%, #180a26 100%);
+      overflow-x: hidden;
+    }
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+      background-size: 34px 34px;
+      mask-image: linear-gradient(to bottom, black, transparent 88%);
+      opacity: .75;
+    }
+    .app { width: min(1180px, calc(100% - 22px)); margin: 0 auto; padding: 12px 0 18px; position: relative; isolation: isolate; }
+    header, .hero, .game-shell { position: relative; z-index: 1; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      padding: 8px 10px;
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 20px;
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.025));
+      box-shadow: 0 18px 50px rgba(0,0,0,.25);
+      backdrop-filter: blur(16px) saturate(130%);
+      flex-wrap: wrap;
+    }
+    .brand { display:flex; align-items:center; gap:10px; font-weight:900; letter-spacing:-.04em; font-size:1.05rem; }
+    .logo { width:36px; height:36px; border-radius:11px; background: linear-gradient(135deg, rgba(255,255,255,.28), transparent 40%), linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 0 28px rgba(80,244,255,.34), inset 0 0 18px rgba(255,255,255,.18); }
+    nav { display:flex; align-items:center; gap:7px; flex-wrap: wrap; }
+    nav a, .home-link, .account-pill, .logout-btn {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(255,255,255,.045);
+      border: 1px solid rgba(255,255,255,.07);
+      text-decoration: none;
+      font-weight: 900;
+      font-size: .86rem;
+    }
+    .account-pill { color: var(--text); background: rgba(80,244,255,.10); border-color: rgba(80,244,255,.24); gap: 8px; }
+    .logout-btn { color: var(--text); cursor: pointer; font: inherit; }
+    .hero {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:10px;
+      padding:10px 12px;
+      border:1px solid rgba(255,255,255,.10);
+      border-radius:20px;
+      background: rgba(255,255,255,.035);
+      box-shadow: var(--shadow), var(--ring);
+      backdrop-filter: blur(18px) saturate(135%);
+    }
+    .eyebrow { margin:0 0 4px; color:var(--accent); text-transform:uppercase; letter-spacing:.18em; font-size:.68rem; font-weight:900; }
+    h1 { margin:0; font-size:clamp(1.7rem, 4vw, 3.4rem); line-height:.9; letter-spacing:-.08em; background: linear-gradient(135deg, #fff, #dffbff 42%, var(--accent) 72%, var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .subtitle { margin: 6px 0 0; color: var(--muted); line-height:1.35; max-width: 700px; font-size:.92rem; }
+    .hero-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+    button {
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 999px;
+      padding: 9px 13px;
+      background: linear-gradient(135deg, var(--accent), #9ffcff);
+      color: #05101d;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 0 24px rgba(80,244,255,.22);
+    }
+    button.secondary { color: var(--text); background: rgba(255,255,255,.075); box-shadow: none; }
+    button.danger { color: #fff; background: rgba(255,93,122,.18); box-shadow:none; border-color:rgba(255,93,122,.35); }
+    button:disabled { opacity:.45; cursor:not-allowed; }
+    .game-shell { display:grid; grid-template-columns: minmax(210px, 260px) minmax(280px, 380px); gap:14px; align-items:start; justify-content:center; }
+    .game-shell.battle-mode { grid-template-columns: minmax(190px, 250px) minmax(260px, 350px) minmax(260px, 350px); }
+    .game-shell.battle-mode .solo-info-card { display:none; }
+    .card, .board-wrap {
+      background: linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.025)), linear-gradient(135deg, rgba(80,244,255,.07), rgba(199,125,255,.055)), rgba(7,12,31,.72);
+      border: 1px solid rgba(255,255,255,.13);
+      border-radius: 20px;
+      box-shadow: var(--shadow), var(--ring);
+      backdrop-filter: blur(18px) saturate(135%);
+    }
+    .card { padding: 13px; }
+    .card h2, .board-title { margin:0 0 9px; font-size:.76rem; color:var(--accent); text-transform:uppercase; letter-spacing:.16em; }
+    .stat-row { display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,.08); font-size:.9rem; }
+    .stat-row:last-child { border-bottom:0; }
+    .stat-row span { color:var(--muted); font-weight:800; }
+    .stat-row strong { color:var(--accent); }
+    .board-wrap { position: relative; padding: 12px; overflow:visible; }
+    .opponent-wrap { display:none !important; }
+    .battle-mode .opponent-wrap { display:flex !important; }
+    canvas { display:block; width:100%; height:auto; aspect-ratio: 9 / 14; border-radius:16px; background:rgba(0,0,0,.18); border:1px solid rgba(80,244,255,.26); box-shadow: inset 0 0 34px rgba(0,0,0,.45), 0 0 48px rgba(80,244,255,.16); }
+    .overlay { position:absolute; inset:10px; display:grid; place-content:center; text-align:center; background:rgba(2,6,19,.72); backdrop-filter: blur(10px); border-radius:16px; opacity:0; pointer-events:none; transition:opacity .18s ease; padding:18px; }
+    .overlay.visible { opacity:1; pointer-events:auto; }
+    .overlay h2 { margin:0; color:var(--accent); font-size:clamp(1.6rem, 5vw, 3.1rem); }
+    .overlay p { margin:8px 0 0; color:var(--muted); }
+    .rules { color:var(--muted); line-height:1.45; font-size:.92rem; }
+    kbd { display:inline-block; padding:2px 7px; border-radius:7px; background:rgba(255,255,255,.12); color:var(--text); font-weight:900; }
+    .badges-panel { margin-top:12px; border-top:1px solid rgba(255,255,255,.10); }
+    .badges-panel summary { list-style:none; cursor:pointer; user-select:none; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 12px; margin-top:10px; border-radius:14px; background:rgba(255,255,255,.055); border:1px solid rgba(255,255,255,.09); color:var(--accent); font-size:.76rem; font-weight:1000; text-transform:uppercase; letter-spacing:.16em; }
+    .badges-panel summary::-webkit-details-marker { display:none; }
+    .badges-panel summary::after { content:'Show'; color:var(--text); font-size:.68rem; letter-spacing:.08em; padding:4px 8px; border-radius:999px; background:rgba(80,244,255,.12); border:1px solid rgba(80,244,255,.22); }
+    .badges-panel[open] summary::after { content:'Hide'; background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.12); }
+    .medal { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; padding-top:10px; }
+    .medal div { min-height:72px; aspect-ratio:1 / .72; padding:8px; border-radius:13px; background:rgba(255,255,255,.055); color:var(--muted); display:flex; flex-direction:column; justify-content:center; align-items:center; gap:5px; text-align:center; font-size:.8rem; border:1px solid rgba(255,255,255,.08); }
+    .medal div strong { color:var(--text); font-size:.92rem; }
+    .medal div.unlocked { border-color:rgba(93,255,176,.28); background:rgba(93,255,176,.08); }
+    .medal .rank-name { font-weight:1000; line-height:1.1; }
+    .medal .badge-bronze .rank-name { color:#a66a2c; }
+    .medal .badge-elite .rank-name { color:#50f4ff; }
+    .medal .badge-master .rank-name { color:#5dffb0; }
+    .medal .badge-grandmaster .rank-name { color:#c77dff; }
+    .medal .badge-epic .rank-name { color:#ff5dba; }
+    .medal .badge-legend .rank-name { color:#ffe66d; }
+    .medal .badge-mythic .rank-name { color:#ff5d7a; }
+    .message { margin-top:10px; min-height:38px; padding:10px; border-radius:12px; background:rgba(255,255,255,.055); color:var(--muted); line-height:1.35; font-size:.9rem; }
+    .message.good { color: var(--good); }
+    .message.bad { color: #ffb6c3; }
+    .battle-pill { display:none; margin-top:9px; padding:9px 10px; border-radius:13px; background:rgba(199,125,255,.10); border:1px solid rgba(199,125,255,.28); color:var(--text); font-size:.88rem; }
+    .battle-mode .battle-pill { display:block; }
+    .modal-backdrop { position:fixed; inset:0; z-index:80; display:none; place-items:center; padding:18px; background:rgba(2,6,19,.78); backdrop-filter:blur(12px); }
+    .modal-backdrop.visible { display:grid; }
+    .modal-card { width:min(440px,100%); border-radius:22px; padding:18px; background:rgba(8,13,34,.96); border:1px solid rgba(255,255,255,.14); box-shadow:var(--shadow), var(--ring); }
+    .modal-card h2 { margin:0 0 8px; color:var(--accent); }
+    .modal-card p { color:var(--muted); line-height:1.45; }
+    .modal-card input { width:100%; border-radius:14px; border:1px solid rgba(255,255,255,.13); background:rgba(255,255,255,.07); color:var(--text); padding:12px 13px; font:inherit; outline:none; }
+    .modal-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:8px; margin-top:12px; }
+    .small-muted { color:var(--muted); font-size:.86rem; margin-top:8px; min-height:20px; }
+
+    .level-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, var(--accent-2), #ff5d7a);
+      color: #ffffff;
+      font-size: 0.72rem;
+      font-weight: 900;
+      padding: 2px 7px;
+      border-radius: 6px;
+      min-width: 20px;
+      box-shadow: 0 0 10px rgba(199,125,255,0.4);
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    @media (min-width: 901px) {
+      html, body { height:auto; min-height:100%; overflow-x:hidden; overflow-y:auto; }
+      .app { min-height:100vh; height:auto; display:block; overflow:visible; padding:14px 0 28px; }
+      .game-shell { align-items:start; }
+      .board-wrap { display:flex; flex-direction:column; align-items:center; overflow:visible; }
+      canvas {
+        width:min(100%, 360px);
+        max-width:360px;
+        height:auto;
+        aspect-ratio:9 / 14;
+        margin:0 auto;
+      }
+      .battle-mode canvas { width:min(100%, 330px); max-width:330px; }
+      .medal { max-height:none; overflow:visible; padding-right:0; }
+    }
+    @media (max-width: 950px) { .hero { align-items:flex-start; flex-direction:column; } .hero-actions { justify-content:flex-start; } .game-shell, .game-shell.battle-mode { grid-template-columns: 1fr; } .board-wrap { max-width:390px; margin:0 auto; width:100%; } canvas { width:min(100%, 360px); } }
+    @media (max-height: 760px) and (min-width: 901px) { .card { padding:11px; } .stat-row { padding:6px 0; font-size:.86rem; } .medal div { padding:7px 8px; } }
+  </style>
+  <script>
+    (function () {
+      const DB_URL = "https://gamelibrary-882b6-default-rtdb.asia-southeast1.firebasedatabase.app";
+      const SESSION_KEY = "gamehub_current_user";
+      const GAMEHUB_KEYS = ["gamehub_profile_v1","flappy_bestScore", "flappy_bestLevel", "flappy_gamesPlayed", "flappy_lastScore"];
+      function safeUsernameKey(username) { return String(username || "").trim().toLowerCase().replace(/[^a-z0-9_]/g, "_"); }
+      function getCurrentUser() { try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); } catch (err) { return null; } }
+      function firebaseUrl(parts) { return DB_URL.replace(/\/$/, "") + "/" + parts.map(encodeURIComponent).join("/") + ".json"; }
+      const currentUser = getCurrentUser();
+      if (!currentUser || !currentUser.username) { window.location.replace("index.html"); return; }
+      const userKey = safeUsernameKey(currentUser.username);
+      const originalSetItem = localStorage.setItem.bind(localStorage);
+      const originalRemoveItem = localStorage.removeItem.bind(localStorage);
+      function cloudSet(key, value) {
+        fetch(firebaseUrl(["users", userKey, "gameData", key]), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(String(value)) }).catch(function () {});
+        fetch(firebaseUrl(["users", userKey, "lastActiveAt"]), { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(new Date().toISOString()) }).catch(function () {});
+      }
+      localStorage.setItem = function (key, value) { originalSetItem(key, value); if (GAMEHUB_KEYS.includes(key)) cloudSet(key, value); };
+      localStorage.removeItem = function (key) { originalRemoveItem(key); };
+      window.GameHubAuth = { dbUrl: DB_URL, user: currentUser, username: currentUser.username, safeUsernameKey, firebaseUrl, logout: function () { sessionStorage.removeItem(SESSION_KEY); window.location.href = "index.html"; }, saveNow: function () { GAMEHUB_KEYS.forEach(function (key) { const value = localStorage.getItem(key); if (value !== null) cloudSet(key, value); }); } };
+    })();
+  </script>
+
+  <script>
+    (function () {
+      const PROFILE_KEY = "gamehub_profile_v1";
+      const MAX_RECENT = 12;
+
+      function nowIso() { return new Date().toISOString(); }
+      function getUsername() {
+        return (window.GameHubAuth && window.GameHubAuth.username) || "Player";
+      }
+      function blankGame() {
+        return { successes: 0, bestScore: 0, bestLevel: 0, lastPlayedAt: null };
+      }
+      function defaultProfile() {
+        const username = getUsername();
+        return {
+          username,
+          displayName: username,
+          avatar: "🎮",
+          level: 1,
+          xp: 0,
+          successfulPlays: 0,
+          createdAt: nowIso(),
+          updatedAt: nowIso(),
+          games: {},
+          recentActivity: [],
+          completedSuccessIds: {}
+        };
+      }
+      function readProfile() {
+        let profile = null;
+        try { profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || "null"); }
+        catch (err) { profile = null; }
+        const base = defaultProfile();
+        profile = profile && typeof profile === "object" ? profile : base;
+        profile.username = getUsername();
+        profile.displayName = profile.displayName || profile.username;
+        profile.avatar = profile.avatar || "🎮";
+        profile.level = Math.max(1, Number(profile.level || 1));
+        profile.xp = Math.max(0, Number(profile.xp || 0));
+        profile.successfulPlays = Math.max(0, Number(profile.successfulPlays || 0));
+        profile.games = profile.games && typeof profile.games === "object" ? profile.games : {};
+        profile.recentActivity = Array.isArray(profile.recentActivity) ? profile.recentActivity : [];
+        profile.completedSuccessIds = profile.completedSuccessIds && typeof profile.completedSuccessIds === "object" ? profile.completedSuccessIds : {};
+        return profile;
+      }
+      function saveProfile(profile) {
+        profile.updatedAt = nowIso();
+        localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+        return profile;
+      }
+      function xpForNext(level) { return Math.max(50, level * 100); }
+      function showToast(text) {
+        if (!document.body) return;
+        const toast = document.createElement("div");
+        toast.textContent = text;
+        toast.style.cssText = "position:fixed;right:18px;bottom:18px;z-index:9999;padding:13px 15px;border-radius:16px;background:linear-gradient(135deg,rgba(80,244,255,.95),rgba(199,125,255,.95));color:#05101d;font-weight:1000;box-shadow:0 18px 50px rgba(0,0,0,.34);font-family:inherit;max-width:min(340px,calc(100vw - 36px));";
+        document.body.appendChild(toast);
+        setTimeout(function () { toast.style.opacity = "0"; toast.style.transform = "translateY(8px)"; toast.style.transition = "all .35s ease"; }, 2400);
+        setTimeout(function () { toast.remove(); }, 2850);
+      }
+      function recordSuccess(gameName, details) {
+        details = details || {};
+        const profile = readProfile();
+        const successId = details.successId ? String(details.successId) : "";
+        if (successId && profile.completedSuccessIds[successId]) return profile;
+        if (successId) profile.completedSuccessIds[successId] = nowIso();
+
+        const game = String(gameName || details.game || "Game");
+        const xp = Math.max(10, Number(details.xp || 50));
+        const beforeLevel = Number(profile.level || 1);
+        profile.successfulPlays += 1;
+        profile.level += 1;
+        profile.xp += xp;
+
+        if (!profile.games[game]) profile.games[game] = blankGame();
+        profile.games[game].successes = Number(profile.games[game].successes || 0) + 1;
+        profile.games[game].bestScore = Math.max(Number(profile.games[game].bestScore || 0), Number(details.score || 0));
+        profile.games[game].bestLevel = Math.max(Number(profile.games[game].bestLevel || 0), Number(details.level || 0));
+        profile.games[game].lastPlayedAt = nowIso();
+
+        profile.recentActivity.unshift({
+          game,
+          title: details.title || ("Successful " + game + " play"),
+          score: Number(details.score || 0),
+          level: Number(details.level || 0),
+          xp,
+          at: nowIso()
+        });
+        profile.recentActivity = profile.recentActivity.slice(0, MAX_RECENT);
+        saveProfile(profile);
+        showToast("Profile Level Up! Lv " + beforeLevel + " → " + profile.level);
+        return profile;
+      }
+      function resetProfile() {
+        const profile = defaultProfile();
+        saveProfile(profile);
+        return profile;
+      }
+      window.GameHubProfile = { PROFILE_KEY, readProfile, saveProfile, recordSuccess, resetProfile, xpForNext };
+    })();
+  </script>
+
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="brand"><span class="logo" aria-hidden="true"></span>Game Hub</div>
+      <nav aria-label="Main navigation">
+        <a href="homepage.html">Home</a>
+        <a href="profile.html">Profile</a>
+       <span class="account-pill">
+          👤 <span id="accountName">Player</span>
+          <span class="level-badge" id="accountLevel">LV 1</span>
+        </span>
+        <button class="logout-btn" type="button" onclick="GameHubAuth.logout()">Logout</button>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Sky runner</p>
+        <h1>Flappy Bird</h1>
+        <p class="subtitle">Tap, click, or press Space to fly through neon pipes. Multiplayer race mode shows your flight beside your opponent live.</p>
+      </div>
+      <div class="hero-actions">
+        <button id="startBtn">Start Game</button>
+        <button id="pauseBtn" class="secondary">Pause</button>
+        <button id="multiplayerBtn" class="secondary">Multiplayer Race</button>
+        <button id="leaveBattleBtn" class="danger" style="display:none;">Leave Battle</button>
+        <button id="resetBestBtn" class="secondary">Reset Best</button>
+      </div>
+    </section>
+
+    <section class="game-shell" id="gameShell">
+      <aside class="card">
+        <h2>Flight Stats</h2>
+        <div class="stat-row"><span>Score</span><strong id="scoreLabel">0</strong></div>
+        <div class="stat-row"><span>Best Score</span><strong id="bestLabel">0</strong></div>
+        <div class="stat-row"><span>Level</span><strong id="levelLabel">1</strong></div>
+        <div class="stat-row"><span>Best Level</span><strong id="bestLevelLabel">1</strong></div>
+        <div class="stat-row"><span>Speed</span><strong id="speedLabel">1.00x</strong></div>
+        <div class="stat-row"><span>Badge</span><strong id="rankLabel">None</strong></div>
+        <div class="battle-pill" id="battlePill">Race mode active.</div>
+        <div class="message" id="message">Press Start, Space, or click the board to begin.</div>
+        <details class="badges-panel" id="badgesPanel">
+          <summary>Badges</summary>
+          <div class="medal" id="badges"></div>
+        </details>
+      </aside>
+
+      <section class="board-wrap">
+        <h2 class="board-title" id="myBoardTitle">My Flight</h2>
+        <canvas id="gameCanvas" width="450" height="700" aria-label="Flappy Bird game board"></canvas>
+        <div id="overlay" class="overlay visible">
+          <div>
+            <h2>Ready?</h2>
+            <p>Press Space or Start Game</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="board-wrap opponent-wrap" id="opponentWrap">
+        <h2 class="board-title" id="opponentTitle">Opponent Flight</h2>
+        <canvas id="opponentCanvas" width="450" height="700" aria-label="Opponent Flappy Bird race board"></canvas>
+        <div id="opponentOverlay" class="overlay visible">
+          <div>
+            <h2>Waiting</h2>
+            <p>Opponent race view appears here.</p>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <div id="inviteModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="inviteTitle">
+      <h2 id="inviteTitle">Invite to Flappy Race</h2>
+      <p>Type the exact username of the player you want to race. They must already have a Game Hub account.</p>
+      <input id="inviteUsername" placeholder="Opponent username" autocomplete="off" />
+      <div id="inviteStatus" class="small-muted"></div>
+      <div class="modal-actions">
+        <button type="button" class="secondary" id="closeInviteBtn">Cancel</button>
+        <button type="button" id="sendInviteBtn">Send Invite</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="receiveModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="receiveTitle">
+      <h2 id="receiveTitle">Flappy Race Invite</h2>
+      <p id="receiveText">A player invited you to race.</p>
+      <div class="modal-actions">
+        <button type="button" class="secondary" id="declineInviteBtn">Decline</button>
+        <button type="button" id="acceptInviteBtn">Accept Race</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const opponentCanvas = document.getElementById('opponentCanvas');
+    const opponentCtx = opponentCanvas.getContext('2d');
+    const overlay = document.getElementById('overlay');
+    const opponentOverlay = document.getElementById('opponentOverlay');
+    const gameShell = document.getElementById('gameShell');
+    const scoreLabel = document.getElementById('scoreLabel');
+    const bestLabel = document.getElementById('bestLabel');
+    const levelLabel = document.getElementById('levelLabel');
+    const bestLevelLabel = document.getElementById('bestLevelLabel');
+    const speedLabel = document.getElementById('speedLabel');
+    const rankLabel = document.getElementById('rankLabel');
+    const message = document.getElementById('message');
+    const badges = document.getElementById('badges');
+    const startBtn = document.getElementById('startBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resetBestBtn = document.getElementById('resetBestBtn');
+    const multiplayerBtn = document.getElementById('multiplayerBtn');
+    const leaveBattleBtn = document.getElementById('leaveBattleBtn');
+    const battlePill = document.getElementById('battlePill');
+    const inviteModal = document.getElementById('inviteModal');
+    const inviteUsername = document.getElementById('inviteUsername');
+    const inviteStatus = document.getElementById('inviteStatus');
+    const closeInviteBtn = document.getElementById('closeInviteBtn');
+    const sendInviteBtn = document.getElementById('sendInviteBtn');
+    const receiveModal = document.getElementById('receiveModal');
+    const receiveText = document.getElementById('receiveText');
+    const acceptInviteBtn = document.getElementById('acceptInviteBtn');
+    const declineInviteBtn = document.getElementById('declineInviteBtn');
+    const opponentTitle = document.getElementById('opponentTitle');
+    const myBoardTitle = document.getElementById('myBoardTitle');
+    document.getElementById('opponentWrap').style.display = 'none';
+
+    const W = canvas.width;
+    const H = canvas.height;
+    const currentUsername = window.GameHubAuth ? window.GameHubAuth.username : 'Player';
+    const myKey = window.GameHubAuth ? window.GameHubAuth.safeUsernameKey(currentUsername) : 'player';
+    const dbUrl = window.GameHubAuth.firebaseUrl;
+    const bird = { x: 120, y: H / 2, r: 17, vy: 0, rot: 0 };
+    let pipes = [];
+    let clouds = [];
+    let particles = [];
+    let running = false;
+    let paused = false;
+    let gameOverState = false;
+    let score = 0;
+    let level = 1;
+    let speedMultiplier = 1;
+    let pipeTimer = 0;
+    let frame = 0;
+    let bestScore = Number(localStorage.getItem('flappy_bestScore') || 0);
+    let bestLevel = Number(localStorage.getItem('flappy_bestLevel') || 1);
+    let gamesPlayed = Number(localStorage.getItem('flappy_gamesPlayed') || 0);
+    let rng = Math.random;
+    let activeSeed = null;
+    let battleRoomId = null;
+    let opponentKey = null;
+    let opponentUsername = null;
+    let battleActive = false;
+    let lastCommandToken = null;
+    let pendingInvite = null;
+    let roomPollTimer = null;
+    let invitePollTimer = null;
+    let publishTimer = null;
+    let lastOpponentState = null;
+
+    const BADGES = [
+      { name: 'Bronze', points: 25 },
+      { name: 'Elite', points: 50 },
+      { name: 'Master', points: 65 },
+      { name: 'Grandmaster', points: 75 },
+      { name: 'Epic', points: 90 },
+      { name: 'Legend', points: 100 },
+      { name: 'Mythic', points: 150 }
+    ];
+
+    function setMessage(text, kind = '') { message.textContent = text; message.className = 'message' + (kind ? ' ' + kind : ''); }
+    function setOverlay(title, body, show) { overlay.innerHTML = `<div><h2>${title}</h2><p>${body}</p></div>`; overlay.classList.toggle('visible', show); }
+    function setOpponentOverlay(title, body, show) { opponentOverlay.innerHTML = `<div><h2>${title}</h2><p>${body}</p></div>`; opponentOverlay.classList.toggle('visible', show); }
+    function rand(min, max) { return rng() * (max - min) + min; }
+    function seededRandom(seed) { let value = Number(seed) % 2147483647; if (value <= 0) value += 2147483646; return function () { value = value * 16807 % 2147483647; return (value - 1) / 2147483646; }; }
+    async function fbGet(parts) { const res = await fetch(dbUrl(parts)); return res.json(); }
+    async function fbPut(parts, value) { await fetch(dbUrl(parts), { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(value) }); }
+    async function fbPatch(parts, value) { await fetch(dbUrl(parts), { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(value) }); }
+    async function fbDelete(parts) { await fetch(dbUrl(parts), { method:'DELETE' }); }
+
+    function makeCloud() { return { x: rand(0, W), y: rand(40, 230), w: rand(50, 130), speed: rand(0.2, 0.6), alpha: rand(0.08, 0.18) }; }
+    clouds = Array.from({ length: 8 }, makeCloud);
+
+    function resetGame(seedOverride) {
+      activeSeed = seedOverride || null;
+      rng = activeSeed ? seededRandom(activeSeed) : Math.random;
+      clouds = Array.from({ length: 8 }, makeCloud);
+      bird.y = H / 2; bird.vy = 0; bird.rot = 0;
+      pipes = []; particles = []; score = 0; level = 1; speedMultiplier = 1; pipeTimer = 0; frame = 0;
+      running = true; paused = false; gameOverState = false;
+      spawnPipe();
+      setOverlay('', '', false);
+      setMessage(battleActive ? 'Race started. First to Mythic wins!' : 'Good luck! Fly through the pipes.', 'good');
+      updateHud();
+      publishBattleState(true);
+      requestAnimationFrame(loop);
+    }
+
+    // Extract verified Auth credentials and live profile parameters 
+    const username = window.GameHubAuth ? window.GameHubAuth.username : "Player";
+    document.getElementById("accountName").textContent = username;
+
+    if (window.GameHubProfile && typeof window.GameHubProfile.readProfile === "function") {
+      const liveProfile = window.GameHubProfile.readProfile();
+      if (liveProfile && liveProfile.level) {
+        document.getElementById("accountLevel").textContent = "LV " + liveProfile.level;
+      }
+    }
+
+    function spawnPipe() {
+      const gap = Math.max(132, 205 - (level - 1) * 7);
+      const margin = 70;
+      const topHeight = rand(margin, H - gap - margin - 80);
+      pipes.push({ x: W + 40, top: topHeight, bottom: topHeight + gap, w: 76, scored: false });
+    }
+
+    function flap() {
+      if (!running || gameOverState) {
+        if (battleActive) startRaceCommand();
+        else resetGame();
+        return;
+      }
+      if (paused) return;
+      bird.vy = -8.8;
+      for (let i = 0; i < 8; i++) particles.push({ x: bird.x - 10, y: bird.y + 8, vx: rand(-2.4, -0.6), vy: rand(-1.5, 1.5), life: 28, max: 28 });
+    }
+
+    function togglePause() {
+      if (!running || gameOverState) return;
+      paused = !paused;
+      setOverlay(paused ? 'Paused' : '', paused ? 'Press P to resume' : '', paused);
+      setMessage(paused ? 'Game paused.' : 'Back in flight.', paused ? '' : 'good');
+      publishBattleState(true);
+      if (!paused) requestAnimationFrame(loop);
+    }
+
+    function currentBadge(value) {
+      let rank = 'None';
+      for (const badge of BADGES) if (value >= badge.points) rank = badge.name;
+      return rank;
+    }
+
+    function updateHud() {
+      scoreLabel.textContent = score;
+      bestLabel.textContent = bestScore;
+      levelLabel.textContent = level;
+      bestLevelLabel.textContent = bestLevel;
+      speedLabel.textContent = speedMultiplier.toFixed(2) + 'x';
+      rankLabel.textContent = currentBadge(score);
+      badges.innerHTML = BADGES.map(badge => {
+        const unlocked = score >= badge.points;
+        const rankClass = 'badge-' + badge.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        return `<div class="${rankClass} ${unlocked ? 'unlocked' : ''}"><span class="rank-name">${unlocked ? '✓ ' : ''}${badge.name}</span><strong>${badge.points} pts</strong></div>`;
+      }).join('');
+    }
+
+    function saveScores() {
+      localStorage.setItem('flappy_bestScore', String(bestScore));
+      localStorage.setItem('flappy_bestLevel', String(bestLevel));
+      localStorage.setItem('flappy_gamesPlayed', String(gamesPlayed));
+      localStorage.setItem('flappy_lastScore', String(score));
+      if (window.GameHubAuth) window.GameHubAuth.saveNow();
+    }
+
+    async function declareWinner(reason) {
+      if (!battleActive || !battleRoomId) return;
+      const room = await fbGet(['flappyBattles', battleRoomId]).catch(() => null);
+      if (room && room.winner) return;
+      await fbPatch(['flappyBattles', battleRoomId], { winner: { key: myKey, username: currentUsername, reason, score, at: Date.now() } }).catch(() => {});
+    }
+
+    function endGame() {
+      if (gameOverState) return;
+      running = false; gameOverState = true; gamesPlayed++;
+      const oldBest = bestScore;
+      if (score > bestScore) bestScore = score;
+      if (level > bestLevel) bestLevel = level;
+      saveScores(); updateHud(); publishBattleState(true);
+      if (score > 0 && window.GameHubProfile) window.GameHubProfile.recordSuccess("Flappy Bird", { score, level, xp: Math.max(25, score * 5), title: "Completed a Flappy Bird flight" });
+      setOverlay('Game Over', `Score ${score}. ${battleActive ? 'Wait for race result or restart race.' : 'Press Space to retry.'}`, true);
+      setMessage(score > oldBest ? 'New best flight saved!' : 'Flight ended. Try again!', score > oldBest ? 'good' : 'bad');
+    }
+
+    function rectCircleCollide(px, py, pw, ph, cx, cy, cr) {
+      const closestX = Math.max(px, Math.min(cx, px + pw));
+      const closestY = Math.max(py, Math.min(cy, py + ph));
+      const dx = cx - closestX;
+      const dy = cy - closestY;
+      return dx * dx + dy * dy < cr * cr;
+    }
+
+    function update() {
+      frame++;
+      bird.vy += 0.46;
+      bird.y += bird.vy;
+      bird.rot = Math.max(-0.55, Math.min(0.95, bird.vy / 11));
+      speedMultiplier = 1 + Math.floor(score / 5) * 0.13;
+      level = Math.floor(score / 5) + 1;
+      pipeTimer += 1 * speedMultiplier;
+      if (pipeTimer > Math.max(74, 118 - Math.min(24, level * 2))) { spawnPipe(); pipeTimer = 0; }
+
+      pipes.forEach(pipe => {
+        pipe.x -= (2.5 + level * 0.08) * speedMultiplier;
+        if (!pipe.scored && pipe.x + pipe.w < bird.x) {
+          pipe.scored = true;
+          score++;
+          if (score > bestScore) bestScore = score;
+          if (level > bestLevel) bestLevel = level;
+          if (score >= 150) declareWinner('Reached Mythic first');
+          setMessage(score % 5 === 0 ? `Level ${level + 1} speed boost!` : 'Pipe cleared!', 'good');
+        }
+      });
+      pipes = pipes.filter(pipe => pipe.x + pipe.w > -30);
+      clouds.forEach(c => { c.x -= c.speed * speedMultiplier; if (c.x + c.w < 0) Object.assign(c, makeCloud(), { x: W + 40 }); });
+      particles.forEach(p => { p.x += p.vx; p.y += p.vy; p.life--; });
+      particles = particles.filter(p => p.life > 0);
+
+      if (bird.y - bird.r < 0 || bird.y + bird.r > H - 54) endGame();
+      for (const pipe of pipes) {
+        if (rectCircleCollide(pipe.x, 0, pipe.w, pipe.top, bird.x, bird.y, bird.r) || rectCircleCollide(pipe.x, pipe.bottom, pipe.w, H - pipe.bottom - 54, bird.x, bird.y, bird.r)) {
+          endGame(); break;
+        }
+      }
+      updateHud();
+    }
+
+    function drawBackground(targetCtx, localFrame = frame) {
+      const grad = targetCtx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, '#091536'); grad.addColorStop(0.55, '#101b44'); grad.addColorStop(1, '#06101d');
+      targetCtx.fillStyle = grad; targetCtx.fillRect(0, 0, W, H);
+      targetCtx.fillStyle = 'rgba(255,255,255,.09)';
+      for (let i = 0; i < 7; i++) {
+        const x = (W + 90 - ((localFrame * (0.25 + i * .03)) % (W + 180)) + i * 93) % (W + 180) - 90;
+        const y = 50 + (i * 31) % 170;
+        targetCtx.beginPath(); targetCtx.ellipse(x, y, 38 + i * 4, 14, 0, 0, Math.PI * 2); targetCtx.fill();
+      }
+      targetCtx.fillStyle = 'rgba(80,244,255,.12)';
+      for (let x = -(localFrame % 34); x < W; x += 34) targetCtx.fillRect(x, H - 54, 20, 54);
+      targetCtx.fillStyle = '#0b1531'; targetCtx.fillRect(0, H - 54, W, 54);
+      targetCtx.fillStyle = 'rgba(93,255,176,.25)'; targetCtx.fillRect(0, H - 54, W, 4);
+    }
+
+    function drawPipe(targetCtx, pipe) {
+      const pipeGrad = targetCtx.createLinearGradient(pipe.x, 0, pipe.x + pipe.w, 0);
+      pipeGrad.addColorStop(0, '#2bbf8a'); pipeGrad.addColorStop(.5, '#5dffb0'); pipeGrad.addColorStop(1, '#138e70');
+      targetCtx.fillStyle = pipeGrad;
+      targetCtx.fillRect(pipe.x, 0, pipe.w, pipe.top);
+      targetCtx.fillRect(pipe.x, pipe.bottom, pipe.w, H - pipe.bottom - 54);
+      targetCtx.fillStyle = 'rgba(255,255,255,.22)';
+      targetCtx.fillRect(pipe.x + 8, 0, 8, pipe.top);
+      targetCtx.fillRect(pipe.x + 8, pipe.bottom, 8, H - pipe.bottom - 54);
+      targetCtx.fillStyle = '#5dffb0';
+      targetCtx.fillRect(pipe.x - 6, pipe.top - 18, pipe.w + 12, 18);
+      targetCtx.fillRect(pipe.x - 6, pipe.bottom, pipe.w + 12, 18);
+    }
+
+    function drawBirdAt(targetCtx, x, y, rot) {
+      targetCtx.save(); targetCtx.translate(x, y); targetCtx.rotate(rot || 0);
+      const body = targetCtx.createRadialGradient(-6, -6, 4, 0, 0, 24);
+      body.addColorStop(0, '#fff7b8'); body.addColorStop(1, '#ffcf4f');
+      targetCtx.fillStyle = body;
+      targetCtx.beginPath(); targetCtx.ellipse(0, 0, 22, 17, 0, 0, Math.PI * 2); targetCtx.fill();
+      targetCtx.fillStyle = '#ff8f4f';
+      targetCtx.beginPath(); targetCtx.moveTo(16, -3); targetCtx.lineTo(35, 3); targetCtx.lineTo(16, 9); targetCtx.closePath(); targetCtx.fill();
+      targetCtx.fillStyle = '#ffffff'; targetCtx.beginPath(); targetCtx.arc(8, -7, 6, 0, Math.PI * 2); targetCtx.fill();
+      targetCtx.fillStyle = '#071022'; targetCtx.beginPath(); targetCtx.arc(10, -7, 2.5, 0, Math.PI * 2); targetCtx.fill();
+      targetCtx.fillStyle = 'rgba(199,125,255,.65)';
+      targetCtx.beginPath(); targetCtx.ellipse(-7, 6, 12, 6, -0.5, 0, Math.PI * 2); targetCtx.fill();
+      targetCtx.restore();
+    }
+
+    function draw() {
+      drawBackground(ctx, frame);
+      pipes.forEach(pipe => drawPipe(ctx, pipe));
+      particles.forEach(p => { ctx.save(); ctx.globalAlpha = p.life / p.max; ctx.fillStyle = '#50f4ff'; ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2); ctx.fill(); ctx.restore(); });
+      drawBirdAt(ctx, bird.x, bird.y, bird.rot);
+      ctx.fillStyle = 'rgba(244,248,255,.9)'; ctx.font = '900 42px Inter, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(score, W / 2, 64);
+      ctx.font = '800 14px Inter, sans-serif'; ctx.fillStyle = 'rgba(170,183,223,.9)'; ctx.fillText(`LEVEL ${level} • ${speedMultiplier.toFixed(2)}x • ${currentBadge(score).toUpperCase()}`, W / 2, 90);
+    }
+
+    function drawOpponent(state) {
+      if (!state) {
+        drawBackground(opponentCtx, 0);
+        opponentCtx.fillStyle = 'rgba(244,248,255,.85)'; opponentCtx.font = '900 28px Inter, sans-serif'; opponentCtx.textAlign = 'center'; opponentCtx.fillText('Waiting...', W / 2, H / 2);
+        return;
+      }
+      drawBackground(opponentCtx, state.frame || 0);
+      (state.pipes || []).forEach(pipe => drawPipe(opponentCtx, pipe));
+      drawBirdAt(opponentCtx, 120, Number(state.birdY || H / 2), Number(state.birdRot || 0));
+      opponentCtx.fillStyle = 'rgba(244,248,255,.9)'; opponentCtx.font = '900 42px Inter, sans-serif'; opponentCtx.textAlign = 'center'; opponentCtx.fillText(Number(state.score || 0), W / 2, 64);
+      opponentCtx.font = '800 14px Inter, sans-serif'; opponentCtx.fillStyle = 'rgba(170,183,223,.9)'; opponentCtx.fillText(`LEVEL ${state.level || 1} • ${Number(state.speed || 1).toFixed(2)}x • ${currentBadge(Number(state.score || 0)).toUpperCase()}`, W / 2, 90);
+      if (state.gameOver) {
+        opponentCtx.fillStyle = 'rgba(2,6,19,.62)'; opponentCtx.fillRect(0, 0, W, H);
+        opponentCtx.fillStyle = '#50f4ff'; opponentCtx.font = '900 38px Inter, sans-serif'; opponentCtx.fillText('GAME OVER', W / 2, H / 2);
+      }
+    }
+
+    function loop() {
+      if (!running || paused || gameOverState) { draw(); return; }
+      update(); draw(); publishBattleState(false); requestAnimationFrame(loop);
+    }
+
+    function publicState() {
+      return {
+        username: currentUsername,
+        score,
+        level,
+        speed: speedMultiplier,
+        badge: currentBadge(score),
+        birdY: bird.y,
+        birdRot: bird.rot,
+        pipes: pipes.slice(0, 4).map(p => ({ x: Math.round(p.x), top: Math.round(p.top), bottom: Math.round(p.bottom), w: p.w })),
+        running,
+        paused,
+        gameOver: gameOverState,
+        frame,
+        updatedAt: Date.now()
+      };
+    }
+
+    async function publishBattleState(force) {
+      if (!battleActive || !battleRoomId) return;
+      if (!force && frame % 12 !== 0) return;
+      fbPut(['flappyBattles', battleRoomId, 'state', myKey], publicState()).catch(() => {});
+    }
+
+    async function startRaceCommand() {
+      if (!battleActive || !battleRoomId) { resetGame(); return; }
+      const seed = Date.now() % 2147483647;
+      const token = `${myKey}_${Date.now()}`;
+      await fbPatch(['flappyBattles', battleRoomId], { command: { type:'start', seed, token, by: myKey, at: Date.now() }, winner: null }).catch(() => {});
+      applyRaceCommand({ type:'start', seed, token });
+    }
+
+    function applyRaceCommand(command) {
+      if (!command || command.token === lastCommandToken) return;
+      lastCommandToken = command.token;
+      if (command.type === 'start') resetGame(command.seed);
+    }
+
+    function showBattleUi(roomId, otherKey, otherUsername) {
+      battleRoomId = roomId;
+      opponentKey = otherKey;
+      opponentUsername = otherUsername || otherKey;
+      battleActive = true;
+      gameShell.classList.add('battle-mode');
+      document.getElementById('opponentWrap').style.display = '';
+      opponentTitle.textContent = `${opponentUsername}'s Flight`;
+      myBoardTitle.textContent = `${currentUsername}'s Flight`;
+      battlePill.textContent = `Racing ${opponentUsername}. Press Start Game to launch the same pipe pattern.`;
+      multiplayerBtn.style.display = 'none';
+      leaveBattleBtn.style.display = '';
+      setMessage('Multiplayer race ready. Press Start Game when both players are ready.', 'good');
+      setOpponentOverlay('Ready', `Waiting for ${opponentUsername}.`, true);
+      drawOpponent(null);
+      startRoomPolling();
+    }
+
+    function leaveBattle() {
+      if (battleRoomId) fbPatch(['flappyBattles', battleRoomId, 'players', myKey], { online:false, leftAt:Date.now() }).catch(() => {});
+      battleActive = false; battleRoomId = null; opponentKey = null; opponentUsername = null; lastOpponentState = null;
+      gameShell.classList.remove('battle-mode');
+      document.getElementById('opponentWrap').style.display = 'none';
+      multiplayerBtn.style.display = '';
+      leaveBattleBtn.style.display = 'none';
+      battlePill.textContent = '';
+      if (roomPollTimer) clearInterval(roomPollTimer);
+      setMessage('Left multiplayer race.');
+      setOverlay('Ready?', 'Press Space or Start Game', true);
+      drawOpponent(null);
+    }
+
+    function startRoomPolling() {
+      if (roomPollTimer) clearInterval(roomPollTimer);
+      roomPollTimer = setInterval(async () => {
+        if (!battleRoomId) return;
+        const room = await fbGet(['flappyBattles', battleRoomId]).catch(() => null);
+        if (!room) return;
+        if (room.command) applyRaceCommand(room.command);
+        if (room.state && opponentKey && room.state[opponentKey]) {
+          lastOpponentState = room.state[opponentKey];
+          drawOpponent(lastOpponentState);
+          setOpponentOverlay('', '', false);
+        }
+        if (room.winner) {
+          const won = room.winner.key === myKey;
+          setMessage(won ? 'Champion! You reached Mythic first.' : `${room.winner.username || 'Opponent'} is the champion.`, won ? 'good' : 'bad');
+        }
+      }, 650);
+    }
+
+    async function sendInvite() {
+      const raw = inviteUsername.value.trim();
+      const targetKey = window.GameHubAuth.safeUsernameKey(raw);
+      inviteStatus.textContent = '';
+      if (!raw) { inviteStatus.textContent = 'Enter a username first.'; return; }
+      if (targetKey === myKey) { inviteStatus.textContent = 'You cannot invite yourself.'; return; }
+      sendInviteBtn.disabled = true;
+      inviteStatus.textContent = 'Checking username...';
+      try {
+        const target = await fbGet(['users', targetKey]);
+        if (!target || !target.username) {
+          inviteStatus.textContent = 'Error: username does not exist.';
+          sendInviteBtn.disabled = false;
+          return;
+        }
+        const roomId = `flappy_${Date.now()}_${myKey}_${targetKey}`;
+        const inviteId = `invite_${Date.now()}_${myKey}`;
+        const roomData = {
+          game:'flappybird',
+          status:'waiting',
+          createdAt:Date.now(),
+          hostKey:myKey,
+          guestKey:targetKey,
+          players:{
+            [myKey]: { username:currentUsername, online:true, accepted:true },
+            [targetKey]: { username:target.username || raw, online:false, accepted:false }
+          }
+        };
+        await fbPut(['flappyBattles', roomId], roomData);
+        await fbPut(['users', targetKey, 'flappyInvites', inviteId], { id:inviteId, roomId, from:currentUsername, fromKey:myKey, to:target.username || raw, toKey:targetKey, status:'pending', createdAt:Date.now() });
+        inviteModal.classList.remove('visible');
+        showBattleUi(roomId, targetKey, target.username || raw);
+      } catch (err) {
+        inviteStatus.textContent = 'Invite failed. Check your Firebase database rules.';
+      } finally {
+        sendInviteBtn.disabled = false;
+      }
+    }
+
+    async function pollInvites() {
+      if (battleActive) return;
+      const invites = await fbGet(['users', myKey, 'flappyInvites']).catch(() => null);
+      if (!invites) return;
+      const pending = Object.values(invites).filter(inv => inv && inv.status === 'pending').sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0))[0];
+      if (!pending || (pendingInvite && pendingInvite.id === pending.id)) return;
+      pendingInvite = pending;
+      receiveText.textContent = `${pending.from} invited you to a Flappy Bird race.`;
+      receiveModal.classList.add('visible');
+    }
+
+    async function acceptInvite() {
+      if (!pendingInvite) return;
+      const inv = pendingInvite;
+      await fbPatch(['users', myKey, 'flappyInvites', inv.id], { status:'accepted', acceptedAt:Date.now() }).catch(() => {});
+      await fbPatch(['flappyBattles', inv.roomId], { status:'active' }).catch(() => {});
+      await fbPatch(['flappyBattles', inv.roomId, 'players', myKey], { username:currentUsername, online:true, accepted:true }).catch(() => {});
+      receiveModal.classList.remove('visible');
+      showBattleUi(inv.roomId, inv.fromKey, inv.from);
+      pendingInvite = null;
+    }
+
+    async function declineInvite() {
+      if (pendingInvite) await fbPatch(['users', myKey, 'flappyInvites', pendingInvite.id], { status:'declined', declinedAt:Date.now() }).catch(() => {});
+      receiveModal.classList.remove('visible');
+      pendingInvite = null;
+    }
+
+    startBtn.addEventListener('click', () => battleActive ? startRaceCommand() : resetGame());
+    pauseBtn.addEventListener('click', togglePause);
+    resetBestBtn.addEventListener('click', () => { bestScore = 0; bestLevel = 1; localStorage.setItem('flappy_bestScore', '0'); localStorage.setItem('flappy_bestLevel', '1'); saveScores(); updateHud(); setMessage('Best score reset.'); });
+    multiplayerBtn.addEventListener('click', () => { inviteUsername.value = ''; inviteStatus.textContent = ''; inviteModal.classList.add('visible'); setTimeout(() => inviteUsername.focus(), 50); });
+    closeInviteBtn.addEventListener('click', () => inviteModal.classList.remove('visible'));
+    sendInviteBtn.addEventListener('click', sendInvite);
+    inviteUsername.addEventListener('keydown', e => { if (e.key === 'Enter') sendInvite(); });
+    acceptInviteBtn.addEventListener('click', acceptInvite);
+    declineInviteBtn.addEventListener('click', declineInvite);
+    leaveBattleBtn.addEventListener('click', leaveBattle);
+    canvas.addEventListener('pointerdown', flap);
+    window.addEventListener('keydown', e => {
+      if (inviteModal.classList.contains('visible') || receiveModal.classList.contains('visible')) return;
+      if (e.code === 'Space') { e.preventDefault(); flap(); }
+      if (e.key.toLowerCase() === 'p') togglePause();
+      if (e.key.toLowerCase() === 'enter' && !running) battleActive ? startRaceCommand() : resetGame();
+    });
+    window.addEventListener('beforeunload', () => { publishBattleState(true); if (window.GameHubAuth) window.GameHubAuth.saveNow(); });
+    document.getElementById('accountName').textContent = currentUsername;
+    invitePollTimer = setInterval(pollInvites, 1500);
+    updateHud(); draw(); drawOpponent(null);
+  </script>
+</body>
+</html>

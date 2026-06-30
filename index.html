@@ -1,764 +1,154 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QR Vault</title>
-
-<style>
-:root {
-    --bg-primary: #0f172a;
-    --bg-surface: #1e293b;
-    --brand-success: #22c55e;
-    --brand-success-hover: #16a34a;
-    --brand-danger: #ef4444;
-    --brand-danger-hover: #dc2626;
-    --text-main: #f8fafc;
-    --text-muted: #94a3b8;
-}
-
-body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg-primary);
-    color: var(--text-main);
-    overflow: hidden;
-    height: 100vh;
-    width: 100vw;
-}
-
-/* Viewer Container */
-.viewer {
-    display: flex;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    height: 100vh;
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
-}
-
-.viewer::-webkit-scrollbar {
-    display: none;
-}
-
-/* Card Presentation */
-.card {
-    min-width: 100%;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    scroll-snap-align: start;
-    box-sizing: border-box;
-    padding: 30px 20px 110px 20px;
-}
-
-/* 9:16 ASPECT RATIO CONTAINER */
-.image-container {
-    position: relative;
-    width: 100%;
-    max-width: 270px;
-    aspect-ratio: 9 / 16; 
-    border-radius: 20px;
-    overflow: hidden;
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
-    background: #1e293b;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.image-container img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover; 
-    display: block;
-    cursor: zoom-in;
-}
-
-.preview-hint {
-    position: absolute;
-    bottom: 12px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(15, 23, 42, 0.75);
-    backdrop-filter: blur(4px);
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 11px;
-    letter-spacing: 0.5px;
-    color: var(--text-muted);
-    pointer-events: none;
-    text-transform: uppercase;
-    white-space: nowrap;
-}
-
-/* Edit Floating Anchor on Cards */
-.edit-trigger {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    width: 36px;
-    height: 36px;
-    border-radius: 18px;
-    background: rgba(15, 23, 42, 0.75);
-    backdrop-filter: blur(4px);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: white;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    font-size: 16px;
-    z-index: 5;
-    transition: background 0.2s;
-}
-
-.edit-trigger:hover {
-    background: rgba(15, 23, 42, 0.95);
-}
-
-.action-row {
-    text-align: center;
-    width: 100%;
-}
-
-.label {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-    text-transform: uppercase;
-    margin-top: 10px;
-    margin-bottom: 8px;
-}
-
-.open-btn {
-    padding: 14px 40px;
-    background: var(--brand-success);
-    border: none;
-    border-radius: 14px;
-    color: white;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.2);
-    transition: background 0.2s, transform 0.1s;
-}
-
-.open-btn:active {
-    transform: scale(0.96);
-    background: var(--brand-success-hover);
-}
-
-/* Action Control Actions (FAB Group) */
-.fab-group {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    z-index: 10;
-}
-
-.fab {
-    width: 56px;
-    height: 56px;
-    border-radius: 28px;
-    background: var(--brand-success);
-    color: white;
-    border: none;
-    cursor: pointer;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 24px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.4s ease, transform 0.2s ease, background-color 0.2s;
-}
-
-.fab.visible {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-/* Modals & Overlays */
-.modal {
-    position: fixed;
-    inset: 0;
-    background: rgba(15, 23, 42, 0.8);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .3s ease;
-    z-index: 100;
-}
-
-.modal.active {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.modal-box {
-    background: var(--bg-surface);
-    padding: 24px;
-    border-radius: 24px;
-    width: 88%;
-    max-width: 360px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-select, input[type="file"] {
-    width: 100%;
-    padding: 14px;
-    margin-bottom: 14px;
-    border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background: var(--bg-primary);
-    color: white;
-    font-size: 15px;
-    box-sizing: border-box;
-    outline: none;
-}
-
-.btn-submit {
-    background: var(--brand-success);
-    padding: 14px;
-    text-align: center;
-    border-radius: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    margin-bottom: 10px;
-}
-
-.btn-danger {
-    background: var(--brand-danger);
-    padding: 14px;
-    text-align: center;
-    border-radius: 12px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.btn-danger:active { background: var(--brand-danger-hover); }
-
-/* Fullscreen Immersive Preview Context & Carousel Tracking Setup */
-.fullscreen-preview {
-    position: fixed;
-    inset: 0;
-    background: #05070f;
-    z-index: 200;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.3s ease;
-}
-
-.fullscreen-preview.active {
-    opacity: 1;
-    pointer-events: auto;
-}
-
-.fullscreen-carousel-track {
-    display: flex;
-    width: 100%;
-    height: 100vh;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    scroll-behavior: smooth;
-}
-
-.fullscreen-carousel-track::-webkit-scrollbar {
-    display: none;
-}
-
-.fullscreen-slide {
-    min-width: 100%;
-    height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    scroll-snap-align: start;
-    box-sizing: border-box;
-    padding: 20px;
-}
-
-.fullscreen-slide img {
-    max-width: 100%;
-    max-height: 90vh;
-    object-fit: contain;
-    border-radius: 8px;
-}
-
-.close-preview-btn {
-    position: absolute;
-    top: 30px;
-    right: 24px;
-    background: rgba(255,255,255,0.15);
-    border: none;
-    color: white;
-    padding: 10px 18px;
-    border-radius: 20px;
-    font-size: 13px;
-    backdrop-filter: blur(8px);
-    z-index: 210;
-    cursor: pointer;
-}
-
-.carousel-indicator {
-    position: absolute;
-    bottom: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(15, 23, 42, 0.6);
-    padding: 6px 16px;
-    border-radius: 20px;
-    font-size: 13px;
-    color: var(--text-main);
-    z-index: 210;
-    pointer-events: none;
-    letter-spacing: 1px;
-}
-
-.toast {
-    position: fixed;
-    bottom: 110px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(30, 41, 59, 0.95);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: white;
-    padding: 12px 24px;
-    border-radius: 20px;
-    font-size: 14px;
-    opacity: 0;
-    transition: opacity .3s;
-    z-index: 150;
-    text-align: center;
-}
-
-.toast.show { opacity: 1; }
-
-.empty-state {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    text-align: center;
-    color: var(--text-muted);
-}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign In | Game Hub</title>
+  <style>
+    :root { --bg:#050814; --panel:rgba(12,18,42,.78); --text:#f4f8ff; --muted:#aab7df; --accent:#50f4ff; --accent-2:#c77dff; --good:#5dffb0; --danger:#ff5d7a; --shadow:0 24px 80px rgba(0,0,0,.48); }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; display:grid; place-items:center; font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:var(--text); background:radial-gradient(circle at 8% 8%,rgba(80,244,255,.28),transparent 24rem),radial-gradient(circle at 92% 18%,rgba(199,125,255,.25),transparent 26rem),linear-gradient(140deg,#030611 0%,#090e25 48%,#180a26 100%); padding:24px; }
+    body::before { content:""; position:fixed; inset:0; pointer-events:none; background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px); background-size:34px 34px; mask-image:linear-gradient(to bottom,black,transparent 88%); }
+    .shell { width:min(1050px,100%); display:grid; grid-template-columns:1fr 430px; gap:24px; position:relative; z-index:1; }
+    .hero,.card { border:1px solid rgba(255,255,255,.13); border-radius:32px; background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.025)),linear-gradient(135deg,rgba(80,244,255,.07),rgba(199,125,255,.055)),rgba(7,12,31,.72); box-shadow:var(--shadow),0 0 0 1px rgba(80,244,255,.22),0 0 36px rgba(80,244,255,.12); backdrop-filter:blur(18px) saturate(135%); }
+    .hero { padding:clamp(28px,5vw,56px); display:flex; flex-direction:column; justify-content:space-between; min-height:590px; }
+    .brand { display:flex; align-items:center; gap:12px; font-weight:1000; font-size:1.2rem; }
+    .logo { width:44px; height:44px; border-radius:14px; background:linear-gradient(135deg,var(--accent),var(--accent-2)); box-shadow:0 0 28px rgba(80,244,255,.34),inset 0 0 18px rgba(255,255,255,.18); }
+    .eyebrow { color:var(--accent); text-transform:uppercase; letter-spacing:.18em; font-size:.76rem; font-weight:1000; margin:0 0 12px; }
+    h1 { margin:0; font-size:clamp(3rem,8vw,6.6rem); line-height:.88; letter-spacing:-.08em; background:linear-gradient(135deg,#fff,#dffbff 42%,var(--accent) 72%,var(--accent-2)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .subtitle { margin:18px 0 0; color:var(--muted); max-width:620px; line-height:1.65; }
+    .card { padding:28px; align-self:center; }
+    .tabs { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:22px; }
+    .tab { border:1px solid rgba(255,255,255,.12); background:rgba(255,255,255,.06); color:var(--text); border-radius:16px; padding:12px; font-weight:1000; cursor:pointer; }
+    .tab.active { background:linear-gradient(135deg,var(--accent),#9ffcff); color:#05101d; }
+    label { display:block; margin:14px 0 7px; color:var(--muted); font-weight:800; font-size:.9rem; }
+    input { width:100%; border:1px solid rgba(255,255,255,.14); border-radius:16px; padding:14px 15px; background:rgba(255,255,255,.06); color:var(--text); outline:none; font:inherit; }
+    input:focus { border-color:rgba(80,244,255,.55); box-shadow:0 0 0 4px rgba(80,244,255,.10); }
+    .submit { width:100%; margin-top:20px; border:0; border-radius:16px; padding:14px; background:linear-gradient(135deg,var(--accent),#9ffcff); color:#05101d; font-weight:1000; cursor:pointer; box-shadow:0 0 24px rgba(80,244,255,.22); }
+    .note { color:var(--muted); font-size:.86rem; line-height:1.5; margin:14px 0 0; }
+    .msg { min-height:22px; margin-top:14px; font-weight:800; } .msg.good { color:var(--good); } .msg.bad { color:#ffb6c3; }
+    @media (max-width:860px) { .shell { grid-template-columns:1fr; } .hero { min-height:auto; } }
+  </style>
 </head>
 <body>
+  <main class="shell">
+    <section class="hero">
+      <div class="brand"><span class="logo" aria-hidden="true"></span>Game Hub</div>
+      <div>
+        <p class="eyebrow">Welcome to Game Hub!</p>
+        <h1>Sign in to play.</h1>
+        <p class="subtitle">Create a username account, then your Tetris scores, Sudoku levels, Crossword progress, hints, controls, and other save data sync to Firebase Realtime Database.</p>
+      </div>
+    </section>
+    <section class="card" aria-label="Account form">
+      <div class="tabs">
+        <button class="tab active" id="signinTab" type="button">Sign in</button>
+        <button class="tab" id="signupTab" type="button">Sign up</button>
+      </div>
+      <form id="authForm">
+        <label for="username">Username</label>
+        <input id="username" name="username" autocomplete="username" minlength="3" maxlength="20" placeholder="letters, numbers, underscore" required />
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" minlength="6" placeholder="at least 6 characters" required />
+        <button class="submit" id="submitBtn" type="submit">Sign in</button>
+        <p class="note">Your username is used as your save profile. Passwords are hashed in the browser before being stored.</p>
+        <div class="msg" id="message" role="status"></div>
+      </form>
+    </section>
+  </main>
 
-<div class="viewer" id="viewer"></div>
+  <script>
+    const DB_URL = "https://gamelibrary-882b6-default-rtdb.asia-southeast1.firebasedatabase.app";
+    const SESSION_KEY = "gamehub_current_user";
+    const LOCAL_USER_KEY = "__gamehub_local_user__";
+    const GAMEHUB_KEYS = ["gamehub_profile_v1","tetris_highScore","tetris_highLevel","tetris_keyMap","sudoku_v2_visited","sudoku_v2_save_state","crossword_progression","crossword_reveal_used_at","crossword_hint_usage_v1"];
+    let mode = "signin";
+    const signinTab = document.getElementById("signinTab");
+    const signupTab = document.getElementById("signupTab");
+    const submitBtn = document.getElementById("submitBtn");
+    const form = document.getElementById("authForm");
+    const message = document.getElementById("message");
 
-<div class="fab-group">
-    <button class="fab" id="addFab" onclick="openAddModal()" title="Add Manually">+</button>
-</div>
-
-<!-- ENTRY MANAGEMENT MODAL -->
-<div class="modal" id="modal" onclick="closeModal(event)">
-    <div class="modal-box">
-        <h3 style="margin-top:0; margin-bottom:15px; font-size:18px;" id="modalTitle">Save QR to Vault</h3>
-        
-        <select id="bank">
-            <option value="">Select App Profile</option>
-            <option value="gcash">GCash</option>
-            <option value="maya">Maya</option>
-            <option value="bpi">BPI</option>
-            <option value="unionbank">UnionBank</option>
-            <option value="maribank">MariBank</option>
-            <option value="tonik">Tonik Digital</option>
-            <option value="gotyme">GoTyme Bank</option>
-            <option value="bdo">BDO Unibank</option>
-        </select>
-
-        <div id="fileInputContainer">
-            <input type="file" id="file" accept="image/*">
-        </div>
-        
-        <div class="btn-submit" id="submitBtn" onclick="handleModalSubmit()">Save QR Code</div>
-        <div class="btn-danger" id="deleteBtn" style="display:none;" onclick="deleteEntry()">Delete Item</div>
-    </div>
-</div>
-
-<!-- IMMERSIVE CAROUSEL PREVIEW OVERLAY -->
-<div class="fullscreen-preview" id="previewOverlay">
-    <button class="close-preview-btn" onclick="closeFullscreenPreview()">Close View</button>
-    <div class="carousel-indicator" id="carouselIndicator">1 / 1</div>
-    <div class="fullscreen-carousel-track" id="previewTrack"></div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<script>
-let data = JSON.parse(localStorage.getItem("qr")) || [];
-let targetEditIndex = null;
-let currentPreviewIndex = 0;
-
-function save(){ localStorage.setItem("qr", JSON.stringify(data)); }
-
-function render(){
-    const viewer = document.getElementById("viewer");
-    viewer.innerHTML = "";
-
-    if(data.length === 0){
-        viewer.innerHTML = `<div class="empty-state"><h3>Vault is Empty</h3><p>Tap + to save your payment QRs</p></div>`;
-        return;
+    function setMode(next) {
+      mode = next;
+      signinTab.classList.toggle("active", mode === "signin");
+      signupTab.classList.toggle("active", mode === "signup");
+      submitBtn.textContent = mode === "signin" ? "Sign in" : "Create account";
+      message.textContent = "";
+      document.getElementById("password").autocomplete = mode === "signin" ? "current-password" : "new-password";
     }
+    signinTab.onclick = () => setMode("signin");
+    signupTab.onclick = () => setMode("signup");
 
-    data.forEach((q, idx)=>{
-        const div = document.createElement("div");
-        div.className = "card";
+    function safeUsernameKey(username) { return username.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_"); }
+    function firebaseUrl(parts) { return DB_URL.replace(/\/$/, "") + "/" + parts.map(encodeURIComponent).join("/") + ".json"; }
+    async function sha256(text) {
+      const bytes = new TextEncoder().encode(text);
+      const hash = await crypto.subtle.digest("SHA-256", bytes);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,"0")).join("");
+    }
+    async function getAccount(key) {
+      const res = await fetch(firebaseUrl(["users", key]));
+      if (!res.ok) throw new Error("Could not reach Firebase.");
+      return await res.json();
+    }
+    async function putAccount(key, data) {
+      const res = await fetch(firebaseUrl(["users", key]), { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(data) });
+      if (!res.ok) throw new Error("Could not save account.");
+    }
+    async function patchUser(key, data) {
+      const res = await fetch(firebaseUrl(["users", key]), { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(data) });
+      if (!res.ok) throw new Error("Could not update account.");
+    }
+    async function saveLocalKeysToFirebase(key) {
+      const payload = {};
+      GAMEHUB_KEYS.forEach(k => { const v = localStorage.getItem(k); if (v !== null) payload[k] = v; });
+      if (Object.keys(payload).length) await patchUser(key, { gameData: payload, lastActiveAt: new Date().toISOString() });
+    }
+    function clearKnownGameKeys() { GAMEHUB_KEYS.forEach(k => localStorage.removeItem(k)); }
+    async function loadFirebaseGameDataToLocal(key, username) {
+      const previousLocalUser = localStorage.getItem(LOCAL_USER_KEY);
+      if (previousLocalUser && previousLocalUser !== username) clearKnownGameKeys();
+      const res = await fetch(firebaseUrl(["users", key, "gameData"]));
+      const data = res.ok ? await res.json() : null;
+      if (data && typeof data === "object") {
+        Object.entries(data).forEach(([k, v]) => localStorage.setItem(k, String(v)));
+      } else if (!previousLocalUser || previousLocalUser === username) {
+        await saveLocalKeysToFirebase(key);
+      }
+      localStorage.setItem(LOCAL_USER_KEY, username);
+    }
+    function setMsg(text, kind) { message.textContent = text; message.className = "msg " + (kind || ""); }
 
-        div.innerHTML = `
-            <div class="image-container">
-                <div class="edit-trigger" data-index="${idx}">✏️</div>
-                <img src="${q.image}" alt="${q.bank} QR" data-preview-index="${idx}">
-                <div class="preview-hint">🔎 View Fullscreen</div>
-            </div>
-            <div class="action-row">
-                <div class="label">${q.bank}</div>
-                <button class="open-btn">Open App</button>
-            </div>
-        `;
-
-        // Direct Fullscreen Action mapping
-        div.querySelector("img").onclick = () => openFullscreenPreview(idx);
-
-        // Edit Overlay Trigger mapping
-        div.querySelector(".edit-trigger").onclick = (e) => {
-            e.stopPropagation();
-            openEditModal(idx);
-        };
-
-        div.querySelector(".open-btn").onclick = (e)=>{
-            e.stopPropagation();
-            openApp(q.bank);
-        };
-
-        viewer.appendChild(div);
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value;
+      if (!/^[A-Za-z0-9_]{3,20}$/.test(username)) { setMsg("Use 3-20 letters, numbers, or underscores only.", "bad"); return; }
+      if (password.length < 6) { setMsg("Password must be at least 6 characters.", "bad"); return; }
+      submitBtn.disabled = true;
+      setMsg(mode === "signin" ? "Signing in..." : "Creating account...", "");
+      try {
+        const key = safeUsernameKey(username);
+        const passwordHash = await sha256(username.toLowerCase() + ":" + password);
+        const existing = await getAccount(key);
+        if (mode === "signup") {
+          if (existing) throw new Error("That username already exists. Please sign in or choose another username.");
+          await putAccount(key, { username, passwordHash, createdAt: new Date().toISOString(), lastActiveAt: new Date().toISOString(), gameData: {} });
+        } else {
+          if (!existing || existing.passwordHash !== passwordHash) throw new Error("Incorrect username or password.");
+        }
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ username, key }));
+        await loadFirebaseGameDataToLocal(key, username);
+        await patchUser(key, { lastActiveAt: new Date().toISOString() });
+        setMsg("Success! Opening your homepage...", "good");
+        window.location.href = "homepage.html";
+      } catch (err) {
+        setMsg(err.message || "Something went wrong.", "bad");
+      } finally {
+        submitBtn.disabled = false;
+      }
     });
-}
-
-/* MODAL SELECTION ROUTERS */
-function openAddModal(){
-    targetEditIndex = null;
-    document.getElementById("modalTitle").innerText = "Save QR to Vault";
-    document.getElementById("bank").value = "";
-    document.getElementById("bank").disabled = false;
-    document.getElementById("file").value = "";
-    document.getElementById("submitBtn").innerText = "Save QR Code";
-    document.getElementById("deleteBtn").style.display = "none";
-    document.getElementById("modal").classList.add("active");
-}
-
-function openEditModal(index){
-    targetEditIndex = index;
-    const item = data[index];
-    document.getElementById("modalTitle").innerText = `Modify ${item.bank.toUpperCase()} Entry`;
-    document.getElementById("bank").value = item.bank;
-    document.getElementById("bank").disabled = true; // Protect classification structure alignment
-    document.getElementById("file").value = "";
-    document.getElementById("submitBtn").innerText = "Update QR Image";
-    document.getElementById("deleteBtn").style.display = "block";
-    document.getElementById("modal").classList.add("active");
-}
-
-function closeModal(e){
-    if(e.target.id === "modal"){
-        document.getElementById("modal").classList.remove("active");
-    }
-}
-
-function handleModalSubmit(){
-    if(targetEditIndex === null) {
-        uploadNew();
-    } else {
-        updateExistingImage();
-    }
-}
-
-/* DATA MANIPULATION STRATEGIES */
-function uploadNew(){
-    const file = document.getElementById("file").files[0];
-    const bank = document.getElementById("bank").value;
-
-    if(!file || !bank){
-        showMessage("Complete all input assignments");
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = e=>{
-        data.push({bank: bank, image: e.target.result});
-        save();
-        render();
-        document.getElementById("modal").classList.remove("active");
-        showMessage("QR stored securely!");
-    };
-    reader.readAsDataURL(file);
-}
-
-function updateExistingImage(){
-    const file = document.getElementById("file").files[0];
-    if(!file){
-        showMessage("Please select a new image asset first");
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = e=>{
-        data[targetEditIndex].image = e.target.result;
-        save();
-        render();
-        document.getElementById("modal").classList.remove("active");
-        showMessage("QR Image updated successfully!");
-    };
-    reader.readAsDataURL(file);
-}
-
-function deleteEntry(){
-    if(targetEditIndex !== null){
-        data.splice(targetEditIndex, 1);
-        save();
-        render();
-        document.getElementById("modal").classList.remove("active");
-        showMessage("Entry permanently cleared");
-    }
-}
-
-/* IMMERSIVE CAROUSEL PREVIEW LOGIC */
-function openFullscreenPreview(startIndex) {
-    if (data.length === 0) return;
-    currentPreviewIndex = startIndex;
-    const track = document.getElementById("previewTrack");
-    track.innerHTML = "";
-
-    // Generate dynamic sliding viewport list
-    data.forEach((q) => {
-        const slide = document.createElement("div");
-        slide.className = "fullscreen-slide";
-        slide.innerHTML = `<img src="${q.image}" alt="${q.bank} Target">`;
-        track.appendChild(slide);
-    });
-
-    document.getElementById("previewOverlay").classList.add("active");
-    updateCarouselIndicator();
-
-    // Instant layout jump to chosen selection point safely
-    setTimeout(() => {
-        const slides = track.querySelectorAll(".fullscreen-slide");
-        if(slides[startIndex]) {
-            slides[startIndex].scrollIntoView({ behavior: 'auto', inline: 'start' });
-        }
-    }, 10);
-}
-
-function closeFullscreenPreview() {
-    document.getElementById("previewOverlay").classList.remove("active");
-}
-
-function updateCarouselIndicator() {
-    document.getElementById("carouselIndicator").innerText = `${currentPreviewIndex + 1} / ${data.length}`;
-}
-
-// Fullscreen Tracking Sensor Callback
-document.getElementById("previewTrack").addEventListener("scroll", function(e) {
-    const width = e.target.clientWidth;
-    if(width === 0) return;
-    const calculatedIndex = Math.round(e.target.scrollLeft / width);
-    if(calculatedIndex !== currentPreviewIndex && calculatedIndex >= 0 && calculatedIndex < data.length) {
-        currentPreviewIndex = calculatedIndex;
-        updateCarouselIndicator();
-    }
-});
-
-/* DEEP LINK HANDLERS WITH IOS FALLBACK SUPPORT */
-function openApp(bank){
-    const appKey = String(bank || "").toLowerCase();
-
-    const links = {
-        gcash: {
-            deepLink: "gcash://",
-            fallback: "https://apps.apple.com/ph/app/gcash/id520020791"
-        },
-        maya: {
-            deepLink: "paymaya://",
-            fallback: "https://apps.apple.com/ph/app/maya-savings-loans-cards/id991673877"
-        },
-
-        /*
-          These bank deep links are not confirmed publicly.
-          Keep deepLink as null unless you have tested the exact scheme on an iPhone.
-          The fallback will still take the user to the correct App Store/search page.
-        */
-        bpi: {
-            deepLink: null,
-            fallback: "https://apps.apple.com/ph/app/bpi/id6443950982"
-        },
-        unionbank: {
-            deepLink: null,
-            fallback: "https://apps.apple.com/ph/search?term=UnionBank%20Philippines"
-        },
-        maribank: {
-            deepLink: null,
-            fallback: "https://apps.apple.com/ph/search?term=MariBank"
-        },
-        tonik: {
-            deepLink: null,
-            fallback: "https://apps.apple.com/ph/search?term=Tonik%20Philippines"
-        },
-        gotyme: {
-            deepLink: "GoTyme://",
-            fallback: "https://apps.apple.com/ph/search?term=GoTyme%20Bank"
-        },
-        bdo: {
-            deepLink: null,
-            fallback: "https://apps.apple.com/ph/search?term=BDO%20Online"
-        }
-    };
-
-    const app = links[appKey];
-
-    if(!app){
-        showMessage("App routing configuration missing.");
-        return;
-    }
-
-    if(!app.deepLink){
-        showMessage("No confirmed deep link. Opening App Store fallback.");
-        window.location.href = app.fallback;
-        return;
-    }
-
-    let didLeavePage = false;
-    let fallbackTimer = null;
-
-    const clearFallback = () => {
-        didLeavePage = true;
-        if(fallbackTimer) clearTimeout(fallbackTimer);
-    };
-
-    /*
-      If iOS successfully opens the app, Safari usually becomes hidden or fires pagehide.
-      In that case, cancel the fallback so the user is not sent to the App Store.
-    */
-    const onVisibilityChange = () => {
-        if(document.hidden) clearFallback();
-    };
-
-    const onPageHide = () => {
-        clearFallback();
-    };
-
-    document.addEventListener("visibilitychange", onVisibilityChange, { once: true });
-    window.addEventListener("pagehide", onPageHide, { once: true });
-
-    showMessage("Opening app...");
-
-    /*
-      Must be triggered by a real tap/click for best iPhone behavior.
-      This button click qualifies.
-    */
-    window.location.href = app.deepLink;
-
-    fallbackTimer = setTimeout(() => {
-        document.removeEventListener("visibilitychange", onVisibilityChange);
-        window.removeEventListener("pagehide", onPageHide);
-
-        if(!didLeavePage){
-            showMessage("App did not open. Redirecting to App Store.");
-            window.location.href = app.fallback;
-        }
-    }, 1800);
-}
-
-function showMessage(msg){
-    const t = document.getElementById("toast");
-    t.innerText = msg;
-    t.classList.add("show");
-    setTimeout(()=>t.classList.remove("show"), 3200);
-}
-
-/* FAB TIMEOUT HIDE HANDLING ENGINE */
-let fab = document.getElementById("addFab");
-let interactionTimer;
-
-function showFabs(){
-    fab.classList.add("visible");
-    clearTimeout(interactionTimer);
-    interactionTimer = setTimeout(()=>{ 
-        fab.classList.remove("visible");
-    }, 2500);
-}
-
-["touchstart","touchmove","scroll","mousemove"].forEach(e=>{
-    document.addEventListener(e, showFabs, {passive: true});
-});
-window.addEventListener("load", showFabs);
-
-// Swiping Navigation Core (Primary View Control)
-let currentIndex = 0;
-
-function scrollToIndex(index){
-    const viewer = document.getElementById('viewer');
-    const cards = viewer.querySelectorAll('.card');
-    if(cards.length === 0) return;
-    const idx = Math.max(0, Math.min(index, cards.length - 1));
-    currentIndex = idx;
-    cards[idx].scrollIntoView({ behavior: 'smooth', inline: 'start' });
-}
-
-function nextCard(){ scrollToIndex(currentIndex + 1); }
-function prevCard(){ scrollToIndex(currentIndex - 1); }
-
-window.addEventListener('keydown', (e)=>{
-    // Primary layout controls mapping
-    if(!document.getElementById("previewOverlay").classList.contains("active")) {
-        if(e.key === 'ArrowRight') { e.preventDefault(); nextCard(); }
-        if(e.key === 'ArrowLeft') { e.preventDefault(); prevCard(); }
-    } else {
-        // Overlay layout controls keyboard mapping overrides
-        const track = document.getElementById("previewTrack");
-        if(e.key === 'ArrowRight' && currentPreviewIndex < data.length - 1) {
-            e.preventDefault();
-            track.querySelectorAll(".fullscreen-slide")[currentPreviewIndex + 1].scrollIntoView({ behavior: 'smooth', inline: 'start' });
-        }
-        if(e.key === 'ArrowLeft' && currentPreviewIndex > 0) {
-            e.preventDefault();
-            track.querySelectorAll(".fullscreen-slide")[currentPreviewIndex - 1].scrollIntoView({ behavior: 'smooth', inline: 'start' });
-        }
-    }
-});
-
-(function(){
-    const viewer = document.getElementById('viewer');
-    let startX = 0;
-    viewer.addEventListener('touchstart', (ev)=>{ startX = ev.changedTouches[0].clientX; }, {passive:true});
-    viewer.addEventListener('touchend', (ev)=>{
-        if(document.getElementById("previewOverlay").classList.contains("active")) return;
-        const endX = ev.changedTouches[0].clientX;
-        const dx = startX - endX;
-        if(Math.abs(dx) > 60){ if(dx > 0) nextCard(); else prevCard(); }
-    }, {passive:true});
-})();
-
-const originalRender = render;
-render = function(){
-    originalRender();
-    const viewer = document.getElementById('viewer');
-    const cards = viewer.querySelectorAll('.card');
-    if(cards.length === 0) return;
-    if(currentIndex >= cards.length) currentIndex = cards.length - 1;
-    setTimeout(()=> scrollToIndex(currentIndex), 50);
-};
-
-render();
-</script>
-
+  </script>
 </body>
 </html>

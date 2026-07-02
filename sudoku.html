@@ -794,15 +794,15 @@ html, body {
     const PUZZLES = {
       easy: [
         { puzzle: '530070000600195000098000060800060003400803001700020006060000280000419005000080079', solution: '534678912672195348198342567859761423426853791713924856961537284287419635345286179' },
-        { puzzle: '006100300400060001010004020800000040000802000070000003090300070700020006004001900', solution: '926178354485263791317594628832719645649852137571436283298345176753927416164681932' }
+        { puzzle: '640080000500296000097000050700050004300704002800010005050000170000329006000070089', solution: '643587921581296437297431658769852314315764892824913765952648173178329546436175289' }
       ],
       medium: [
         { puzzle: '000260701680070090190004500820100040004602900050003028009300074040050036703018000', solution: '435269781682571493197834562826195347374682915951743628519326874248957136763418259' },
-        { puzzle: '300000000005009000200504000020000700160000058704310600000890100000067000000005437', solution: '349786512675129843218534976523648791961972358784315629436893175152467389897251437' }
+        { puzzle: '000840309420030010910006500280900060006408100050007082001700036060050074307092000', solution: '675841329428539617913276548284915763736428195159367482591784236862153974347692851' }
       ],
       hard: [
-        { puzzle: '000000907000420180000705026100904000050000040000507009920108000034059000507000000', solution: '483621957765429183219735426176984532359216748248573619924168375631857294587342861' },
-        { puzzle: '000900002050123400030000160908000000070000090000000205091000030007459020400006000', solution: '186974352759123486234685179928531764675248913314769245591812637867459821442376598' }
+        { puzzle: '750090000800327000021000080100080005600105003900040008080000410000632007000010092', solution: '756891234894327561321564789172983645648175923935246178283759416419632857567418392' },
+        { puzzle: '000590104920010030430007800250400070007905300080006052003600017070080069106042000', solution: '768593124925814736431267895259438671617925348384176952843659217572381469196742583' }
       ]
     };
 
@@ -996,6 +996,66 @@ html, body {
       return seed;
     }
 
+    function isCompleteValidSolution(solutionStr) {
+      if (!solutionStr || solutionStr.length !== 81 || /[^1-9]/.test(solutionStr)) return false;
+      const required = '123456789';
+
+      function sortedUnit(indices) {
+        return indices.map(i => solutionStr[i]).sort().join('');
+      }
+
+      for (let row = 0; row < 9; row++) {
+        const indices = Array.from({ length: 9 }, (_, col) => row * 9 + col);
+        if (sortedUnit(indices) !== required) return false;
+      }
+
+      for (let col = 0; col < 9; col++) {
+        const indices = Array.from({ length: 9 }, (_, row) => row * 9 + col);
+        if (sortedUnit(indices) !== required) return false;
+      }
+
+      for (let boxRow = 0; boxRow < 3; boxRow++) {
+        for (let boxCol = 0; boxCol < 3; boxCol++) {
+          const indices = [];
+          for (let r = 0; r < 3; r++) {
+            for (let c = 0; c < 3; c++) {
+              indices.push((boxRow * 3 + r) * 9 + (boxCol * 3 + c));
+            }
+          }
+          if (sortedUnit(indices) !== required) return false;
+        }
+      }
+
+      return true;
+    }
+
+    function isValidPuzzleSetup(puzzleStr, solutionStr) {
+      if (!puzzleStr || !solutionStr || puzzleStr.length !== 81 || solutionStr.length !== 81) return false;
+      if (/[^0-9]/.test(puzzleStr) || !isCompleteValidSolution(solutionStr)) return false;
+
+      for (let i = 0; i < 81; i++) {
+        if (puzzleStr[i] !== '0' && puzzleStr[i] !== solutionStr[i]) return false;
+      }
+
+      return true;
+    }
+
+    function getSafePuzzlePair(list, preferredIndex) {
+      const fallback = PUZZLES.easy[0];
+      const safeList = Array.isArray(list) && list.length ? list : [fallback];
+      const startIndex = ((preferredIndex % safeList.length) + safeList.length) % safeList.length;
+
+      for (let offset = 0; offset < safeList.length; offset++) {
+        const index = (startIndex + offset) % safeList.length;
+        const entry = safeList[index];
+        if (entry && isValidPuzzleSetup(entry.puzzle, entry.solution)) {
+          return { entry, index };
+        }
+      }
+
+      return { entry: fallback, index: 0 };
+    }
+
     function startGame(next = false) {
       clearInterval(blitzTimer);
       gameActive = true;
@@ -1028,8 +1088,10 @@ html, body {
         timerLabel.textContent = dailyDateStr;
       }
 
-      puzzle = list[puzzleIndex].puzzle;
-      solution = list[puzzleIndex].solution;
+      const selectedPuzzlePair = getSafePuzzlePair(list, puzzleIndex);
+      puzzleIndex = selectedPuzzlePair.index;
+      puzzle = selectedPuzzlePair.entry.puzzle;
+      solution = selectedPuzzlePair.entry.solution;
 
       values = puzzle.split('').map(v => v === '0' ? '' : v);
       givens = puzzle.split('').map(v => v !== '0');

@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crossy Road - Game Hub</title>
+    <style>
+        /* === UNIFIED ARCADE THEME (Adapted from homepage.html) === */
+        :root {
+            --bg: #050814;
+            --panel: rgba(12, 18, 42, 0.72);
+            --text: #f4f8ff;
+            --muted: #aab7df;
+            --accent: #50f4ff;
+            --accent-2: #c77dff;
+            --shadow: 0 24px 80px rgba(0,0,0,.48);
+            --ring: 0 0 0 1px rgba(80,244,255,.22), 0 0 36px rgba(80,244,255,.12);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at 8% 8%, rgba(80,244,255,.28), transparent 24rem),
+                radial-gradient(circle at 92% 18%, rgba(199,125,255,.25), transparent 26rem),
+                linear-gradient(140deg, #030611 0%, #090e25 48%, #180a26 100%);
+            min-height: 100vh;
+        }
+
+        /* Ambient scanlines grid background */
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+            background-size: 34px 34px;
+            mask-image: linear-gradient(to bottom, black, transparent 88%);
+            z-index: 0;
+        }
+
+        .app-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            z-index: 1;
+        }
+
+        /* === HEADER STYLING === */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 24px;
+            padding: 12px 24px;
+            margin: 16px 20px 0;
+            border: 1px solid rgba(255,255,255,.10);
+            border-radius: 24px;
+            background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.025));
+            box-shadow: 0 18px 50px rgba(0,0,0,.25);
+            backdrop-filter: blur(16px) saturate(130%);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 900;
+            letter-spacing: -0.04em;
+            font-size: 1.2rem;
+            text-shadow: 0 0 20px rgba(80,244,255,.14);
+        }
+
+        .logo {
+            width: 32px;
+            height: 32px;
+            border-radius: 12px;
+            background:
+                linear-gradient(135deg, rgba(255,255,255,.28), transparent 40%),
+                linear-gradient(135deg, var(--accent), var(--accent-2));
+            box-shadow: 0 0 28px rgba(80,244,255,.34), inset 0 0 18px rgba(255,255,255,.18);
+        }
+
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        nav a, .home-link {
+            display: inline-flex;
+            align-items: center;
+            min-height: 34px;
+            padding: 8px 16px;
+            border-radius: 999px;
+            color: var(--muted);
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.9rem;
+            background: rgba(255,255,255,.045);
+            border: 1px solid rgba(255,255,255,.07);
+            transition: all .18s ease;
+        }
+
+        nav a:hover, .home-link:hover {
+            color: var(--text);
+            background: rgba(80,244,255,.12);
+            border-color: rgba(80,244,255,.32);
+            transform: translateY(-1px);
+        }
+
+        .account-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 34px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            color: var(--text);
+            background: rgba(80,244,255,.10);
+            border: 1px solid rgba(80,244,255,.24);
+            font-weight: 900;
+            font-size: 0.9rem;
+        }
+        
+        .level-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--accent-2), #ff5d7a);
+            color: #ffffff;
+            font-size: 0.72rem;
+            font-weight: 900;
+            padding: 2px 7px;
+            border-radius: 6px;
+            box-shadow: 0 0 10px rgba(199,125,255,0.4);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* === CANVAS GAME SHELL === */
+        #game-wrapper {
+            flex: 1;
+            position: relative;
+            margin: 20px;
+            border-radius: 28px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,.13);
+            box-shadow: var(--shadow), var(--ring);
+            background: rgba(7, 12, 31, 0.4);
+        }
+
+        #game-canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        /* === INTERFACE OVERLAYS === */
+        #game-ui {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            background: var(--panel);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 12px 24px;
+            border-radius: 16px;
+            backdrop-filter: blur(8px);
+            pointer-events: none;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        .score-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--muted);
+            margin: 0 0 2px 0;
+        }
+
+        .score-val {
+            font-size: 2rem;
+            font-weight: 900;
+            margin: 0;
+            background: linear-gradient(135deg, #fff, var(--accent));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(7, 12, 31, 0.8);
+            border: 1px solid rgba(255,255,255,0.08);
+            padding: 10px 20px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            color: var(--muted);
+            letter-spacing: 0.05em;
+            backdrop-filter: blur(6px);
+            pointer-events: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        #instructions span {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        /* === GAME OVER PANEL === */
+        #gameover-screen {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(3, 6, 19, 0.85);
+            backdrop-filter: blur(12px);
+            z-index: 10;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .go-card {
+            text-align: center;
+            padding: 40px 60px;
+            border-radius: 24px;
+            background: var(--panel);
+            border: 1px solid rgba(255,255,255,.13);
+            box-shadow: var(--shadow), var(--ring);
+        }
+
+        .go-card h2 {
+            font-size: 3rem;
+            font-weight: 900;
+            margin: 0 0 10px 0;
+            background: linear-gradient(135deg, #ff5d7a, #c77dff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: -0.04em;
+        }
+
+        .go-card p {
+            color: var(--muted);
+            margin: 0 0 25px 0;
+            font-size: 1.1rem;
+        }
+
+        button.action-btn {
+            border: 1px solid rgba(255,255,255,.16) !important;
+            background: linear-gradient(135deg, var(--accent), #9ffcff) !important;
+            color: #05101d !important;
+            font-weight: 900 !important;
+            box-shadow: 0 0 24px rgba(80,244,255,.22) !important;
+            padding: 14px 32px;
+            font-size: 1rem;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: transform .18s ease, filter .18s ease;
+        }
+
+        button.action-btn:hover {
+            transform: translateY(-2px) scale(1.02);
+            filter: brightness(1.06);
+        }
+
+        @media (max-width: 640px) {
+            header { margin: 10px 10px 0; padding: 10px 16px; }
+            #game-wrapper { margin: 10px; }
+            .go-card { padding: 30px 20px; width: 90%; }
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div class="app-container">
+        <header>
+            <div class="brand"><span class="logo" aria-hidden="true"></span>Game Hub</div>
+            <nav aria-label="Main navigation">
+                <a href="homepage.html" class="home-link">← Back Arcade</a>
+                <span class="account-pill">
+                    👤 <span id="accountName">Player</span>
+                    <span class="level-badge" id="accountLevel">LV 1</span>
+                </span>
+            </nav>
+        </header>
+
+        <div id="game-wrapper">
+            <div id="game-canvas-container"></div>
+
+            <div id="game-ui">
+                <p class="score-title">Distance</p>
+                <p class="score-val" id="score">0</p>
+            </div>
+
+            <div id="instructions">Use <span>WASD</span> or <span>ARROW KEYS</span> to Hop</div>
+
+            <div id="gameover-screen">
+                <div class="go-card">
+                    <h2>CRASHED!</h2>
+                    <p>Your chicken safe-crossed <span id="final-score" style="color:var(--accent); font-weight:900;">0</span> lines.</p>
+                    <button class="action-btn" onclick="resetGame()">Hop Again</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Synchronized profile read layer directly matching homepage logic
+        const username = window.GameHubAuth ? window.GameHubAuth.username : "Player";
+        document.getElementById("accountName").textContent = username;
+
+        if (window.GameHubProfile && typeof window.GameHubProfile.readProfile === "function") {
+            const liveProfile = window.GameHubProfile.readProfile();
+            if (liveProfile && liveProfile.level) {
+                document.getElementById("accountLevel").textContent = "LV " + liveProfile.level;
+            }
+        }
+
+        // Post back statistics to user profile upon scoring benchmarks
+        function handleLevelUpTracking(finalScore) {
+            // Persist: max distance + level ups.
+            // Uses localStorage -> GameHubAuth cloud sync (Firebase) just like sudoku/tetris.
+            const MAX_DISTANCE_KEY = "crossyroad_maxDistance";
+            const LEVEL_KEY = "crossyroad_lastLevel";
+
+            const currentMax = Number(localStorage.getItem(MAX_DISTANCE_KEY) || 0);
+            if (finalScore > currentMax) {
+                localStorage.setItem(MAX_DISTANCE_KEY, String(finalScore));
+            }
+
+            // Track “levels” for the profile (as in your other games)
+            if (window.GameHubProfile && typeof window.GameHubProfile.recordSuccess === "function" && finalScore > 5) {
+                window.GameHubProfile.recordSuccess("Crossy Road", {
+                    successId: "crossyroad-level-" + String(finalScore),
+                    score: finalScore,
+                    title: "Crossed " + finalScore + " Winter Lanes!",
+                    xp: Math.min(150, finalScore * 4),
+                    level: Number(localStorage.getItem(LEVEL_KEY) || 0) + 1
+                });
+
+                localStorage.setItem(LEVEL_KEY, String(Number((window.GameHubProfile.readProfile()||{}).level || 1)));
+
+                // Live visual reload for headers
+                const liveProfile = window.GameHubProfile.readProfile();
+                if (liveProfile && liveProfile.level) {
+                    document.getElementById("accountLevel").textContent = "LV " + liveProfile.level;
+                }
+            }
+        }
+    </script>
+
+    <script>
+        const TYPE_SNOW = 0, TYPE_ROAD = 1, TYPE_RIVER = 2;
+        
+        const COLOR_SNOW = 0xfffafa;
+        const COLOR_ROAD = 0x222533; 
+        const COLOR_RIVER = 0x3388aa;
+        const COLOR_CHICKEN = 0xffffff;
+        const COLOR_COMB = 0xff3355;
+        const COLOR_BEAK = 0xffaa00;
+        const COLOR_TRUNK = 0x442c20;
+        const COLOR_LEAVES = 0x234427;
+
+        let scene, camera, renderer, container;
+        let chicken;
+        let rows = [], rowObjects = [];
+        let cars = [], logs = [];
+        let currentMaxRow = 0, score = 0, isGameOver = false;
+
+        let playerForwardIndex = 0, playerSideIndex = 0;
+        let targetX = 0, targetZ = 0;
+        let isJumping = false, jumpProgress = 0, jumpStartX = 0, jumpStartZ = 0;
+
+        const zoomLevel = 8.5;
+        const clock = new THREE.Clock();
+
+        function initEngine() {
+            container = document.getElementById('game-canvas-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0f24); // Blends natively to background hue
+
+            const aspect = container.clientWidth / container.clientHeight;
+            camera = new THREE.OrthographicCamera(-zoomLevel * aspect, zoomLevel * aspect, zoomLevel, -zoomLevel, 1, 1000);
+            
+            // TRUE ISOMETRIC PLACEMENT FROM CORNER POINTING DOWN DIAGONALLY
+            camera.position.set(12, 12, 12);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Light Environments
+            const ambient = new THREE.AmbientLight(0xffffff, 0.65);
+            scene.add(ambient);
+
+            const directional = new THREE.DirectionalLight(0xffffff, 0.55);
+            directional.position.set(15, 25, 10);
+            directional.castShadow = true;
+            directional.shadow.mapSize.width = 1024;
+            directional.shadow.mapSize.height = 1024;
+            directional.shadow.camera.near = 0.5;
+            directional.shadow.camera.far = 100;
+            const shadowSpan = 25;
+            directional.shadow.camera.left = -shadowSpan;
+            directional.shadow.camera.right = shadowSpan;
+            directional.shadow.camera.top = shadowSpan;
+            directional.shadow.camera.bottom = -shadowSpan;
+            scene.add(directional);
+
+            buildPlayer();
+
+            // Populate starting layout
+            for (let i = 0; i < 40; i++) {
+                generateRowStructure(i);
+            }
+
+            // Scatter historical initialization units
+            for (let i = 3; i < 30; i++) {
+                if (rows[i].type === TYPE_ROAD && Math.random() < 0.65) {
+                    generateCarUnit(i);
+                    cars[cars.length - 1].mesh.position.x = (Math.random() * 26) - 13;
+                }
+                if (rows[i].type === TYPE_RIVER && Math.random() < 0.65) {
+                    generateIceUnit(i);
+                    logs[logs.length - 1].mesh.position.x = (Math.random() * 26) - 13;
+                }
+            }
+
+            window.addEventListener('keydown', processInput);
+            window.addEventListener('resize', handleResizeResize);
+        }
+
+        function buildPlayer() {
+            chicken = new THREE.Group();
+
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.75, 0.65), new THREE.MeshLambertMaterial({ color: COLOR_CHICKEN }));
+            body.position.y = 0.375;
+            body.castShadow = body.receiveShadow = true;
+            chicken.add(body);
+
+            const comb = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.35), new THREE.MeshLambertMaterial({ color: COLOR_COMB }));
+            comb.position.set(0, 0.825, 0.05);
+            comb.castShadow = true;
+            chicken.add(comb);
+
+            const beak = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.18), new THREE.MeshLambertMaterial({ color: COLOR_BEAK }));
+            beak.position.set(0, 0.425, -0.4);
+            beak.castShadow = true;
+            chicken.add(beak);
+
+            scene.add(chicken);
+        }
+
+        function generateRowStructure(rowIndex) {
+            let type = TYPE_SNOW;
+            if (rowIndex > 2) {
+                const rng = Math.random();
+                if (rng < 0.35) type = TYPE_SNOW;
+                else if (rng < 0.72) type = TYPE_ROAD;
+                else type = TYPE_RIVER;
+            }
+
+            const rowGroup = new THREE.Group();
+            rowGroup.position.set(0, 0, -rowIndex); 
+
+            let geo, mat, width = 60;
+            if (type === TYPE_SNOW) {
+                geo = new THREE.BoxGeometry(width, 1, 1);
+                mat = new THREE.MeshLambertMaterial({ color: COLOR_SNOW });
+            } else if (type === TYPE_ROAD) {
+                geo = new THREE.BoxGeometry(width, 0.94, 1);
+                mat = new THREE.MeshLambertMaterial({ color: COLOR_ROAD });
+            } else if (type === TYPE_RIVER) {
+                geo = new THREE.BoxGeometry(width, 0.78, 1);
+                mat = new THREE.MeshLambertMaterial({ color: COLOR_RIVER });
+            }
+
+            const ground = new THREE.Mesh(geo, mat);
+            ground.position.y = -0.5;
+            ground.receiveShadow = true;
+            rowGroup.add(ground);
+
+            let speed = 0, direction = Math.random() > 0.5 ? 1 : -1;
+
+            if (type === TYPE_ROAD) {
+                speed = 2.2 + Math.random() * 2.8;
+                // Subtle road markers
+                for (let i = -20; i <= 20; i += 4) {
+                    const line = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.02, 0.15), new THREE.MeshLambertMaterial({ color: 0x3e4257 }));
+                    line.position.set(i, -0.02, 0);
+                    rowGroup.add(line);
+                }
+            } else if (type === TYPE_RIVER) {
+                speed = 1.2 + Math.random() * 1.3;
+            } else if (type === TYPE_SNOW && rowIndex > 0) {
+                for (let i = -20; i <= 20; i += 2.5) {
+                    if (Math.abs(i) > 3.5 && Math.random() < 0.55) {
+                        const pine = buildWinterTree();
+                        pine.position.x = i;
+                        rowGroup.add(pine);
+                    }
+                }
+            }
+
+            scene.add(rowGroup);
+            rows[rowIndex] = { index: rowIndex, type: type, speed: speed, direction: direction, lastSpawned: 0, spawnInterval: 1.4 + Math.random() * 1.8 };
+            rowObjects[rowIndex] = rowGroup;
+        }
+
+        function buildWinterTree() {
+            const tree = new THREE.Group();
+            const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.6, 0.35), new THREE.MeshLambertMaterial({ color: COLOR_TRUNK }));
+            trunk.position.y = 0.3;
+            trunk.castShadow = true;
+            tree.add(trunk);
+
+            const leaves = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.7, 1.1), new THREE.MeshLambertMaterial({ color: COLOR_LEAVES }));
+            leaves.position.y = 0.9;
+            leaves.castShadow = true;
+            tree.add(leaves);
+
+            const snowCap = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.35, 0.9), new THREE.MeshLambertMaterial({ color: COLOR_SNOW }));
+            snowCap.position.y = 1.425;
+            snowCap.castShadow = true;
+            tree.add(snowCap);
+
+            return tree;
+        }
+
+        function generateCarUnit(rowIndex) {
+            const data = rows[rowIndex];
+            const carColors = [0xff5d7a, 0x50f4ff, 0xc77dff, 0xffb65d];
+            const mesh = new THREE.Mesh(
+                new THREE.BoxGeometry(1.5, 0.75, 0.75), 
+                new THREE.MeshLambertMaterial({ color: carColors[Math.floor(Math.random() * carColors.length)] })
+            );
+            mesh.castShadow = mesh.receiveShadow = true;
+            mesh.position.set(data.direction > 0 ? -24 : 24, 0.375, 0);
+            rowObjects[rowIndex].add(mesh);
+            cars.push({ mesh: mesh, row: rowIndex });
+        }
+
+        function generateIceUnit(rowIndex) {
+            const data = rows[rowIndex];
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.22, 0.85), new THREE.MeshLambertMaterial({ color: 0xddf7ff, transparent: true, opacity: 0.85 }));
+            mesh.castShadow = mesh.receiveShadow = true;
+            mesh.position.set(data.direction > 0 ? -24 : 24, -0.11, 0);
+            rowObjects[rowIndex].add(mesh);
+            logs.push({ mesh: mesh, row: rowIndex });
+        }
+
+        function engineLoop() {
+            if (isGameOver) return;
+
+            const delta = clock.getDelta();
+            const elapsed = clock.getElapsedTime();
+
+            // Procedural Infinite Row Spawning
+            while (rows.length < playerForwardIndex + 30) {
+                generateRowStructure(rows.length);
+            }
+
+            rows.forEach(row => {
+                if (!row) return;
+                if ((row.type === TYPE_ROAD || row.type === TYPE_RIVER) && (elapsed - row.lastSpawned > row.spawnInterval)) {
+                    if (row.type === TYPE_ROAD) generateCarUnit(row.index);
+                    else generateIceUnit(row.index);
+                    row.lastSpawned = elapsed;
+                }
+            });
+
+            // Update Vehicle Vectors
+            for (let i = cars.length - 1; i >= 0; i--) {
+                const car = cars[i];
+                const activeRow = rows[car.row];
+                car.mesh.position.x += activeRow.speed * activeRow.direction * delta;
+
+                if (playerForwardIndex === car.row && !isJumping) {
+                    if (Math.abs(playerSideIndex - car.mesh.position.x) < 1.05) triggerCollision();
+                }
+                if (Math.abs(car.mesh.position.x) > 26) {
+                    rowObjects[car.row].remove(car.mesh);
+                    cars.splice(i, 1);
+                }
+            }
+
+            // Update Ice Log Vectors
+            let currentCarrier = null;
+            for (let i = logs.length - 1; i >= 0; i--) {
+                const log = logs[i];
+                const activeRow = rows[log.row];
+                log.mesh.position.x += activeRow.speed * activeRow.direction * delta;
+
+                if (playerForwardIndex === log.row && !isJumping) {
+                    if (Math.abs(playerSideIndex - log.mesh.position.x) < 1.4) currentCarrier = log;
+                }
+                if (Math.abs(log.mesh.position.x) > 26) {
+                    rowObjects[log.row].remove(log.mesh);
+                    logs.splice(i, 1);
+                }
+            }
+
+            // Animation Vector Calculation
+            if (isJumping) {
+                jumpProgress += delta * 13.5;
+                if (jumpProgress >= 1) {
+                    jumpProgress = 1;
+                    isJumping = false;
+                }
+                const lx = THREE.MathUtils.lerp(jumpStartX, targetX, jumpProgress);
+                const lz = THREE.MathUtils.lerp(jumpStartZ, targetZ, jumpProgress);
+                const ly = 0.375 + Math.sin(jumpProgress * Math.PI) * 0.75;
+                chicken.position.set(lx, ly, lz);
+            } else {
+                if (rows[playerForwardIndex] && rows[playerForwardIndex].type === TYPE_RIVER) {
+                    if (currentCarrier) {
+                        const activeRow = rows[currentCarrier.row];
+                        playerSideIndex += activeRow.speed * activeRow.direction * delta;
+                        chicken.position.x = playerSideIndex;
+                        chicken.position.z = -playerForwardIndex;
+                        if (Math.abs(playerSideIndex) > 7.5) triggerCollision();
+                    } else {
+                        chicken.position.y = -0.4;
+                        triggerCollision();
+                    }
+                } else {
+                    chicken.position.x = THREE.MathUtils.lerp(chicken.position.x, playerSideIndex, 0.25);
+                    chicken.position.z = THREE.MathUtils.lerp(chicken.position.z, -playerForwardIndex, 0.25);
+                    chicken.position.y = THREE.MathUtils.lerp(chicken.position.y, 0.375, 0.25);
+                }
+            }
+
+            // TRUE ISOMETRIC CAMERA FOLLOWER MESH
+            const camTargetX = chicken.position.x + 12;
+            const camTargetZ = chicken.position.z + 12;
+            camera.position.x = THREE.MathUtils.lerp(camera.position.x, camTargetX, 0.08);
+            camera.position.z = THREE.MathUtils.lerp(camera.position.z, camTargetZ, 0.08);
+
+            renderer.render(scene, camera);
+        }
+
+        function processInput(event) {
+            if (isGameOver || isJumping) return;
+
+            let flag = false;
+            jumpStartX = chicken.position.x;
+            jumpStartZ = chicken.position.z;
+
+            let nextF = playerForwardIndex;
+            let nextS = playerSideIndex;
+
+            switch (event.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    nextF = playerForwardIndex + 1;
+                    chicken.rotation.y = 0; // Point forward up-right
+                    flag = true;
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    if (playerForwardIndex > 0) {
+                        nextF = playerForwardIndex - 1;
+                        chicken.rotation.y = Math.PI;
+                        flag = true;
+                    }
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    if (playerSideIndex > -7) {
+                        nextS = Math.round(playerSideIndex) - 1;
+                        chicken.rotation.y = Math.PI / 2;
+                        flag = true;
+                    }
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    if (playerSideIndex < 7) {
+                        nextS = Math.round(playerSideIndex) + 1;
+                        chicken.rotation.y = -Math.PI / 2;
+                        flag = true;
+                    }
+                    break;
+            }
+
+            if (flag) {
+                playerForwardIndex = nextF;
+                playerSideIndex = nextS;
+                targetX = playerSideIndex;
+                targetZ = -playerForwardIndex;
+                isJumping = true;
+                jumpProgress = 0;
+
+                if (playerForwardIndex > currentMaxRow) {
+                    currentMaxRow = playerForwardIndex;
+                    score = currentMaxRow;
+                    document.getElementById('score').innerText = score;
+                }
+            }
+        }
+
+        function triggerCollision() {
+            isGameOver = true;
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('gameover-screen').style.display = 'flex';
+            handleLevelUpTracking(score);
+        }
+
+        function resetGame() {
+            cars.forEach(c => { if (c.mesh.parent) c.mesh.parent.remove(c.mesh); });
+            logs.forEach(l => { if (l.mesh.parent) l.mesh.parent.remove(l.mesh); });
+            rowObjects.forEach(o => scene.remove(o));
+
+            cars = []; logs = []; rows = []; rowObjects = [];
+            playerForwardIndex = 0; playerSideIndex = 0;
+            targetX = 0; targetZ = 0; currentMaxRow = 0; score = 0;
+            isJumping = false; isGameOver = false;
+
+            document.getElementById('score').innerText = "0";
+            document.getElementById('gameover-screen').style.display = 'none';
+
+            chicken.position.set(0, 0.375, 0);
+            chicken.rotation.y = 0;
+
+            for (let i = 0; i < 40; i++) {
+                generateRowStructure(i);
+            }
+            camera.position.set(12, 12, 12);
+            clock.getDelta();
+        }
+
+        function handleResizeResize() {
+            const aspect = container.clientWidth / container.clientHeight;
+            camera.left = -zoomLevel * aspect;
+            camera.right = zoomLevel * aspect;
+            camera.top = zoomLevel;
+            camera.bottom = -zoomLevel;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        // Engage engine on load
+        window.onload = () => {
+            initEngine();
+            renderer.setAnimationLoop(engineLoop);
+        };
+    </script>
+</body>
+</html>

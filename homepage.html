@@ -232,6 +232,22 @@
       border-radius: 50%;
     }
 
+    /* === CROSSY ROAD SPECIFIC DESIGN PREVIEW === */
+    .crossyroad-art {
+      grid-template-columns: repeat(7, 1fr);
+      transform: rotate(-2deg) scale(1.02);
+    }
+    .crossyroad-art span {
+      display: grid;
+      place-items: center;
+      border-radius: 6px;
+      font-size: 0.85rem;
+    }
+    .crossyroad-art span.grass { background: linear-gradient(135deg, #1fab75, #5dffb0); }
+    .crossyroad-art span.road { background: #1a1c26; border: 1px dashed rgba(255,255,255,0.08); }
+    .crossyroad-art span.river { background: linear-gradient(135deg, #247ba0, #50f4ff); }
+    .crossyroad-art span.chicken { background: #ffffff; box-shadow: 0 0 14px #ffffff; }
+
     .game-card h3 {
       margin: 0;
       font-size: 2rem;
@@ -779,6 +795,23 @@
           <p>Match your ball's color to the rotating segments, collect stars, and bounce upward to survive.</p>
           <span class="play">Play now →</span>
         </a>
+
+        <!-- === CROSSY ROAD INTEGRATION CARD === -->
+        <a class="game-card" href="crossyroad.html" aria-label="Play Crossy Road">
+          <div class="game-art crossyroad-art" aria-hidden="true">
+            <span class="grass">🌲</span><span class="grass"></span><span class="grass">🌲</span><span class="grass"></span><span class="grass"></span><span class="grass"></span><span class="grass">🌲</span>
+            <span class="river"></span><span class="river"></span><span class="river"></span><span class="river"></span><span class="river"></span><span class="river"></span><span class="river"></span>
+            <span class="road">🚘</span><span class="road"></span><span class="road"></span><span class="road"></span><span class="road"></span><span class="road"></span><span class="road"></span>
+            <span class="grass"></span><span class="grass"></span><span class="grass chicken">🐔</span><span class="grass"></span><span class="grass">🌲</span><span class="grass"></span><span class="grass"></span>
+            <span class="road"></span><span class="road"></span><span class="road"></span><span class="road">🚖</span><span class="road"></span><span class="road"></span><span class="road"></span>
+            <span class="river"></span><span class="river"></span><span class="river"></span><span class="river"></span><span class="river"></span><span class="river"></span><span class="river"></span>
+            <span class="grass">🌲</span><span class="grass"></span><span class="grass"></span><span class="grass">🌲</span><span class="grass"></span><span class="grass">🌲</span><span class="grass"></span>
+          </div>
+          <h3>Crossy Road</h3>
+          <p>Hop your way through heavy highway traffic and rapid rivers in a pure isometric voxel-style infinite runner.</p>
+          <span class="play">Play now →</span>
+        </a>
+
       </div>
     </section>
   </main>

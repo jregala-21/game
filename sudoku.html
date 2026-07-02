@@ -122,6 +122,12 @@
     button.blitz-btn.active { background: var(--warning); color: #fff; box-shadow: 0 0 20px rgba(255,83,112,0.4); }
     button.daily-btn { width: 100%; background: linear-gradient(135deg, #1cc88a, #4e73df); color: #fff; box-shadow: 0 4px 15px rgba(28, 200, 138, 0.3); }
     button.daily-btn.active { background: #1cc88a; border: 2px solid var(--accent); }
+    .daily-picker { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+    .daily-picker input[type="date"] { width: 100%; border: 1px solid rgba(255,255,255,.14); border-radius: 14px; padding: 11px 12px; color: var(--text); background: rgba(255,255,255,.08); font: inherit; font-weight: 800; outline: none; }
+    .daily-picker input[type="date"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(93,242,255,.16); }
+    .daily-picker button { white-space: nowrap; }
+    .cell.conflict { color: #ff2d55 !important; text-shadow: 0 0 10px rgba(255,45,85,.30); }
+    .cell.conflict.selected { color: #ff2d55 !important; box-shadow: inset 0 0 0 3px rgba(255,45,85,.42) !important; }
 
     /* Date Tracker Layout Overview Dashboard Styling */
     .tracker-panel { margin-top: 20px; padding: 14px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; }
@@ -130,6 +136,7 @@
     .tracker-day { aspect-ratio: 1; font-size: 0.75rem; display: grid; place-items: center; border-radius: 8px; background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid transparent; font-weight: 700; }
     .tracker-day.done { background: rgba(28, 200, 138, 0.25); color: var(--good); border-color: rgba(28, 200, 138, 0.4); box-shadow: 0 0 8px rgba(28,200,138,0.2); }
     .tracker-day.current { border-color: var(--accent); color: #fff; }
+    .tracker-day.selected-date { background: rgba(80,244,255,.16); border-color: var(--accent); color: #fff; }
 
     .actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top: 10px; }
     .message { min-height:52px; margin:16px 0 0; padding:14px; border-radius:16px; background:var(--panel-2); color:var(--muted); line-height:1.45; }
@@ -401,6 +408,9 @@ h1 { font-size: clamp(2rem, 4.2vw, 4rem) !important; }
   box-shadow: inset 0 0 0 3px rgba(32,57,85,.45) !important;
 }
 .cell.bad { background: #ff5d7a !important; color: #fff !important; }
+.cell.conflict { color: #ff2d55 !important; text-shadow: 0 0 10px rgba(255,45,85,.30) !important; }
+.cell.conflict.given { color: #d60036 !important; }
+.cell.conflict.selected { color: #ff2d55 !important; box-shadow: inset 0 0 0 3px rgba(255,45,85,.42) !important; }
 .cell.box-right { border-right-color: #203955 !important; }
 .cell.box-bottom { border-bottom-color: #203955 !important; }
 .side { padding: 16px !important; }
@@ -752,6 +762,10 @@ html, body {
           </div>
           <button id="blitzModeBtn" class="secondary blitz-btn">⚡ Blitz Mode (5 Mins)</button>
           <button id="dailyModeBtn" class="secondary daily-btn">📅 Daily Challenge</button>
+          <div class="daily-picker" aria-label="Daily challenge date picker">
+            <input id="dailyDateInput" type="date" aria-label="Choose daily challenge date" />
+            <button id="dailyDateBtn" class="secondary" type="button">Play date</button>
+          </div>
         </div>
 
         <div class="tracker-panel">
@@ -802,6 +816,8 @@ html, body {
     const gameModeBtn = document.getElementById('gameModeBtn');
     const blitzModeBtn = document.getElementById('blitzModeBtn');
     const dailyModeBtn = document.getElementById('dailyModeBtn');
+    const dailyDateInput = document.getElementById('dailyDateInput');
+    const dailyDateBtn = document.getElementById('dailyDateBtn');
     const prevLevelBtn = document.getElementById('prevLevelBtn');
     const nextLevelBtn = document.getElementById('nextLevelBtn');
     
@@ -845,6 +861,7 @@ html, body {
 
     // Daily Mode Complete History logs arrays storage
     let dailyHistory = [];
+    let selectedDailyDate = getFormattedDateToday();
 
     if (!localStorage.getItem('sudoku_v2_visited')) {
       modal.classList.remove('hidden');
@@ -855,9 +872,23 @@ html, body {
 
     closeModalBtn.addEventListener('click', () => { modal.classList.add('hidden'); });
 
-    function getFormattedDateToday() {
-      const d = new Date();
+    function formatDateForDailyChallenge(d) {
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    function getFormattedDateToday() {
+      return formatDateForDailyChallenge(new Date());
+    }
+
+    function getDailyChallengeDate() {
+      return selectedDailyDate || getFormattedDateToday();
+    }
+
+    function syncDailyDateInput() {
+      if (!dailyDateInput) return;
+      const todayStr = getFormattedDateToday();
+      dailyDateInput.min = todayStr;
+      dailyDateInput.value = getDailyChallengeDate();
     }
 
     // Real-Time Local Storage Mechanics
@@ -876,7 +907,8 @@ html, body {
         solveClicksRemaining,
         blitzTimeRemaining,
         gameActive,
-        dailyHistory
+        dailyHistory,
+        selectedDailyDate
       };
       localStorage.setItem('sudoku_v2_save_state', JSON.stringify(state));
     }
@@ -900,6 +932,8 @@ html, body {
           blitzTimeRemaining = state.blitzTimeRemaining !== undefined ? state.blitzTimeRemaining : 300;
           gameActive = state.gameActive !== undefined ? state.gameActive : true;
           dailyHistory = state.dailyHistory || [];
+          selectedDailyDate = state.selectedDailyDate || getFormattedDateToday();
+          syncDailyDateInput();
           
           gameModeBtn.textContent = `Game Mode: Level ${currentLevel}`;
           
@@ -949,6 +983,8 @@ html, body {
       } else {
         newBtn.disabled = true;
       }
+
+      if (dailyDateBtn) dailyDateBtn.disabled = (!gameActive && currentMode !== 'daily') || isFadingInSolution;
     }
 
     function generateDailySudokuIndex(dateStr) {
@@ -982,13 +1018,14 @@ html, body {
         blitzTimeRemaining = 300; 
         startBlitzTimer();
       } else if (currentMode === 'daily') {
-        const todayStr = getFormattedDateToday();
-        const dailySeed = generateDailySudokuIndex(todayStr);
+        syncDailyDateInput();
+        const dailyDateStr = getDailyChallengeDate();
+        const dailySeed = generateDailySudokuIndex(dailyDateStr);
         // Select deterministic configuration depending entirely on date sequence seed
         const targetDiff = difficulties[dailySeed % difficulties.length];
         list = PUZZLES[targetDiff];
         puzzleIndex = dailySeed % list.length;
-        timerLabel.textContent = "DAILY";
+        timerLabel.textContent = dailyDateStr;
       }
 
       puzzle = list[puzzleIndex].puzzle;
@@ -1003,7 +1040,7 @@ html, body {
       saveToLocalStorage();
       render();
       buildDateTrackerUI();
-      setMessage(currentMode === 'daily' ? `Daily challenge loaded for ${getFormattedDateToday()}!` : 'Select a cell, then type a number on your keyboard.');
+      setMessage(currentMode === 'daily' ? `Daily challenge loaded for ${getDailyChallengeDate()}!` : 'Select a cell, then type a number on your keyboard.');
     }
 
     function startBlitzTimer(resume = false) {
@@ -1050,10 +1087,33 @@ html, body {
         if (day === currentDayNum) {
           dayBadge.classList.add('current');
         }
+        if (loopDateStr === getDailyChallengeDate()) {
+          dayBadge.classList.add('selected-date');
+        }
 
         trackerGrid.appendChild(dayBadge);
       }
       streakCounter.textContent = `${completedCounter} Done`;
+    }
+
+    function hasMatchingNumberConflict(index) {
+      const currentValue = values[index];
+      if (!currentValue) return false;
+      const row = Math.floor(index / 9);
+      const col = index % 9;
+      const boxRow = Math.floor(row / 3);
+      const boxCol = Math.floor(col / 3);
+
+      for (let i = 0; i < 81; i++) {
+        if (i === index || values[i] !== currentValue) continue;
+        const compareRow = Math.floor(i / 9);
+        const compareCol = i % 9;
+        const sameRow = compareRow === row;
+        const sameCol = compareCol === col;
+        const sameBox = Math.floor(compareRow / 3) === boxRow && Math.floor(compareCol / 3) === boxCol;
+        if (sameRow || sameCol || sameBox) return true;
+      }
+      return false;
     }
 
     function render() {
@@ -1088,6 +1148,7 @@ html, body {
         if (givens[i]) cell.classList.add('given');
         if (!givens[i] && values[i]) cell.classList.add('user-entry');
         if (selectedValue && values[i] === selectedValue) cell.classList.add('same');
+        if (hasMatchingNumberConflict(i)) cell.classList.add('conflict');
         if (i === selected) cell.classList.add('selected');
         
         if (!givens[i] && values[i] && values[i] !== solution[i]) {
@@ -1115,7 +1176,7 @@ html, body {
       } else if (currentMode === 'blitz') {
         levelLabel.textContent = `⚡ Blitz Mode`;
       } else {
-        levelLabel.textContent = `📅 Daily Challenge`;
+        levelLabel.textContent = `📅 Daily ${getDailyChallengeDate()}`;
       }
       
       filledLabel.textContent = `${values.filter(Boolean).length}/81`;
@@ -1153,12 +1214,12 @@ html, body {
         } 
         // Handle Daily challenge log tracking mechanics updates
         else if (currentMode === 'daily') {
-          const todayDateStr = getFormattedDateToday();
-          if (!dailyHistory.includes(todayDateStr)) {
-            dailyHistory.push(todayDateStr);
+          const dailyDateStr = getDailyChallengeDate();
+          if (!dailyHistory.includes(dailyDateStr)) {
+            dailyHistory.push(dailyDateStr);
           }
           buildDateTrackerUI();
-          setMessage("Fantastic! You've completed today's daily challenge puzzle!", "good");
+          setMessage(`Fantastic! You've completed the daily challenge for ${dailyDateStr}!`, "good");
         } else {
           setMessage('Puzzle solved. Great job!', 'good');
         }
@@ -1175,7 +1236,7 @@ html, body {
 
     function recordSudokuSuccess(source) {
       if (!window.GameHubProfile) return;
-      const successId = currentMode === 'daily' ? ('sudoku-daily-' + getFormattedDateToday()) : ('sudoku-' + currentMode + '-level-' + currentLevel + '-puzzle-' + puzzleIndex);
+      const successId = currentMode === 'daily' ? ('sudoku-daily-' + getDailyChallengeDate()) : ('sudoku-' + currentMode + '-level-' + currentLevel + '-puzzle-' + puzzleIndex);
       window.GameHubProfile.recordSuccess('Sudoku', { level: currentMode === 'game' ? currentLevel : 0, xp: currentMode === 'blitz' ? 80 : 65, successId, title: 'Solved Sudoku ' + (currentMode === 'daily' ? 'Daily Challenge' : ('Level ' + currentLevel)) });
     }
 
@@ -1218,8 +1279,8 @@ html, body {
         if (currentMode === 'game' && currentLevel === maxLevelUnlocked) {
           maxLevelUnlocked++;
         } else if (currentMode === 'daily') {
-          const todayDateStr = getFormattedDateToday();
-          if (!dailyHistory.includes(todayDateStr)) dailyHistory.push(todayDateStr);
+          const dailyDateStr = getDailyChallengeDate();
+          if (!dailyHistory.includes(dailyDateStr)) dailyHistory.push(dailyDateStr);
         }
         buildDateTrackerUI();
         recordSudokuSuccess("check");
@@ -1250,6 +1311,18 @@ html, body {
     });
 
     dailyModeBtn.addEventListener('click', () => {
+      currentMode = 'daily';
+      selectedDailyDate = getFormattedDateToday();
+      syncDailyDateInput();
+      setModeUI(dailyModeBtn);
+      startGame();
+    });
+
+    dailyDateBtn.addEventListener('click', () => {
+      const todayStr = getFormattedDateToday();
+      const pickedDate = dailyDateInput.value || todayStr;
+      selectedDailyDate = pickedDate < todayStr ? todayStr : pickedDate;
+      syncDailyDateInput();
       currentMode = 'daily';
       setModeUI(dailyModeBtn);
       startGame();
@@ -1314,6 +1387,8 @@ html, body {
         render();
       }
     });
+
+    syncDailyDateInput();
 
     if (!loadFromLocalStorage()) {
       startGame();

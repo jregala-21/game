@@ -382,8 +382,9 @@
             animation: rainSheet .42s linear infinite;
         }
 
-        #weather-overlay.night {
-            opacity: .42;
+        #weather-overlay.night,
+        #weather-overlay.moon {
+            opacity: .34;
             background: radial-gradient(circle at 50% 35%, transparent 28%, rgba(0,0,0,.55) 100%);
         }
 
@@ -816,35 +817,92 @@
         updateRankUI(Number(localStorage.getItem("crossyroad_maxDistance") || 0));
         syncCurrentLevelFromDatabase(username).then(() => loadCrossyFirebaseProfile(username));
 
+        function calculateCrossyRoadXp(finalScore, previousBest) {
+            const distance = Math.max(0, Number(finalScore) || 0);
+            if (distance < 6) return 0;
+
+            // Low-distance runs should not level the profile quickly.
+            // XP grows slowly, and a meaningful bonus is only added when the player beats their best score.
+            let xp = 0;
+            if (distance < 10) xp = 2;
+            else if (distance < 20) xp = 4;
+            else if (distance < 25) xp = 6;
+            else if (distance < 40) xp = 10;
+            else if (distance < 65) xp = 16;
+            else if (distance < 90) xp = 24;
+            else if (distance < 120) xp = 34;
+            else xp = 48;
+
+            if (distance > previousBest) {
+                xp += Math.min(22, Math.max(4, Math.floor((distance - previousBest) / 3)));
+            } else {
+                xp = Math.max(0, Math.floor(xp * 0.35));
+            }
+            return Math.min(70, xp);
+        }
+
+        function awardCrossyRoadProfileXp(finalScore, previousBest) {
+            if (!window.GameHubProfile || typeof window.GameHubProfile.readProfile !== "function" || typeof window.GameHubProfile.saveProfile !== "function") return;
+
+            const xp = calculateCrossyRoadXp(finalScore, previousBest);
+            if (xp <= 0) return;
+
+            const profile = window.GameHubProfile.readProfile();
+            const beforeLevel = Math.max(1, Number(profile.level || 1));
+            profile.xp = Math.max(0, Number(profile.xp || 0)) + xp;
+            profile.level = beforeLevel;
+            profile.successfulPlays = Math.max(0, Number(profile.successfulPlays || 0)) + 1;
+            profile.games = profile.games && typeof profile.games === "object" ? profile.games : {};
+            profile.recentActivity = Array.isArray(profile.recentActivity) ? profile.recentActivity : [];
+            profile.completedSuccessIds = profile.completedSuccessIds && typeof profile.completedSuccessIds === "object" ? profile.completedSuccessIds : {};
+
+            const gameName = "Crossy Road";
+            if (!profile.games[gameName]) profile.games[gameName] = { successes: 0, bestScore: 0, bestLevel: 0, lastPlayedAt: null };
+            profile.games[gameName].successes = Number(profile.games[gameName].successes || 0) + 1;
+            profile.games[gameName].bestScore = Math.max(Number(profile.games[gameName].bestScore || 0), Number(finalScore || 0));
+            profile.games[gameName].bestLevel = Math.max(Number(profile.games[gameName].bestLevel || 0), Number(finalScore || 0));
+            profile.games[gameName].lastPlayedAt = new Date().toISOString();
+
+            const xpForNext = typeof window.GameHubProfile.xpForNext === "function"
+                ? window.GameHubProfile.xpForNext
+                : function (level) { return Math.max(50, level * 100); };
+
+            let guard = 0;
+            while (profile.xp >= xpForNext(profile.level) && guard < 20) {
+                profile.xp -= xpForNext(profile.level);
+                profile.level += 1;
+                guard += 1;
+            }
+
+            profile.recentActivity.unshift({
+                game: gameName,
+                title: "Crossed " + finalScore + " lanes",
+                score: Number(finalScore || 0),
+                level: Number(finalScore || 0),
+                xp,
+                at: new Date().toISOString()
+            });
+            profile.recentActivity = profile.recentActivity.slice(0, 12);
+            window.GameHubProfile.saveProfile(profile);
+
+            const liveProfile = window.GameHubProfile.readProfile();
+            if (liveProfile && liveProfile.level) updateAccountLevelUI(liveProfile.level);
+        }
+
         // Post back statistics to user profile upon scoring benchmarks
         function handleLevelUpTracking(finalScore) {
-            // Persist: max distance + level ups.
-            // Uses localStorage -> GameHubAuth cloud sync (Firebase) just like sudoku/tetris.
             const MAX_DISTANCE_KEY = "crossyroad_maxDistance";
             const LEVEL_KEY = "crossyroad_lastLevel";
 
-            const currentMax = Number(localStorage.getItem(MAX_DISTANCE_KEY) || 0);
-            if (finalScore > currentMax) {
+            const previousBest = Number(localStorage.getItem(MAX_DISTANCE_KEY) || 0);
+            if (finalScore > previousBest) {
                 localStorage.setItem(MAX_DISTANCE_KEY, String(finalScore));
                 document.getElementById("best-score").textContent = finalScore;
                 updateRankUI(finalScore);
             }
-            // Track “levels” for the profile (as in your other games)
-            if (window.GameHubProfile && typeof window.GameHubProfile.recordSuccess === "function" && finalScore > 5) {
-                window.GameHubProfile.recordSuccess("Crossy Road", {
-                    successId: "crossyroad-level-" + String(finalScore),
-                    score: finalScore,
-                    title: "Crossed " + finalScore + " Winter Lanes!",
-                    xp: Math.min(150, finalScore * 4),
-                    level: Number(localStorage.getItem(LEVEL_KEY) || 0) + 1
-                });
 
-                localStorage.setItem(LEVEL_KEY, String(Number((window.GameHubProfile.readProfile()||{}).level || 1)));
-
-                // Live visual reload for headers
-                const liveProfile = window.GameHubProfile.readProfile();
-                if (liveProfile && liveProfile.level) updateAccountLevelUI(liveProfile.level);
-            }
+            awardCrossyRoadProfileXp(finalScore, previousBest);
+            localStorage.setItem(LEVEL_KEY, String(getCurrentProfileLevel()));
 
             // Save after profile updates so Firebase receives the current synced level.
             saveCrossyFirebaseScore(username, finalScore);
@@ -859,16 +917,16 @@
         const COLOR_BEAK = 0xffaa00;
 
         const THEME_PRESETS = {
-            day: {
-                label: "Day", sky: 0x87ceeb, ambient: 0.72, sun: 0.72, fog: null,
+            sunrise: {
+                label: "Sunrise", sky: 0xffcfa3, ambient: 0.70, sun: 0.68, fog: null,
                 snow: 0x8fdc7b, road: 0x2e3445, river: 0x33a7cc, rail: 0x615c66, trunk: 0x5b3523, leaves: 0x2f8f4e, treeCap: 0x72d36b, treeSnow: false
             },
-            night: {
-                label: "Night", sky: 0x070b1d, ambient: 0.34, sun: 0.42, fog: 0x070b1d,
+            moon: {
+                label: "Moon", sky: 0x070b1d, ambient: 0.34, sun: 0.42, fog: 0x070b1d,
                 snow: 0x244063, road: 0x151925, river: 0x102f55, rail: 0x302d3b, trunk: 0x2b1c18, leaves: 0x15351f, treeCap: 0x1f5130, treeSnow: false
             },
-            summer: {
-                label: "Summer", sky: 0xffd36f, ambient: 0.78, sun: 0.82, fog: null,
+            sunset: {
+                label: "Sunset", sky: 0xff8f70, ambient: 0.72, sun: 0.78, fog: null,
                 snow: 0xb7e75b, road: 0x3a332d, river: 0x25b9d6, rail: 0x6a5b52, trunk: 0x6b3f24, leaves: 0x30a64f, treeCap: 0xffd166, treeSnow: false
             },
             rainy: {
@@ -880,10 +938,16 @@
                 snow: 0xf4fbff, road: 0x384052, river: 0x8fc7e8, rail: 0x696f7d, trunk: 0x4f3428, leaves: 0x1f4f37, treeCap: 0xdaf7ff, treeSnow: true
             }
         };
-        let activeThemeName = "day";
-        let activeTheme = THEME_PRESETS.day;
+
+        // Backward-compatible aliases for old saved/query theme names.
+        THEME_PRESETS.day = THEME_PRESETS.sunrise;
+        THEME_PRESETS.night = THEME_PRESETS.moon;
+        THEME_PRESETS.summer = THEME_PRESETS.sunset;
+
+        let activeThemeName = "sunrise";
+        let activeTheme = THEME_PRESETS.sunrise;
         let rainParticles = null;
-        let ambientLight = null, directionalLight = null;
+        let ambientLight = null, directionalLight = null, moonFillLight = null;
 
         function seededRandomFromText(text) {
             let hash = 2166136261;
@@ -910,26 +974,34 @@
             const forced = new URLSearchParams(window.location.search).get("theme") || localStorage.getItem("crossyroad_theme_override");
             if (forced && THEME_PRESETS[String(forced).toLowerCase()]) return String(forced).toLowerCase();
 
-            // Day/night follows the current clock. Weather/season looks are random per calendar day.
-            const dailyWeather = getDailyWeatherThemeName(now);
-            const isNight = hour < 6 || hour >= 18;
-            if (dailyWeather !== "day") return dailyWeather;
-            return isNight ? "night" : "day";
+            // Time-based map lighting:
+            // 6:00 AM to 12:59 PM = Sunrise mode
+            // 1:00 PM to 6:59 PM = Sunset mode
+            // 7:00 PM to 5:59 AM = Moon mode
+            if (hour >= 6 && hour <= 12) return "sunrise";
+            if (hour >= 13 && hour <= 18) return "sunset";
+            return "moon";
         }
 
         function setActiveTheme(themeName) {
-            activeThemeName = THEME_PRESETS[themeName] ? themeName : "day";
+            activeThemeName = THEME_PRESETS[themeName] ? themeName : "sunrise";
             activeTheme = THEME_PRESETS[activeThemeName];
             const label = document.getElementById("theme-label");
             if (label) label.textContent = activeTheme.label;
             const overlay = document.getElementById("weather-overlay");
-            if (overlay) overlay.className = activeThemeName === "rainy" ? "rainy" : (activeThemeName === "snow" ? "snow" : (activeThemeName === "night" ? "night" : ""));
+            if (overlay) overlay.className = activeThemeName === "rainy" ? "rainy" : (activeThemeName === "snow" ? "snow" : (activeThemeName === "moon" ? "moon" : ""));
             if (scene) {
                 scene.background = new THREE.Color(activeTheme.sky);
                 scene.fog = activeTheme.fog ? new THREE.Fog(activeTheme.fog, 10, 42) : null;
             }
             if (ambientLight) ambientLight.intensity = activeTheme.ambient;
             if (directionalLight) directionalLight.intensity = activeTheme.sun;
+            if (moonFillLight) moonFillLight.intensity = activeThemeName === "moon" ? 0.32 : 0;
+            if (rows && rows.length) refreshStreetLampsForRows();
+        }
+
+        function isMoonMode() {
+            return activeThemeName === "moon" || activeThemeName === "night";
         }
 
         function buildRainParticles() {
@@ -962,6 +1034,16 @@
             });
         }
 
+        function updateWaterWaves(delta, elapsed) {
+            for (let i = 0; i < waterWaves.length; i++) {
+                const wave = waterWaves[i];
+                if (!wave || !wave.mesh) continue;
+                const data = wave.mesh.userData.wave || {};
+                wave.mesh.position.x = data.baseX + Math.sin(elapsed * (data.speed || 1) + (data.phase || 0)) * (data.amp || 0.08);
+                wave.mesh.position.y = data.baseY + Math.sin(elapsed * 2.3 + (data.phase || 0)) * 0.006;
+            }
+        }
+
         function material(color, extra) {
             return new THREE.MeshLambertMaterial(Object.assign({ color }, extra || {}));
         }
@@ -970,6 +1052,7 @@
         let chicken;
         let rows = [], rowObjects = [];
         let cars = [], logs = [];
+        let waterWaves = [];
         let eagle = null;
         let currentMaxRow = 0, score = 0, isGameOver = false;
         let lastMoveTime = 0, eagleAttackStarted = false, blockedMessageUntil = 0;
@@ -1020,6 +1103,10 @@
             directionalLight.shadow.camera.top = shadowSpan;
             directionalLight.shadow.camera.bottom = -shadowSpan;
             scene.add(directionalLight);
+
+            moonFillLight = new THREE.HemisphereLight(0xbfd7ff, 0x050814, 0);
+            scene.add(moonFillLight);
+
             setActiveTheme(activeThemeName);
 
             buildPlayer();
@@ -1211,6 +1298,7 @@
                 }
             } else if (type === TYPE_RIVER) {
                 speed = 0.85 + difficulty * 1.6 + Math.random() * 0.75;
+                addWaterWavesToRow(rowGroup, rowIndex);
             } else if (type === TYPE_RAIL) {
                 speed = 3.8 + difficulty * 4.5 + Math.random() * 1.8;
                 for (let i = -25; i <= 25; i += 1.4) {
@@ -1241,6 +1329,94 @@
             const spawnInterval = Math.max(0.65, 2.4 - difficulty * 1.25 + Math.random() * (1.0 - difficulty * 0.35));
             rows[rowIndex] = { index: rowIndex, type: type, speed: speed, direction: direction, lastSpawned: 0, spawnInterval: spawnInterval, blockedCells: Array.from(blockedCells) };
             rowObjects[rowIndex] = rowGroup;
+            refreshStreetLampsForRows();
+        }
+
+        function isLampLane(row) {
+            return row && (row.type === TYPE_ROAD || row.type === TYPE_RAIL);
+        }
+
+        function clearStreetLampsFromRow(rowGroup) {
+            if (!rowGroup) return;
+            for (let i = rowGroup.children.length - 1; i >= 0; i--) {
+                const child = rowGroup.children[i];
+                if (child && child.userData && child.userData.streetLamp) rowGroup.remove(child);
+            }
+        }
+
+        function refreshStreetLampsForRows() {
+            for (let i = 0; i < rowObjects.length; i++) clearStreetLampsFromRow(rowObjects[i]);
+            if (!isMoonMode()) return;
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const rowGroup = rowObjects[i];
+                if (!isLampLane(row) || !rowGroup) continue;
+
+                // Only place lamps on the OUTER shoulders of a connected road/rail block.
+                // For 2 or 3 adjacent road rows, this prevents lamps from appearing between lanes.
+                const needsStartSide = !isLampLane(rows[i - 1]);
+                const needsFarSide = !isLampLane(rows[i + 1]);
+                if (needsStartSide) addStreetLampsToRow(rowGroup, i, 0.78);
+                if (needsFarSide) addStreetLampsToRow(rowGroup, i, -0.78);
+            }
+        }
+
+        function addWaterWavesToRow(rowGroup, rowIndex) {
+            const waveMat = new THREE.MeshLambertMaterial({ color: 0xd7fbff, transparent: true, opacity: activeThemeName === "moon" ? 0.44 : 0.62 });
+            const foamMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: activeThemeName === "moon" ? 0.24 : 0.36 });
+            const zBands = [-0.27, 0.02, 0.31];
+            for (let band = 0; band < zBands.length; band++) {
+                for (let x = -22; x <= 22; x += 3.2) {
+                    const wave = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.026, 0.055), band % 2 ? foamMat : waveMat);
+                    const offset = ((rowIndex + band) % 3) * 0.7;
+                    wave.position.set(x + offset, -0.06 + band * 0.006, zBands[band]);
+                    wave.rotation.y = (band % 2 === 0 ? 1 : -1) * 0.09;
+                    wave.userData.wave = {
+                        baseX: wave.position.x,
+                        baseY: wave.position.y,
+                        amp: 0.06 + band * 0.025,
+                        speed: 1.2 + band * 0.28,
+                        phase: rowIndex * 0.45 + x * 0.18 + band
+                    };
+                    rowGroup.add(wave);
+                    waterWaves.push({ mesh: wave, row: rowIndex });
+                }
+            }
+        }
+
+        function addStreetLampsToRow(rowGroup, rowIndex, shoulderZ) {
+            const poleMat = new THREE.MeshLambertMaterial({ color: 0x273246 });
+            const bulbMat = new THREE.MeshBasicMaterial({ color: 0xfff0a8 });
+            const glowMat = new THREE.MeshBasicMaterial({ color: 0xffe8a3, transparent: true, opacity: 0.20 });
+            const xPositions = rowIndex % 2 === 0 ? [-7.35, 7.35] : [-5.35, 5.35];
+            const roadSideDir = shoulderZ > 0 ? -1 : 1;
+
+            xPositions.forEach((x) => {
+                const lamp = new THREE.Group();
+                lamp.userData.streetLamp = true;
+                const pole = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.35, 0.08), poleMat);
+                pole.position.y = 0.62;
+                pole.castShadow = true;
+                lamp.add(pole);
+
+                // Arm points inward from the shoulder toward the road.
+                const arm = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.52), poleMat);
+                arm.position.set(0, 1.28, roadSideDir * 0.24);
+                arm.castShadow = true;
+                lamp.add(arm);
+
+                const bulb = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.16, 0.18), bulbMat);
+                bulb.position.set(0, 1.20, roadSideDir * 0.52);
+                lamp.add(bulb);
+
+                // The glow reaches into the road, while the pole remains on the edge.
+                const glow = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.025, 0.86), glowMat);
+                glow.position.set(0, 0.08, roadSideDir * 0.42);
+                lamp.add(glow);
+
+                lamp.position.set(x, 0, shoulderZ);
+                rowGroup.add(lamp);
+            });
         }
 
         function buildWinterTree() {
@@ -1290,11 +1466,18 @@
                 wheel.castShadow = true;
                 car.add(wheel);
             }));
-            const headlightMat = new THREE.MeshLambertMaterial({ color: 0xfff3a1 });
+            const headlightMat = isMoonMode()
+                ? new THREE.MeshBasicMaterial({ color: 0xffffc7 })
+                : new THREE.MeshLambertMaterial({ color: 0xfff3a1 });
+            const beamMat = new THREE.MeshBasicMaterial({ color: 0xfff1a8, transparent: true, opacity: isMoonMode() ? 0.34 : 0.08 });
             [-0.22, 0.22].forEach(z => {
-                const light = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.12, 0.12), headlightMat);
+                const light = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.13, 0.13), headlightMat);
                 light.position.set(0.86, 0.36, z);
                 car.add(light);
+
+                const beam = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.025, 0.16), beamMat);
+                beam.position.set(1.45, 0.25, z);
+                car.add(beam);
             });
             return car;
         }
@@ -1320,6 +1503,20 @@
             nose.position.set(2.35, 0.45, 0);
             nose.castShadow = true;
             train.add(nose);
+
+            const trainLightMat = isMoonMode()
+                ? new THREE.MeshBasicMaterial({ color: 0xffffc7 })
+                : new THREE.MeshLambertMaterial({ color: 0xfff3a1 });
+            const trainBeamMat = new THREE.MeshBasicMaterial({ color: 0xfff1a8, transparent: true, opacity: isMoonMode() ? 0.30 : 0.06 });
+            [-0.22, 0.22].forEach(z => {
+                const light = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.12), trainLightMat);
+                light.position.set(2.55, 0.50, z);
+                train.add(light);
+
+                const beam = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.028, 0.18), trainBeamMat);
+                beam.position.set(3.35, 0.32, z);
+                train.add(beam);
+            });
             return train;
         }
 
@@ -1359,6 +1556,7 @@
             const elapsed = clock.getElapsedTime();
             updateIdlePredator(delta, elapsed);
             updateRainParticles(delta);
+            updateWaterWaves(delta, elapsed);
 
             // Procedural Infinite Row Spawning
             while (rows.length < playerForwardIndex + 30) {
@@ -1596,7 +1794,7 @@
             logs.forEach(l => { if (l.mesh.parent) l.mesh.parent.remove(l.mesh); });
             rowObjects.forEach(o => scene.remove(o));
 
-            cars = []; logs = []; rows = []; rowObjects = [];
+            cars = []; logs = []; waterWaves = []; rows = []; rowObjects = [];
             playerForwardIndex = 0; playerSideIndex = 0;
             targetX = 0; targetZ = 0; currentMaxRow = 0; score = 0;
             isJumping = false; isGameOver = false;

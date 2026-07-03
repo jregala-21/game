@@ -418,10 +418,250 @@
         }
 
 
+
+
+        .multiplayer-panel {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            width: min(310px, calc(100% - 50px));
+            display: grid;
+            gap: 9px;
+            padding: 12px;
+            border-radius: 18px;
+            background: rgba(7, 12, 31, 0.72);
+            border: 1px solid rgba(255,255,255,.12);
+            box-shadow: 0 14px 40px rgba(0,0,0,.32);
+            backdrop-filter: blur(12px) saturate(130%);
+            z-index: 5;
+        }
+
+        .multiplayer-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            color: var(--text);
+            font-size: .78rem;
+            font-weight: 1000;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
+        #room-status {
+            color: var(--muted);
+            font-size: .72rem;
+            font-weight: 900;
+            letter-spacing: normal;
+            text-transform: none;
+        }
+
+        .multiplayer-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .mp-btn {
+            min-height: 34px;
+            padding: 8px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,.14);
+            background: rgba(255,255,255,.08);
+            color: var(--text);
+            font-size: .78rem;
+            font-weight: 1000;
+            cursor: pointer;
+            box-shadow: 0 0 18px rgba(80,244,255,.10);
+        }
+
+        .mp-btn.primary {
+            color: #05101d;
+            background: linear-gradient(135deg, var(--accent), #9ffcff);
+        }
+
+        .mp-btn.leave {
+            grid-column: 1 / -1;
+            display: none;
+            color: #ffdce4;
+            background: rgba(255,93,122,.14);
+            border-color: rgba(255,93,122,.28);
+        }
+
+        .multiplayer-list {
+            display: grid;
+            gap: 5px;
+            max-height: 110px;
+            overflow: auto;
+        }
+
+        .mp-player-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            font-size: .72rem;
+            font-weight: 900;
+            padding: 6px 8px;
+            border-radius: 12px;
+            background: rgba(255,255,255,.055);
+        }
+
+        .mp-player-row.me {
+            color: var(--accent);
+            border: 1px solid rgba(80,244,255,.18);
+        }
+
+        /* === POLISHED GAME MODALS === */
+        #game-modal-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            z-index: 30;
+            align-items: center;
+            justify-content: center;
+            padding: 22px;
+            background: radial-gradient(circle at 50% 30%, rgba(80,244,255,.10), transparent 30rem), rgba(2, 6, 19, .72);
+            backdrop-filter: blur(12px) saturate(135%);
+        }
+
+        #game-modal-overlay.show { display: flex; }
+
+        .game-modal-card {
+            width: min(430px, 100%);
+            border-radius: 26px;
+            border: 1px solid rgba(255,255,255,.15);
+            background:
+                linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.035)),
+                linear-gradient(135deg, rgba(80,244,255,.10), rgba(199,125,255,.085)),
+                rgba(7, 12, 31, .94);
+            box-shadow: 0 28px 90px rgba(0,0,0,.58), var(--ring);
+            padding: 22px;
+            transform: translateY(10px) scale(.98);
+            opacity: 0;
+            animation: modalPop .18s ease forwards;
+        }
+
+        @keyframes modalPop {
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+
+        .game-modal-icon {
+            width: 44px;
+            height: 44px;
+            display: grid;
+            place-items: center;
+            border-radius: 16px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            color: #06101a;
+            font-size: 1.45rem;
+            box-shadow: 0 0 28px rgba(80,244,255,.26);
+        }
+
+        .game-modal-card.danger .game-modal-icon {
+            background: linear-gradient(135deg, #ff5d7a, #ffb65d);
+        }
+
+        .game-modal-title {
+            margin: 0 0 8px;
+            font-size: 1.45rem;
+            line-height: 1.05;
+            letter-spacing: -.045em;
+        }
+
+        .game-modal-message {
+            margin: 0 0 16px;
+            color: var(--muted);
+            line-height: 1.5;
+            font-size: .94rem;
+        }
+
+        .game-modal-code {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            border-radius: 16px;
+            background: rgba(255,255,255,.075);
+            border: 1px solid rgba(80,244,255,.22);
+            color: var(--accent);
+            font-size: 1.35rem;
+            font-weight: 1000;
+            letter-spacing: .16em;
+        }
+
+        .game-modal-code.show { display: flex; }
+
+        .game-modal-copy {
+            border: 1px solid rgba(255,255,255,.16);
+            background: rgba(255,255,255,.085);
+            color: var(--text);
+            border-radius: 999px;
+            padding: 8px 10px;
+            font-size: .72rem;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .game-modal-input {
+            display: none;
+            width: 100%;
+            margin-bottom: 14px;
+            padding: 13px 14px;
+            border-radius: 16px;
+            border: 1px solid rgba(80,244,255,.25);
+            background: rgba(255,255,255,.075);
+            color: var(--text);
+            font: inherit;
+            font-weight: 900;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            outline: none;
+        }
+
+        .game-modal-input.show { display: block; }
+        .game-modal-input:focus { box-shadow: 0 0 0 3px rgba(80,244,255,.16); }
+
+        .game-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .game-modal-btn {
+            border-radius: 999px;
+            padding: 11px 16px;
+            border: 1px solid rgba(255,255,255,.15);
+            font-weight: 1000;
+            cursor: pointer;
+        }
+
+        .game-modal-btn.cancel {
+            color: var(--text);
+            background: rgba(255,255,255,.075);
+        }
+
+        .game-modal-btn.confirm {
+            color: #06101a;
+            background: linear-gradient(135deg, var(--accent), #9ffcff);
+            box-shadow: 0 0 24px rgba(80,244,255,.22);
+        }
+
+        .game-modal-card.danger .game-modal-btn.confirm {
+            background: linear-gradient(135deg, #ff5d7a, #ffb65d);
+        }
+
+
         @media (max-width: 640px) {
             header { margin: 10px 10px 0; padding: 10px 16px; }
             #game-wrapper { margin: 10px; }
             .go-card { padding: 30px 20px; width: 90%; }
+            .multiplayer-panel { top: auto; right: 10px; bottom: 62px; width: min(320px, calc(100% - 20px)); }
         }
     </style>
     <script>
@@ -638,8 +878,39 @@
                 </div>
             </div>
 
+
+
+            <div class="multiplayer-panel" id="multiplayer-panel">
+                <div class="multiplayer-title">
+                    <span>Multiplayer</span>
+                    <span id="room-status">Solo</span>
+                </div>
+                <div class="multiplayer-actions">
+                    <button class="mp-btn primary" id="create-room-btn" type="button">Create Room</button>
+                    <button class="mp-btn" id="join-room-btn" type="button">Join Room</button>
+                    <button class="mp-btn leave" id="leave-room-btn" type="button">Leave Room</button>
+                </div>
+                <div id="multiplayer-list" class="multiplayer-list" aria-live="polite"></div>
+            </div>
+
             <div id="danger-banner">Keep moving — eagle patrol active</div>
             <div id="instructions">Use <span>WASD</span> or <span>ARROW KEYS</span> to Hop • cross roads, rivers, and rails</div>
+
+
+
+            <div id="game-modal-overlay" aria-hidden="true">
+                <div class="game-modal-card" role="dialog" aria-modal="true" aria-labelledby="game-modal-title">
+                    <div class="game-modal-icon" id="game-modal-icon">💬</div>
+                    <h2 class="game-modal-title" id="game-modal-title">Message</h2>
+                    <p class="game-modal-message" id="game-modal-message">Message text</p>
+                    <div class="game-modal-code" id="game-modal-code"><span id="game-modal-code-text"></span><button class="game-modal-copy" id="game-modal-copy" type="button">Copy</button></div>
+                    <input class="game-modal-input" id="game-modal-input" maxlength="8" autocomplete="off" spellcheck="false" />
+                    <div class="game-modal-actions">
+                        <button class="game-modal-btn cancel" id="game-modal-cancel" type="button">Cancel</button>
+                        <button class="game-modal-btn confirm" id="game-modal-confirm" type="button">OK</button>
+                    </div>
+                </div>
+            </div>
 
             <div id="gameover-screen">
                 <div class="go-card">
@@ -1054,6 +1325,16 @@
         let cars = [], logs = [];
         let waterWaves = [];
         let eagle = null;
+        const MAX_MULTIPLAYER_PLAYERS = 4;
+        const MULTIPLAYER_ROOM_PATH = "crossyRoadRooms";
+        const MULTIPLAYER_COLORS = [0xfffbef, 0x8be9ff, 0xffd166, 0xc77dff];
+        let multiplayerRoomCode = "";
+        let multiplayerIsHost = false;
+        let multiplayerPlayers = {};
+        let multiplayerMeshes = {};
+        let multiplayerSyncTimer = null;
+        let multiplayerPlayerId = localStorage.getItem("crossyroad_multiplayer_player_id") || ("p_" + Math.random().toString(36).slice(2, 10));
+        localStorage.setItem("crossyroad_multiplayer_player_id", multiplayerPlayerId);
         let currentMaxRow = 0, score = 0, isGameOver = false;
         let lastMoveTime = 0, eagleAttackStarted = false, blockedMessageUntil = 0;
         const IDLE_WARNING_SECONDS = 4.5;
@@ -1234,6 +1515,417 @@
 
             chicken.scale.set(0.62, 0.62, 0.62);
             scene.add(chicken);
+        }
+
+        function multiplayerUrl(parts) {
+            return FIREBASE_DB_URL.replace(/\/$/, "") + "/" + parts.map(encodeURIComponent).join("/") + ".json";
+        }
+
+        function generateRoomCode() {
+            return Math.random().toString(36).replace(/[^a-z0-9]/g, "").slice(2, 8).toUpperCase();
+        }
+
+        function getMultiplayerName() {
+            return username || "Player";
+        }
+
+        function getLocalMultiplayerState() {
+            return {
+                id: multiplayerPlayerId,
+                name: getMultiplayerName(),
+                x: Number(playerSideIndex) || 0,
+                row: Number(playerForwardIndex) || 0,
+                y: chicken ? Number(chicken.position.y || 0.375) : 0.375,
+                rotationY: chicken ? Number(chicken.rotation.y || 0) : 0,
+                score: Number(score) || 0,
+                rank: getRankLevel(Math.max(Number(score) || 0, Number(localStorage.getItem("crossyroad_maxDistance") || 0))),
+                colorIndex: 0,
+                updatedAt: Date.now()
+            };
+        }
+
+        function buildRemoteChickenModel(color) {
+            const bird = new THREE.Group();
+            const featherMat = new THREE.MeshLambertMaterial({ color: color || 0x8be9ff });
+            const wingMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            const darkMat = new THREE.MeshLambertMaterial({ color: 0x111827 });
+            const combMat = new THREE.MeshLambertMaterial({ color: COLOR_COMB });
+            const beakMat = new THREE.MeshLambertMaterial({ color: COLOR_BEAK });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.55), featherMat);
+            body.position.y = 0.38;
+            body.castShadow = true;
+            bird.add(body);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.40), featherMat);
+            head.position.set(0, 0.82, -0.10);
+            head.castShadow = true;
+            bird.add(head);
+            const wingL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.30, 0.42), wingMat);
+            wingL.position.set(-0.40, 0.38, 0.02);
+            bird.add(wingL);
+            const wingR = wingL.clone();
+            wingR.position.x = 0.40;
+            bird.add(wingR);
+            const beak = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.13, 0.22), beakMat);
+            beak.position.set(0, 0.80, -0.39);
+            bird.add(beak);
+            const comb = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.20, 0.14), combMat);
+            comb.position.set(0, 1.10, -0.12);
+            bird.add(comb);
+            [-0.13, 0.13].forEach(x => {
+                const eye = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.03), darkMat);
+                eye.position.set(x, 0.89, -0.32);
+                bird.add(eye);
+            });
+            bird.scale.set(0.62, 0.62, 0.62);
+            return bird;
+        }
+
+
+
+        let activeGameModalResolver = null;
+
+        function openGameModal(options) {
+            options = options || {};
+            const overlay = document.getElementById("game-modal-overlay");
+            const card = overlay ? overlay.querySelector(".game-modal-card") : null;
+            const icon = document.getElementById("game-modal-icon");
+            const title = document.getElementById("game-modal-title");
+            const messageEl = document.getElementById("game-modal-message");
+            const input = document.getElementById("game-modal-input");
+            const codeWrap = document.getElementById("game-modal-code");
+            const codeText = document.getElementById("game-modal-code-text");
+            const copyBtn = document.getElementById("game-modal-copy");
+            const cancelBtn = document.getElementById("game-modal-cancel");
+            const confirmBtn = document.getElementById("game-modal-confirm");
+
+            if (!overlay || !card || !confirmBtn || !cancelBtn) {
+                return Promise.resolve({ confirmed: true, value: "" });
+            }
+
+            if (activeGameModalResolver) activeGameModalResolver({ confirmed: false, value: "" });
+
+            card.classList.toggle("danger", !!options.danger);
+            if (icon) icon.textContent = options.icon || (options.danger ? "⚠️" : "💬");
+            if (title) title.textContent = options.title || "Message";
+            if (messageEl) messageEl.textContent = options.message || "";
+
+            const wantsInput = !!options.input;
+            if (input) {
+                input.classList.toggle("show", wantsInput);
+                input.value = options.defaultValue || "";
+                input.placeholder = options.placeholder || "ROOM CODE";
+            }
+
+            const hasCode = !!options.code;
+            if (codeWrap && codeText) {
+                codeWrap.classList.toggle("show", hasCode);
+                codeText.textContent = options.code || "";
+            }
+
+            if (cancelBtn) {
+                cancelBtn.textContent = options.cancelText || "Cancel";
+                cancelBtn.style.display = options.hideCancel ? "none" : "inline-flex";
+            }
+            if (confirmBtn) confirmBtn.textContent = options.confirmText || "OK";
+
+            overlay.classList.add("show");
+            overlay.setAttribute("aria-hidden", "false");
+            setTimeout(() => { if (wantsInput && input) input.focus(); else confirmBtn.focus(); }, 30);
+
+            return new Promise(resolve => {
+                activeGameModalResolver = resolve;
+
+                function cleanup(result) {
+                    overlay.classList.remove("show");
+                    overlay.setAttribute("aria-hidden", "true");
+                    confirmBtn.removeEventListener("click", onConfirm);
+                    cancelBtn.removeEventListener("click", onCancel);
+                    overlay.removeEventListener("click", onBackdrop);
+                    document.removeEventListener("keydown", onKeydown);
+                    if (copyBtn) copyBtn.removeEventListener("click", onCopy);
+                    activeGameModalResolver = null;
+                    resolve(result);
+                }
+                function onConfirm() {
+                    cleanup({ confirmed: true, value: input ? input.value : "" });
+                }
+                function onCancel() {
+                    cleanup({ confirmed: false, value: "" });
+                }
+                function onBackdrop(event) {
+                    if (event.target === overlay && !options.disableBackdropClose) onCancel();
+                }
+                function onKeydown(event) {
+                    if (event.key === "Escape" && !options.disableBackdropClose) onCancel();
+                    if (event.key === "Enter") onConfirm();
+                }
+                function onCopy() {
+                    const text = options.code || "";
+                    if (navigator.clipboard && text) {
+                        navigator.clipboard.writeText(text).then(() => { copyBtn.textContent = "Copied"; setTimeout(() => { copyBtn.textContent = "Copy"; }, 900); }).catch(() => {});
+                    }
+                }
+
+                confirmBtn.addEventListener("click", onConfirm);
+                cancelBtn.addEventListener("click", onCancel);
+                overlay.addEventListener("click", onBackdrop);
+                document.addEventListener("keydown", onKeydown);
+                if (copyBtn) copyBtn.addEventListener("click", onCopy);
+            });
+        }
+
+        function showGameAlert(title, message, icon) {
+            return openGameModal({ title, message, icon: icon || "💬", hideCancel: true, confirmText: "OK" });
+        }
+
+        function showMultiplayerMessage(text) {
+            const dangerEl = document.getElementById('danger-banner');
+            blockedMessageUntil = clock ? clock.getElapsedTime() + 1.6 : 0;
+            if (dangerEl) dangerEl.textContent = text;
+        }
+
+        function updateMultiplayerUI() {
+            const status = document.getElementById("room-status");
+            const list = document.getElementById("multiplayer-list");
+            const createBtn = document.getElementById("create-room-btn");
+            const joinBtn = document.getElementById("join-room-btn");
+            const leaveBtn = document.getElementById("leave-room-btn");
+            const players = Object.values(multiplayerPlayers || {}).filter(Boolean).sort((a, b) => String(a.id).localeCompare(String(b.id)));
+            if (status) status.textContent = multiplayerRoomCode ? ("Room " + multiplayerRoomCode + " • " + players.length + "/4") : "Solo";
+            if (createBtn) createBtn.style.display = multiplayerRoomCode ? "none" : "block";
+            if (joinBtn) joinBtn.style.display = multiplayerRoomCode ? "none" : "block";
+            if (leaveBtn) leaveBtn.style.display = multiplayerRoomCode ? "block" : "none";
+            if (list) {
+                list.innerHTML = "";
+                if (!multiplayerRoomCode) {
+                    const empty = document.createElement("div");
+                    empty.className = "mp-player-row";
+                    empty.innerHTML = "<span>Create or join a room</span><span>max 4</span>";
+                    list.appendChild(empty);
+                } else {
+                    players.forEach((p, index) => {
+                        const row = document.createElement("div");
+                        row.className = "mp-player-row" + (p.id === multiplayerPlayerId ? " me" : "");
+                        row.innerHTML = `<span>${index + 1}. ${p.id === multiplayerPlayerId ? "You" : (p.name || "Player")}</span><span>${Number(p.score || 0)}m</span>`;
+                        list.appendChild(row);
+                    });
+                }
+            }
+        }
+
+        async function publishMultiplayerState() {
+            if (!multiplayerRoomCode) return;
+            const state = getLocalMultiplayerState();
+            multiplayerPlayers[multiplayerPlayerId] = state;
+            try {
+                await fetch(multiplayerUrl([MULTIPLAYER_ROOM_PATH, multiplayerRoomCode, "players", multiplayerPlayerId]), {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(state)
+                });
+                await fetch(multiplayerUrl([MULTIPLAYER_ROOM_PATH, multiplayerRoomCode, "updatedAt"]), {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(Date.now())
+                });
+            } catch (err) {
+                console.warn("Multiplayer publish failed:", err);
+            }
+        }
+
+        async function refreshMultiplayerRoom() {
+            if (!multiplayerRoomCode) return;
+            try {
+                const res = await fetch(multiplayerUrl([MULTIPLAYER_ROOM_PATH, multiplayerRoomCode, "players"]));
+                const data = res.ok ? (await res.json() || {}) : {};
+                const now = Date.now();
+                Object.keys(data).forEach(id => {
+                    if (!data[id] || now - Number(data[id].updatedAt || 0) > 20000) delete data[id];
+                });
+                if (!data[multiplayerPlayerId]) data[multiplayerPlayerId] = getLocalMultiplayerState();
+                multiplayerPlayers = data;
+                renderRemotePlayers();
+                updateMultiplayerUI();
+                if (multiplayerIsHost) cleanupStalePlayers(data);
+            } catch (err) {
+                console.warn("Multiplayer refresh failed:", err);
+            }
+        }
+
+        function cleanupStalePlayers(players) {
+            const now = Date.now();
+            Object.keys(players || {}).forEach(id => {
+                if (now - Number(players[id].updatedAt || 0) > 20000) {
+                    fetch(multiplayerUrl([MULTIPLAYER_ROOM_PATH, multiplayerRoomCode, "players", id]), { method: "DELETE" }).catch(() => {});
+                }
+            });
+        }
+
+        function resolveRemoteVisualPosition(player, allPlayers) {
+            const sameCell = allPlayers.filter(p => Math.round(Number(p.x || 0)) === Math.round(Number(player.x || 0)) && Number(p.row || 0) === Number(player.row || 0))
+                .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+            const index = Math.max(0, sameCell.findIndex(p => p.id === player.id));
+            const offsets = [
+                { x: 0.00, z: 0.00 },
+                { x: -0.28, z: -0.18 },
+                { x: 0.28, z: 0.18 },
+                { x: -0.28, z: 0.18 }
+            ];
+            const off = offsets[index % offsets.length];
+            return { x: Number(player.x || 0) + off.x, y: Number(player.y || 0.375), z: -Number(player.row || 0) + off.z };
+        }
+
+        function renderRemotePlayers() {
+            if (!scene) return;
+            const players = Object.values(multiplayerPlayers || {}).filter(Boolean);
+            const activeIds = new Set(players.map(p => p.id));
+            Object.keys(multiplayerMeshes).forEach(id => {
+                if (!activeIds.has(id) || id === multiplayerPlayerId || !multiplayerRoomCode) {
+                    if (multiplayerMeshes[id].parent) multiplayerMeshes[id].parent.remove(multiplayerMeshes[id]);
+                    delete multiplayerMeshes[id];
+                }
+            });
+            players.forEach((player, displayIndex) => {
+                if (!player || player.id === multiplayerPlayerId) return;
+                if (!multiplayerMeshes[player.id]) {
+                    const color = MULTIPLAYER_COLORS[(displayIndex % (MULTIPLAYER_COLORS.length - 1)) + 1] || 0x8be9ff;
+                    multiplayerMeshes[player.id] = buildRemoteChickenModel(color);
+                    scene.add(multiplayerMeshes[player.id]);
+                }
+                const mesh = multiplayerMeshes[player.id];
+                const pos = resolveRemoteVisualPosition(player, players.concat([getLocalMultiplayerState()]));
+                mesh.position.x = THREE.MathUtils.lerp(mesh.position.x, pos.x, 0.35);
+                mesh.position.y = THREE.MathUtils.lerp(mesh.position.y, pos.y, 0.35);
+                mesh.position.z = THREE.MathUtils.lerp(mesh.position.z, pos.z, 0.35);
+                mesh.rotation.y = Number(player.rotationY || 0);
+            });
+        }
+
+        function startMultiplayerSync() {
+            clearInterval(multiplayerSyncTimer);
+            publishMultiplayerState();
+            refreshMultiplayerRoom();
+            multiplayerSyncTimer = setInterval(() => {
+                publishMultiplayerState();
+                refreshMultiplayerRoom();
+            }, 900);
+        }
+
+        async function createMultiplayerRoom() {
+            let code = generateRoomCode();
+            multiplayerRoomCode = code;
+            multiplayerIsHost = true;
+            multiplayerPlayers = {};
+            multiplayerPlayers[multiplayerPlayerId] = getLocalMultiplayerState();
+            try {
+                await fetch(multiplayerUrl([MULTIPLAYER_ROOM_PATH, code]), {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        createdAt: Date.now(),
+                        hostId: multiplayerPlayerId,
+                        maxPlayers: MAX_MULTIPLAYER_PLAYERS,
+                        players: multiplayerPlayers
+                    })
+                });
+                showMultiplayerMessage("Room created: " + code);
+                startMultiplayerSync();
+                updateMultiplayerUI();
+                await openGameModal({
+                    title: "Room created",
+                    message: "Share this room code with up to 3 friends. Other chickens will appear beside you without overlapping.",
+                    icon: "🐔",
+                    code: code,
+                    hideCancel: true,
+                    confirmText: "Start crossing"
+                });
+            } catch (err) {
+                console.warn("Create room failed:", err);
+                multiplayerRoomCode = "";
+                showMultiplayerMessage("Room create failed — try again");
+                await showGameAlert("Room create failed", "The room could not be created. Check your connection and try again.", "⚠️");
+            }
+        }
+
+        async function joinMultiplayerRoom() {
+            const answer = await openGameModal({
+                title: "Join multiplayer room",
+                message: "Enter the room code from your friend. Rooms allow up to 4 chickens only.",
+                icon: "🚪",
+                input: true,
+                placeholder: "ROOM CODE",
+                confirmText: "Join room",
+                cancelText: "Cancel"
+            });
+            if (!answer.confirmed) return;
+            const code = String(answer.value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+            if (!code) {
+                await showGameAlert("Missing room code", "Please enter a valid room code to join multiplayer.", "⌨️");
+                return;
+            }
+            try {
+                const res = await fetch(multiplayerUrl([MULTIPLAYER_ROOM_PATH, code, "players"]));
+                const players = res.ok ? (await res.json() || {}) : {};
+                const now = Date.now();
+                const activePlayers = Object.values(players).filter(p => p && now - Number(p.updatedAt || 0) <= 20000);
+                const alreadyInRoom = !!players[multiplayerPlayerId];
+                if (!alreadyInRoom && activePlayers.length >= MAX_MULTIPLAYER_PLAYERS) {
+                    showMultiplayerMessage("Room is full — 4 chickens max");
+                    await showGameAlert("Room is full", "This room already has 4 active chickens. Create a new room or wait for someone to leave.", "🐔");
+                    return;
+                }
+                multiplayerRoomCode = code;
+                multiplayerIsHost = false;
+                multiplayerPlayers = players || {};
+                multiplayerPlayers[multiplayerPlayerId] = getLocalMultiplayerState();
+                await publishMultiplayerState();
+                showMultiplayerMessage("Joined room: " + code);
+                startMultiplayerSync();
+                updateMultiplayerUI();
+                await openGameModal({
+                    title: "Joined room",
+                    message: "You are now in multiplayer. Keep moving and watch the other chickens cross beside you.",
+                    icon: "✅",
+                    code: code,
+                    hideCancel: true,
+                    confirmText: "Play"
+                });
+            } catch (err) {
+                console.warn("Join room failed:", err);
+                showMultiplayerMessage("Join failed — check room code");
+                await showGameAlert("Join failed", "Could not join that room. Check the code and your connection, then try again.", "⚠️");
+            }
+        }
+
+        async function leaveMultiplayerRoom() {
+            const code = multiplayerRoomCode;
+            if (!code) return;
+            const answer = await openGameModal({
+                title: "Leave room?",
+                message: "You will return to solo mode and your chicken will disappear from this multiplayer room.",
+                icon: "🚪",
+                danger: true,
+                confirmText: "Leave room",
+                cancelText: "Stay"
+            });
+            if (!answer.confirmed) return;
+            multiplayerRoomCode = "";
+            multiplayerIsHost = false;
+            clearInterval(multiplayerSyncTimer);
+            multiplayerSyncTimer = null;
+            Object.keys(multiplayerMeshes).forEach(id => {
+                if (multiplayerMeshes[id].parent) multiplayerMeshes[id].parent.remove(multiplayerMeshes[id]);
+            });
+            multiplayerMeshes = {};
+            multiplayerPlayers = {};
+            updateMultiplayerUI();
+            try {
+                await fetch(multiplayerUrl([MULTIPLAYER_ROOM_PATH, code, "players", multiplayerPlayerId]), { method: "DELETE" });
+            } catch (err) {
+                console.warn("Leave room cleanup failed:", err);
+            }
+            showMultiplayerMessage("Left multiplayer room");
+            await showGameAlert("Left room", "You are now playing solo again.", "✅");
         }
 
         function generateRowStructure(rowIndex) {
@@ -1556,6 +2248,7 @@
             const elapsed = clock.getElapsedTime();
             updateIdlePredator(delta, elapsed);
             updateRainParticles(delta);
+            renderRemotePlayers();
             updateWaterWaves(delta, elapsed);
 
             // Procedural Infinite Row Spawning
@@ -1770,6 +2463,7 @@
                     document.getElementById('score').innerText = score;
                     updateRankUI(score);
                 }
+                publishMultiplayerState();
             }
         }
 
@@ -1815,6 +2509,7 @@
                 generateRowStructure(i);
             }
             camera.position.set(8.5, 9.5, 8.5);
+            publishMultiplayerState();
             clock.getDelta();
         }
 
@@ -1833,7 +2528,20 @@
             setActiveTheme(getSeasonalThemeName());
             initEngine();
             renderer.setAnimationLoop(engineLoop);
+            updateMultiplayerUI();
+            const createBtn = document.getElementById('create-room-btn');
+            const joinBtn = document.getElementById('join-room-btn');
+            const leaveBtn = document.getElementById('leave-room-btn');
+            if (createBtn) createBtn.addEventListener('click', createMultiplayerRoom);
+            if (joinBtn) joinBtn.addEventListener('click', joinMultiplayerRoom);
+            if (leaveBtn) leaveBtn.addEventListener('click', leaveMultiplayerRoom);
         };
+
+        window.addEventListener('beforeunload', () => {
+            if (multiplayerRoomCode) {
+                fetch(multiplayerUrl([MULTIPLAYER_ROOM_PATH, multiplayerRoomCode, 'players', multiplayerPlayerId]), { method: 'DELETE', keepalive: true }).catch(() => {});
+            }
+        });
     </script>
 </body>
 </html>

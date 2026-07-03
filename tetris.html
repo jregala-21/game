@@ -939,6 +939,9 @@ body {
           <div><span>Level</span><strong id="level">1</strong></div>
           <div><span class="best-label">Best Level</span><strong id="highLevel">1</strong></div>
           <div><span>Combo</span><strong id="combo">0</strong></div>
+          <div><span>Next Garbage In</span><strong id="garbageNextIn">--:--</strong></div>
+
+
         </div>
       </aside>
 
@@ -996,27 +999,51 @@ body {
   </div>
 
   <div id="battleModal" class="modal-backdrop battle-modal">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h2>Multiplayer Arena</h2>
-        <button id="closeBattleModalBtn" class="modal-close">&times;</button>
-      </div>
-      <p class="modal-note">Connect to a live socket matchroom or generate a direct link peer token key to invite an opponent.</p>
-      <div style="display:grid; gap:12px;">
-        <div>
-          <label style="display:block; font-size:.78rem; color:var(--muted); margin-bottom:6px; font-weight:700; text-transform:uppercase;">Room Identity / Token Tag</label>
-          <input type="text" id="battleRoomInput" class="battle-field" placeholder="e.g. ALPHA_ROOM" />
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2>Multiplayer Options</h2>
+          <button id="closeBattleModalBtn" class="modal-close">&times;</button>
         </div>
-        <div class="battle-modal-actions">
-          <button id="battleJoinBtn" style="flex:1;">Join / Construct Room</button>
-        </div>
-        <div id="battleInviteSection" style="display:none; border-top:1px solid rgba(255,255,255,0.08); padding-top:12px; margin-top:4px;">
-          <button id="battleCopyLinkBtn" class="secondary" style="width:100%; font-size:.8rem;">Copy Arena Invitation Link</button>
-          <p class="battle-invite-copy" id="battleInviteMsg"></p>
+        <p class="modal-note">Choose whether you want to host an arena or step into a friend's active lobby.</p>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px;">
+          <button id="multiplayerCreateSelectBtn" style="padding: 16px 12px; font-size: 1rem;">Create Room</button>
+          <button id="multiplayerJoinSelectBtn" class="secondary" style="padding: 16px 12px; font-size: 1rem;">Join Room</button>
         </div>
       </div>
     </div>
-  </div>
+
+    <div id="createRoomModal" class="modal-backdrop battle-modal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2>Host New Battle Arena</h2>
+          <button id="closeCreateModalBtn" class="modal-close">&times;</button>
+        </div>
+        <p class="modal-note">Give your room a structural identity or use the pre-generated room key below.</p>
+        
+        <input type="text" id="createRoomInput" class="battle-field" autocomplete="off" placeholder="ROOM_NAME" />
+        
+        <div class="battle-modal-actions">
+          <button id="confirmCreateRoomBtn">Launch Room</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="joinRoomModal" class="modal-backdrop battle-modal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2>Connect to Arena</h2>
+          <button id="closeJoinModalBtn" class="modal-close">&times;</button>
+        </div>
+        <p class="modal-note">Provide the alphanumeric secret code or room label shared by your rival.</p>
+        
+        <input type="text" id="joinRoomInput" class="battle-field" autocomplete="off" placeholder="ENTER ROOM CODE..." />
+        
+        <div class="battle-modal-actions">
+          <button id="confirmJoinRoomBtn">Join Match</button>
+        </div>
+      </div>
+    </div>
 
   <script>
     // --- ADVANCED AUDIO ENGINE WITH HEAVY SYNTH EFFECTS ---
@@ -1312,7 +1339,8 @@ body {
       lines: document.getElementById('lines'),
       level: document.getElementById('level'),
       highLevel: document.getElementById('highLevel'),
-      combo: document.getElementById('combo')
+      combo: document.getElementById('combo'),
+      garbageNextIn: document.getElementById('garbageNextIn')
     };
 
     // Global App Configuration Metrics
@@ -1341,6 +1369,20 @@ body {
     let garbageTimer = 0;
     let garbageTimeLimit = 120000;
     let lastGarbageMilestone = 0;
+
+    // UI: timer for the garbage schedule (2 minutes window -> garbage) with decreasing cooldown
+    // After each garbage trigger, the next timer becomes 10-30 seconds shorter (min 30s).
+    const GARBAGE_WINDOW_MS = 120000;
+    const GARBAGE_MIN_WINDOW_MS = 30000;
+    const GARBAGE_SHORTEN_MIN_MS = 10000;
+    const GARBAGE_SHORTEN_MAX_MS = 30000;
+
+    let garbagePhaseStartMs = 0; // when the current window starts
+    let garbageNextInMs = 0; // remaining time until next garbage burst
+    let garbagePhaseTriggerCount = 0;
+    let garbageCurrentWindowMs = GARBAGE_WINDOW_MS;
+
+
 
     // FEAT ADDITION: Lock Delay Subsystem Variable Containers
     let isLockDelayed = false;
@@ -1420,7 +1462,13 @@ body {
       dropInterval = 1000;
       gameOver = false;
       paused = false;
+      garbagePhaseStartMs = 0;
+      garbageNextInMs = 0;
+      garbagePhaseTriggerCount = 0;
+      garbageCurrentWindowMs = GARBAGE_WINDOW_MS;
+
       heldPiece = null;
+
       canHold = true;
       isLockDelayed = false;
       lockDelayTimer = 0;
@@ -1429,14 +1477,31 @@ body {
       garbageTimer = 0;
       garbageTimeLimit = 120000;
       lastGarbageMilestone = 0;
+      garbagePhaseStartMs = 0;
       particles = [];
       nextPieces = [getRandomPiece(), getRandomPiece(), getRandomPiece()];
       spawnPiece();
       updateStats();
     }
 
+
     function addGarbageLines(count) {
+      // FEAT: update countdown scheduling for garbage bursts
+      const now = Date.now();
+      if (!garbagePhaseStartMs) garbagePhaseStartMs = now;
+
+      garbagePhaseTriggerCount++;
+
+      // Countdown window shrinks by 10-30 seconds each trigger (min window 30s)
+      const shrinkMs = GARBAGE_SHORTEN_MIN_MS + Math.floor(Math.random() * (GARBAGE_SHORTEN_MAX_MS - GARBAGE_SHORTEN_MIN_MS + 1));
+      garbageCurrentWindowMs = Math.max(GARBAGE_MIN_WINDOW_MS, garbageCurrentWindowMs - shrinkMs);
+
+      garbagePhaseStartMs = Date.now();
+      garbageNextInMs = garbageCurrentWindowMs;
+
       for (let i = 0; i < count; i++) {
+
+
         board.shift();
         const garbageRow = new Array(COLS).fill(8);
         const emptyHoleIndex = Math.floor(Math.random() * COLS);
@@ -1704,6 +1769,21 @@ body {
       syncMultiplayerData();
     }
 
+
+    function updateGarbageTimerUI() {
+      if (!els.garbageNextIn) return;
+      if (!running || !garbagePhaseStartMs) {
+        els.garbageNextIn.textContent = '02:00';
+        return;
+      }
+      const elapsed = Date.now() - garbagePhaseStartMs;
+      garbageNextInMs = Math.max(0, garbageCurrentWindowMs - elapsed);
+      const mm = Math.floor(garbageNextInMs/60000);
+      const ss = Math.floor((garbageNextInMs%60000)/1000);
+      els.garbageNextIn.textContent =
+        String(mm).padStart(2,'0')+':'+String(ss).padStart(2,'0');
+    }
+
     function updateStats() {
       els.score.textContent = score;
       els.lines.textContent = lines;
@@ -1711,7 +1791,25 @@ body {
       els.combo.textContent = combo > 0 ? combo : 0;
       els.highScore.textContent = highScore;
       els.highLevel.textContent = highLevel;
+
+      // garbage countdown UI
+      if (els.garbageNextIn) {
+        if (garbagePhaseStartMs > 0) {
+          const remaining = garbageNextInMs;
+          const mm = Math.floor(remaining / 60000);
+          const ss = Math.floor((remaining % 60000) / 1000);
+          els.garbageNextIn.textContent = (mm < 10 ? '0' + mm : mm) + ':' + (ss < 10 ? '0' + ss : ss);
+        } else {
+          // Always show the full 2:00 countdown when not running yet
+          els.garbageNextIn.textContent = '02:00';
+
+        }
+
+      }
+
+
     }
+
 
     function showOverlay(title, msg) {
       els.overlayTitle.textContent = title;
@@ -1885,7 +1983,19 @@ body {
       lastTime = time;
 
       if (running && !paused && !gameOver) {
+        // FEAT: update garbage countdown clock
+        if (!garbagePhaseStartMs) {
+          garbagePhaseStartMs = Date.now();
+          garbageCurrentWindowMs = GARBAGE_WINDOW_MS;
+          garbageNextInMs = garbageCurrentWindowMs;
+          garbagePhaseTriggerCount = 0;
+        } else {
+          const elapsed = Math.max(0, Date.now() - garbagePhaseStartMs);
+          garbageNextInMs = Math.max(0, garbageCurrentWindowMs - elapsed);
+        }
+
         if (!isMultiplayer) {
+
           garbageTimer += deltaTime;
           if (garbageTimer >= garbageTimeLimit) {
             addGarbageLines(1);
@@ -1895,6 +2005,7 @@ body {
             }
           }
         }
+
 
         const currentScoreMilestone = Math.floor(score / 10000);
         if (currentScoreMilestone > lastGarbageMilestone) {
@@ -1936,6 +2047,7 @@ body {
       }
 
       draw();
+      updateGarbageTimerUI();
       requestAnimationFrame(update);
     }
 
@@ -2143,7 +2255,66 @@ body {
     els.pauseBtn.addEventListener('click', togglePause);
     els.customizeControlsBtn.addEventListener('click', openControlModal);
     els.multiplayerBtn.addEventListener('click', openBattleModal);
+    // Register the new dynamic elements to prevent null reference errors
+    const customEls = {
+    battleModal: document.getElementById('battleModal'),
+    createRoomModal: document.getElementById('createRoomModal'),
+    joinRoomModal: document.getElementById('joinRoomModal'),
+    createRoomInput: document.getElementById('createRoomInput'),
+    joinRoomInput: document.getElementById('joinRoomInput'),
+    
+    createSelect: document.getElementById('multiplayerCreateSelectBtn'),
+    joinSelect: document.getElementById('multiplayerJoinSelectBtn'),
+    
+    confirmCreate: document.getElementById('confirmCreateRoomBtn'),
+    confirmJoin: document.getElementById('confirmJoinRoomBtn'),
+    
+    closeBattle: document.getElementById('closeBattleModalBtn'),
+    closeCreate: document.getElementById('closeCreateModalBtn'),
+    closeJoin: document.getElementById('closeJoinModalBtn')
+  };
 
+  // Replace your old els.multiplayerBtn click line with this:
+  els.multiplayerBtn.addEventListener('click', () => {
+    if (running && !paused) togglePause(); // Safely pauses engine logic loop execution
+    customEls.battleModal.classList.add('visible');
+  });
+
+  // Selection pathway behaviors
+  customEls.createSelect.addEventListener('click', () => {
+    customEls.battleModal.classList.remove('visible'); 
+    customEls.createRoomInput.value = "ARENA_" + Math.floor(Math.random() * 9000 + 1000);
+    customEls.createRoomModal.classList.add('visible');
+  });
+
+  customEls.joinSelect.addEventListener('click', () => {
+    customEls.battleModal.classList.remove('visible');
+    customEls.joinRoomInput.value = "";
+    customEls.joinRoomModal.classList.add('visible');
+    setTimeout(() => customEls.joinRoomInput.focus(), 100);
+  });
+
+  // Link back natively to your original engine hooks without code reduction
+  customEls.confirmCreate.addEventListener('click', () => {
+    const code = customEls.createRoomInput.value.trim();
+    if (code) {
+      customEls.createRoomModal.classList.remove('visible');
+      connectToBattleRoom(code); // Pipes seamlessly into your original Firebase handler
+    }
+  });
+
+  customEls.confirmJoin.addEventListener('click', () => {
+    const code = customEls.joinRoomInput.value.trim();
+    if (code) {
+      customEls.joinRoomModal.classList.remove('visible');
+      connectToBattleRoom(code); // Pipes seamlessly into your original Firebase handler
+    }
+  });
+
+  // Handle window dismiss triggers
+  customEls.closeBattle.addEventListener('click', () => customEls.battleModal.classList.remove('visible'));
+  customEls.closeCreate.addEventListener('click', () => customEls.createRoomModal.classList.remove('visible'));
+  customEls.closeJoin.addEventListener('click', () => customEls.joinRoomModal.classList.remove('visible'));
     els.closeControlModalBtn.addEventListener('click', () => els.controlModal.classList.remove('visible'));
     els.cancelControlBtn.addEventListener('click', () => els.controlModal.classList.remove('visible'));
     els.resetControlBtn.addEventListener('click', () => { keyMap = { ...defaultKeyMap }; openControlModal(); });
@@ -2233,9 +2404,12 @@ body {
     setupTouchControls();
     initializeMultiplayer();
     
+    // UI init for garbage countdown so it never shows --:-- before start loop
+    if (els.garbageNextIn) els.garbageNextIn.textContent = '02:00';
     reset(); 
     running = false;
     update();
+ 
   </script>
 </body>
 </html>

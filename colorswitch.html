@@ -470,28 +470,44 @@
         const successId = details.successId ? String(details.successId) : "";
         if (successId && profile.completedSuccessIds[successId]) return profile;
         if (successId) profile.completedSuccessIds[successId] = nowIso();
+        
         const game = String(gameName || details.game || "Game");
-        const xp = Math.max(10, Number(details.xp || 50));
+        const xpGain = Math.max(10, Number(details.xp || 50));
         const beforeLevel = Number(profile.level || 1);
+        
         profile.successfulPlays += 1;
-        profile.level += 1;
-        profile.xp += xp;
+        profile.xp += xpGain; // Add the newly earned XP
+
+        // Calculate and consume XP to level up dynamically based on thresholds
+        let leveledUp = false;
+        while (profile.xp >= xpForNext(profile.level)) {
+          profile.xp -= xpForNext(profile.level); // Consume the required XP
+          profile.level += 1;                     // Safely increment level
+          leveledUp = true;
+        }
+
         if (!profile.games[game]) profile.games[game] = blankGame();
         profile.games[game].successes = Number(profile.games[game].successes || 0) + 1;
         profile.games[game].bestScore = Math.max(Number(profile.games[game].bestScore || 0), Number(details.score || 0));
         profile.games[game].bestLevel = Math.max(Number(profile.games[game].bestLevel || 0), Number(details.level || 0));
         profile.games[game].lastPlayedAt = nowIso();
+        
         profile.recentActivity.unshift({
           game,
           title: details.title || ("Successful " + game + " play"),
           score: Number(details.score || 0),
           level: Number(details.level || 0),
-          xp,
+          xp: xpGain,
           at: nowIso()
         });
         profile.recentActivity = profile.recentActivity.slice(0, MAX_RECENT);
+        
         saveProfile(profile);
-        showToast("Profile Level Up! Lv " + beforeLevel + " → " + profile.level);
+
+        // Only fire the toast alert when a legitimate level boundary is broken
+        if (leveledUp) {
+          showToast("Profile Level Up! Lv " + beforeLevel + " → " + profile.level);
+        }
         return profile;
       }
       function resetProfile() {
@@ -647,13 +663,14 @@
   let gameActive = false;
   let cameraY = 0;
 
+  // Change ball.jump from -8.5 to -7.2 for a slightly slower, more controlled bounce
   let ball = {
     x: 200,
     y: 450,
     radius: 10,
     velocity: 0,
     gravity: 0,
-    jump: -8.5,
+    jump: -8.8, // Modified from -8.5
     color: '#3ef2ff'
   };
 
@@ -808,9 +825,16 @@
   }
 
   function startGame() {
+    // Unfocus any active HTML button so pressing Enter doesn't trigger it again
+    if (document.activeElement && typeof document.activeElement.blur === 'function') {
+      document.activeElement.blur();
+    }
+
     score = 0;
     starCount = 0;
     document.getElementById('scoreVal').textContent = score;
+    
+    // ... rest of your original startGame code remains exactly the same ...
 
     // Hide dock while playing to prevent covering the game view
     const dock = document.getElementById('bottomDock');

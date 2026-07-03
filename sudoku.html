@@ -133,10 +133,28 @@
     .tracker-panel { margin-top: 20px; padding: 14px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; }
     .tracker-title { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 10px; font-weight: 800; display: flex; justify-content: space-between; }
     .tracker-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-    .tracker-day { aspect-ratio: 1; font-size: 0.75rem; display: grid; place-items: center; border-radius: 8px; background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid transparent; font-weight: 700; }
-    .tracker-day.done { background: rgba(28, 200, 138, 0.25); color: var(--good); border-color: rgba(28, 200, 138, 0.4); box-shadow: 0 0 8px rgba(28,200,138,0.2); }
-    .tracker-day.current { border-color: var(--accent); color: #fff; }
-    .tracker-day.selected-date { background: rgba(80,244,255,.16); border-color: var(--accent); color: #fff; }
+    .tracker-day { aspect-ratio: 1; font-size: 0.75rem; display: grid; place-items: center; border-radius: 8px; background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid transparent; font-weight: 800; position: relative; cursor: pointer; transition: transform .16s ease, filter .16s ease, border-color .16s ease; }
+    .tracker-day:hover { transform: translateY(-1px); filter: brightness(1.12); border-color: rgba(80,244,255,.26); }
+    .tracker-day.done { color: #06101a; border-color: rgba(255,255,255,.22); box-shadow: 0 0 12px rgba(28,200,138,0.18); }
+    .tracker-day.done::after { content: "✓"; position: absolute; right: 3px; bottom: 2px; width: 13px; height: 13px; border-radius: 50%; display: grid; place-items: center; font-size: .55rem; font-weight: 1000; background: rgba(6,16,26,.76); color: #fff; box-shadow: 0 0 8px rgba(255,255,255,.18); }
+    .tracker-day.done-easy { background: linear-gradient(135deg, #5dff9d, #a6ffcf); }
+    .tracker-day.done-medium { background: linear-gradient(135deg, #5df2ff, #b4f8ff); }
+    .tracker-day.done-hard { background: linear-gradient(135deg, #c77dff, #ff8bd1); color: #fff; }
+    .tracker-day.current { border-color: var(--accent); color: #fff; box-shadow: 0 0 0 2px rgba(80,244,255,.18), 0 0 16px rgba(80,244,255,.22); }
+    .tracker-day.selected-date { background: rgba(80,244,255,.18); border-color: var(--accent); color: #fff; }
+    .tracker-day.future-date { opacity: .44; cursor: not-allowed; }
+    .tracker-day.flash-success { animation: dailySuccessPulse 1.25s ease-in-out 0s 3; z-index: 2; }
+    @keyframes dailySuccessPulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 8px rgba(93,255,157,.24); }
+      35% { transform: scale(1.22); box-shadow: 0 0 0 7px rgba(93,255,157,.16), 0 0 28px rgba(93,255,157,.55); }
+      70% { transform: scale(1.08); box-shadow: 0 0 0 4px rgba(80,244,255,.14), 0 0 22px rgba(80,244,255,.40); }
+    }
+    .tracker-legend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; color: var(--muted); font-size: .68rem; font-weight: 900; }
+    .legend-pill { display: inline-flex; align-items: center; gap: 5px; padding: 5px 7px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); }
+    .legend-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+    .legend-easy { background: #5dff9d; }
+    .legend-medium { background: #5df2ff; }
+    .legend-hard { background: #c77dff; }
 
     .actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top: 10px; }
     .message { min-height:52px; margin:16px 0 0; padding:14px; border-radius:16px; background:var(--panel-2); color:var(--muted); line-height:1.45; }
@@ -522,6 +540,87 @@ html, body {
       cursor: pointer;
     }
 
+
+
+/* === Daily History Cache responsive fit fix ===
+   Keeps the 7-column date grid inside the side panel on every screen size. */
+.layout, .side, .tracker-panel {
+  min-width: 0 !important;
+}
+.tracker-panel {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  padding: clamp(8px, 1.3vw, 12px) !important;
+}
+.tracker-title {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+  font-size: clamp(.66rem, 1.9vw, .82rem) !important;
+  line-height: 1.2 !important;
+}
+.tracker-title span:first-child {
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+#streakCounter {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+}
+.tracker-grid {
+  width: 100% !important;
+  max-width: 100% !important;
+  display: grid !important;
+  grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+  gap: clamp(3px, .7vw, 6px) !important;
+}
+.tracker-day {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: clamp(5px, 1.2vw, 8px) !important;
+  font-size: clamp(.56rem, 2.1vw, .72rem) !important;
+  padding: 0 !important;
+  line-height: 1 !important;
+}
+.tracker-day.done::after {
+  right: 2px !important;
+  bottom: 2px !important;
+  width: clamp(10px, 2.4vw, 13px) !important;
+  height: clamp(10px, 2.4vw, 13px) !important;
+  font-size: clamp(.46rem, 1.6vw, .55rem) !important;
+}
+.tracker-legend {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 6px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+.legend-pill {
+  min-width: 0 !important;
+  justify-content: center !important;
+  font-size: clamp(.58rem, 1.8vw, .68rem) !important;
+  padding: 5px 6px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+@media (min-width: 901px) {
+  .layout { grid-template-columns: minmax(0, 1fr) minmax(280px, 330px) !important; }
+}
+@media (max-width: 420px) {
+  .tracker-panel { padding: 8px !important; }
+  .tracker-grid { gap: 3px !important; }
+  .tracker-legend { grid-template-columns: 1fr 1fr !important; gap: 5px !important; }
+}
+
 </style>
 
   <script>
@@ -531,7 +630,7 @@ html, body {
       const LOCAL_USER_KEY = "__gamehub_local_user__";
       const GAMEHUB_KEYS = ["gamehub_profile_v1",
         "tetris_highScore", "tetris_highLevel", "tetris_keyMap",
-        "sudoku_v2_visited", "sudoku_v2_save_state",
+        "sudoku_v2_visited", "sudoku_v2_save_state", "sudoku_daily_history_cache_v2",
         "crossword_progression", "crossword_reveal_used_at", "crossword_hint_usage_v1"
       ];
 
@@ -774,6 +873,12 @@ html, body {
             <span id="streakCounter">0 Done</span>
           </div>
           <div id="trackerGrid" class="tracker-grid"></div>
+          <div class="tracker-legend" aria-label="Completed daily color legend">
+            <span class="legend-pill"><span class="legend-dot legend-easy"></span>Easy</span>
+            <span class="legend-pill"><span class="legend-dot legend-medium"></span>Medium</span>
+            <span class="legend-pill legend-hard-wrap"><span class="legend-dot legend-hard"></span>Hard</span>
+            <span class="legend-pill">✓ Completed</span>
+          </div>
         </div>
 
         <div class="actions">
@@ -859,9 +964,13 @@ html, body {
     let blitzTimeRemaining = 300; 
     let gameActive = true;
 
-    // Daily Mode Complete History logs arrays storage
+    // Daily Mode Complete History cache.
+    // Supports old saves where dailyHistory was only an array of date strings,
+    // and new saves where each entry also stores completion time and difficulty.
+    const DAILY_HISTORY_KEY = 'sudoku_daily_history_cache_v2';
     let dailyHistory = [];
     let selectedDailyDate = getFormattedDateToday();
+    let lastCompletedDailyDate = '';
 
     if (!localStorage.getItem('sudoku_v2_visited')) {
       modal.classList.remove('hidden');
@@ -882,6 +991,61 @@ html, body {
 
     function getDailyChallengeDate() {
       return selectedDailyDate || getFormattedDateToday();
+    }
+
+    function getDifficultyForDate(dateStr) {
+      const difficulties = ['easy', 'medium', 'hard'];
+      return difficulties[generateDailySudokuIndex(dateStr) % difficulties.length];
+    }
+
+    function normalizeDailyHistory(rawHistory) {
+      const raw = Array.isArray(rawHistory) ? rawHistory : [];
+      const map = {};
+      raw.forEach(function (entry) {
+        if (typeof entry === 'string') {
+          map[entry] = { date: entry, completedAt: null, difficulty: getDifficultyForDate(entry) };
+        } else if (entry && entry.date) {
+          const date = String(entry.date);
+          map[date] = {
+            date,
+            completedAt: entry.completedAt || null,
+            difficulty: entry.difficulty || getDifficultyForDate(date)
+          };
+        }
+      });
+      return Object.keys(map).sort().map(function (date) { return map[date]; });
+    }
+
+    function getDailyHistoryEntry(dateStr) {
+      dailyHistory = normalizeDailyHistory(dailyHistory);
+      return dailyHistory.find(function (entry) { return entry.date === dateStr; }) || null;
+    }
+
+    function isDailyDateCompleted(dateStr) {
+      return Boolean(getDailyHistoryEntry(dateStr));
+    }
+
+    function saveDailyHistoryCache() {
+      dailyHistory = normalizeDailyHistory(dailyHistory);
+      localStorage.setItem(DAILY_HISTORY_KEY, JSON.stringify(dailyHistory));
+    }
+
+    function loadDailyHistoryCache() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(DAILY_HISTORY_KEY) || '[]');
+        if (Array.isArray(saved) && saved.length) dailyHistory = normalizeDailyHistory(saved);
+      } catch (err) {}
+    }
+
+    function markDailyCompleted(dateStr) {
+      dailyHistory = normalizeDailyHistory(dailyHistory);
+      if (!getDailyHistoryEntry(dateStr)) {
+        dailyHistory.push({ date: dateStr, completedAt: new Date().toISOString(), difficulty: getDifficultyForDate(dateStr) });
+      }
+      dailyHistory = normalizeDailyHistory(dailyHistory);
+      lastCompletedDailyDate = dateStr;
+      saveDailyHistoryCache();
+      buildDateTrackerUI(dateStr);
     }
 
     function syncDailyDateInput() {
@@ -907,8 +1071,9 @@ html, body {
         solveClicksRemaining,
         blitzTimeRemaining,
         gameActive,
-        dailyHistory,
-        selectedDailyDate
+        dailyHistory: normalizeDailyHistory(dailyHistory),
+        selectedDailyDate,
+        lastCompletedDailyDate
       };
       localStorage.setItem('sudoku_v2_save_state', JSON.stringify(state));
     }
@@ -931,8 +1096,10 @@ html, body {
           solveClicksRemaining = state.solveClicksRemaining !== undefined ? state.solveClicksRemaining : 2;
           blitzTimeRemaining = state.blitzTimeRemaining !== undefined ? state.blitzTimeRemaining : 300;
           gameActive = state.gameActive !== undefined ? state.gameActive : true;
-          dailyHistory = state.dailyHistory || [];
+          dailyHistory = normalizeDailyHistory(state.dailyHistory || []);
+          loadDailyHistoryCache();
           selectedDailyDate = state.selectedDailyDate || getFormattedDateToday();
+          lastCompletedDailyDate = state.lastCompletedDailyDate || '';
           syncDailyDateInput();
           
           gameModeBtn.textContent = `Game Mode: Level ${currentLevel}`;
@@ -1127,31 +1294,51 @@ html, body {
       timerLabel.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     }
 
-    function buildDateTrackerUI() {
+    function buildDateTrackerUI(flashDate = '') {
       trackerGrid.innerHTML = '';
+      dailyHistory = normalizeDailyHistory(dailyHistory);
+
       const today = new Date();
+      const todayStr = getFormattedDateToday();
       const currentDayNum = today.getDate();
       const totalDaysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-      
-      let yearMonthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+      const yearMonthPrefix = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
       let completedCounter = 0;
 
       for (let day = 1; day <= totalDaysInMonth; day++) {
         const loopDateStr = `${yearMonthPrefix}-${String(day).padStart(2, '0')}`;
-        const dayBadge = document.createElement('div');
+        const dayBadge = document.createElement('button');
+        dayBadge.type = 'button';
         dayBadge.className = 'tracker-day';
         dayBadge.textContent = day;
+        dayBadge.setAttribute('aria-label', `Daily Sudoku ${loopDateStr}`);
 
-        if (dailyHistory.includes(loopDateStr)) {
-          dayBadge.classList.add('done');
+        const historyEntry = getDailyHistoryEntry(loopDateStr);
+        if (historyEntry) {
+          const difficultyClass = 'done-' + (historyEntry.difficulty || getDifficultyForDate(loopDateStr));
+          dayBadge.classList.add('done', difficultyClass);
+          dayBadge.title = `Completed ${loopDateStr} • ${(historyEntry.difficulty || 'daily').toUpperCase()}`;
           completedCounter++;
+        } else {
+          dayBadge.title = loopDateStr > todayStr ? 'Locked until this date' : `Not completed: ${loopDateStr}`;
         }
-        if (day === currentDayNum) {
-          dayBadge.classList.add('current');
-        }
-        if (loopDateStr === getDailyChallengeDate()) {
-          dayBadge.classList.add('selected-date');
-        }
+
+        if (day === currentDayNum) dayBadge.classList.add('current');
+        if (loopDateStr === getDailyChallengeDate()) dayBadge.classList.add('selected-date');
+        if (loopDateStr === flashDate || loopDateStr === lastCompletedDailyDate) dayBadge.classList.add('flash-success');
+        if (loopDateStr > todayStr) dayBadge.classList.add('future-date');
+
+        dayBadge.addEventListener('click', function () {
+          if (loopDateStr > todayStr) {
+            setMessage('That daily challenge is not available yet.', 'bad');
+            return;
+          }
+          selectedDailyDate = loopDateStr;
+          syncDailyDateInput();
+          currentMode = 'daily';
+          setModeUI(dailyModeBtn);
+          startGame();
+        });
 
         trackerGrid.appendChild(dayBadge);
       }
@@ -1277,11 +1464,8 @@ html, body {
         // Handle Daily challenge log tracking mechanics updates
         else if (currentMode === 'daily') {
           const dailyDateStr = getDailyChallengeDate();
-          if (!dailyHistory.includes(dailyDateStr)) {
-            dailyHistory.push(dailyDateStr);
-          }
-          buildDateTrackerUI();
-          setMessage(`Fantastic! You've completed the daily challenge for ${dailyDateStr}!`, "good");
+          markDailyCompleted(dailyDateStr);
+          setMessage(`Fantastic! You've completed the daily challenge for ${dailyDateStr}! It is now highlighted in your history cache.`, "good");
         } else {
           setMessage('Puzzle solved. Great job!', 'good');
         }
@@ -1342,9 +1526,10 @@ html, body {
           maxLevelUnlocked++;
         } else if (currentMode === 'daily') {
           const dailyDateStr = getDailyChallengeDate();
-          if (!dailyHistory.includes(dailyDateStr)) dailyHistory.push(dailyDateStr);
+          markDailyCompleted(dailyDateStr);
+        } else {
+          buildDateTrackerUI();
         }
-        buildDateTrackerUI();
         recordSudokuSuccess("check");
         setMessage(`Perfect. You solved the puzzle!${bonusMsg}`, 'good');
       }
@@ -1450,6 +1635,7 @@ html, body {
       }
     });
 
+    loadDailyHistoryCache();
     syncDailyDateInput();
 
     if (!loadFromLocalStorage()) {

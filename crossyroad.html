@@ -277,12 +277,333 @@
             filter: brightness(1.06);
         }
 
+
+
+        .hud-stack {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            display: grid;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        #game-ui {
+            position: relative;
+            top: auto;
+            left: auto;
+        }
+
+        #mini-stats {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .stat-chip {
+            background: rgba(255,255,255,.075);
+            border: 1px solid rgba(255,255,255,.11);
+            color: var(--text);
+            border-radius: 999px;
+            padding: 7px 11px;
+            font-size: .74rem;
+            font-weight: 900;
+            backdrop-filter: blur(8px);
+        }
+
+        #danger-banner {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            padding: 10px 16px;
+            border-radius: 999px;
+            background: rgba(255, 93, 122, .16);
+            border: 1px solid rgba(255, 93, 122, .34);
+            color: #ffdce4;
+            font-weight: 900;
+            font-size: .82rem;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            backdrop-filter: blur(10px);
+            opacity: .95;
+            pointer-events: none;
+        }
+
+        #game-wrapper::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: radial-gradient(circle at 50% 42%, transparent 35%, rgba(3,6,19,.24) 100%);
+            mix-blend-mode: multiply;
+        }
+
+
+
+        .rank-display {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            vertical-align: middle;
+        }
+
+        .rank-emblem {
+            width: 22px;
+            height: 22px;
+            display: inline-grid;
+            place-items: center;
+            border-radius: 50%;
+            font-size: 0.82rem;
+            line-height: 1;
+            border: 1px solid rgba(255,255,255,.22);
+            box-shadow: 0 0 16px rgba(255,255,255,.10), inset 0 0 10px rgba(255,255,255,.12);
+        }
+
+        .rank-rookie { background: linear-gradient(135deg, #64748b, #94a3b8); }
+        .rank-bronze { background: linear-gradient(135deg, #8b4a20, #e49a52); }
+        .rank-silver { background: linear-gradient(135deg, #d7dde8, #8e9aad); color: #0f172a; }
+        .rank-gold { background: linear-gradient(135deg, #ffcc33, #ff8c42); color: #281306; }
+        .rank-platinum { background: linear-gradient(135deg, #dffbff, #87f0ff, #c77dff); color: #07101f; }
+        .rank-mythical { background: linear-gradient(135deg, #ff5d7a, #c77dff, #50f4ff); }
+
+        #weather-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 2;
+            opacity: 0;
+            transition: opacity .35s ease;
+        }
+
+        #weather-overlay.rainy {
+            opacity: .75;
+            background-image: linear-gradient(115deg, rgba(160,220,255,.0) 0%, rgba(160,220,255,.0) 42%, rgba(160,220,255,.36) 43%, rgba(160,220,255,.0) 45%);
+            background-size: 18px 42px;
+            animation: rainSheet .42s linear infinite;
+        }
+
+        #weather-overlay.night {
+            opacity: .42;
+            background: radial-gradient(circle at 50% 35%, transparent 28%, rgba(0,0,0,.55) 100%);
+        }
+
+        #weather-overlay.snow {
+            opacity: .72;
+            background-image:
+                radial-gradient(circle, rgba(255,255,255,.86) 0 1.4px, transparent 1.8px),
+                radial-gradient(circle, rgba(255,255,255,.58) 0 1px, transparent 1.5px);
+            background-size: 32px 32px, 46px 46px;
+            animation: snowSheet 6s linear infinite;
+        }
+
+        @keyframes snowSheet {
+            from { background-position: 0 0, 0 0; }
+            to { background-position: 32px 96px, -46px 138px; }
+        }
+
+        @keyframes rainSheet {
+            from { background-position: 0 0; }
+            to { background-position: -18px 42px; }
+        }
+
+        .blocked-hop {
+            animation: blockedPulse .22s ease;
+        }
+
+        @keyframes blockedPulse {
+            0% { filter: none; }
+            50% { filter: drop-shadow(0 0 12px rgba(255,93,122,.85)); }
+            100% { filter: none; }
+        }
+
+
         @media (max-width: 640px) {
             header { margin: 10px 10px 0; padding: 10px 16px; }
             #game-wrapper { margin: 10px; }
             .go-card { padding: 30px 20px; width: 90%; }
         }
     </style>
+    <script>
+        // Game Hub auth/profile adapter copied from the homepage pattern.
+        // It lets Crossy Road see the same current profile level stored as gamehub_profile_v1.
+        (function () {
+            const DB_URL = "https://gamelibrary-882b6-default-rtdb.asia-southeast1.firebasedatabase.app";
+            const SESSION_KEY = "gamehub_current_user";
+            const LOCAL_USER_KEY = "__gamehub_local_user__";
+            const GAMEHUB_KEYS = ["gamehub_profile_v1", "crossyroad_maxDistance", "crossyroad_currentLevel", "crossyroad_lastLevel"];
+
+            function safeUsernameKey(username) {
+                return String(username || "").trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
+            }
+            function getCurrentUser() {
+                try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); }
+                catch (err) { return null; }
+            }
+            function firebaseUrl(parts) {
+                return DB_URL.replace(/\/$/, "") + "/" + parts.map(encodeURIComponent).join("/") + ".json";
+            }
+
+            const currentUser = getCurrentUser() || { username: localStorage.getItem(LOCAL_USER_KEY) || "Player" };
+            const userKey = safeUsernameKey(currentUser.username || "Player");
+
+            if (!window.GameHubAuth) {
+                const originalSetItem = localStorage.setItem.bind(localStorage);
+                const originalRemoveItem = localStorage.removeItem.bind(localStorage);
+
+                function cloudSet(key, value) {
+                    if (!currentUser || !currentUser.username || key === LOCAL_USER_KEY) return;
+                    fetch(firebaseUrl(["users", userKey, "gameData", key]), {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(String(value))
+                    }).catch(function (err) { console.warn("Firebase save failed:", err); });
+                    fetch(firebaseUrl(["users", userKey, "lastActiveAt"]), {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(new Date().toISOString())
+                    }).catch(function () {});
+                }
+                function cloudRemove(key) {
+                    if (!currentUser || !currentUser.username || key === LOCAL_USER_KEY) return;
+                    fetch(firebaseUrl(["users", userKey, "gameData", key]), { method: "DELETE" })
+                        .catch(function (err) { console.warn("Firebase remove failed:", err); });
+                }
+
+                localStorage.setItem = function (key, value) {
+                    originalSetItem(key, value);
+                    cloudSet(key, value);
+                };
+                localStorage.removeItem = function (key) {
+                    originalRemoveItem(key);
+                    cloudRemove(key);
+                };
+
+                window.GameHubAuth = {
+                    dbUrl: DB_URL,
+                    user: currentUser,
+                    username: currentUser.username || "Player",
+                    safeUsernameKey: safeUsernameKey,
+                    firebaseUrl: firebaseUrl,
+                    logout: function () {
+                        sessionStorage.removeItem(SESSION_KEY);
+                        window.location.href = "index.html";
+                    },
+                    saveNow: function () {
+                        GAMEHUB_KEYS.forEach(function (key) {
+                            const value = localStorage.getItem(key);
+                            if (value !== null) cloudSet(key, value);
+                        });
+                    }
+                };
+            }
+        })();
+    </script>
+
+    <script>
+        (function () {
+            const PROFILE_KEY = "gamehub_profile_v1";
+            const MAX_RECENT = 12;
+
+            if (window.GameHubProfile && typeof window.GameHubProfile.readProfile === "function") return;
+
+            function nowIso() { return new Date().toISOString(); }
+            function getUsername() {
+                return (window.GameHubAuth && window.GameHubAuth.username) || "Player";
+            }
+            function blankGame() {
+                return { successes: 0, bestScore: 0, bestLevel: 0, lastPlayedAt: null };
+            }
+            function defaultProfile() {
+                const username = getUsername();
+                return {
+                    username,
+                    displayName: username,
+                    avatar: "🎮",
+                    level: 1,
+                    xp: 0,
+                    successfulPlays: 0,
+                    createdAt: nowIso(),
+                    updatedAt: nowIso(),
+                    games: {},
+                    recentActivity: [],
+                    completedSuccessIds: {}
+                };
+            }
+            function readProfile() {
+                let profile = null;
+                try { profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || "null"); }
+                catch (err) { profile = null; }
+                const base = defaultProfile();
+                profile = profile && typeof profile === "object" ? profile : base;
+                profile.username = getUsername();
+                profile.displayName = profile.displayName || profile.username;
+                profile.avatar = profile.avatar || "🎮";
+                profile.level = Math.max(1, Number(profile.level || 1));
+                profile.xp = Math.max(0, Number(profile.xp || 0));
+                profile.successfulPlays = Math.max(0, Number(profile.successfulPlays || 0));
+                profile.games = profile.games && typeof profile.games === "object" ? profile.games : {};
+                profile.recentActivity = Array.isArray(profile.recentActivity) ? profile.recentActivity : [];
+                profile.completedSuccessIds = profile.completedSuccessIds && typeof profile.completedSuccessIds === "object" ? profile.completedSuccessIds : {};
+                return profile;
+            }
+            function saveProfile(profile) {
+                profile.updatedAt = nowIso();
+                localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+                return profile;
+            }
+            function showToast(text) {
+                if (!document.body) return;
+                const toast = document.createElement("div");
+                toast.textContent = text;
+                toast.style.cssText = "position:fixed;right:18px;bottom:18px;z-index:9999;padding:13px 15px;border-radius:16px;background:linear-gradient(135deg,rgba(80,244,255,.95),rgba(199,125,255,.95));color:#05101d;font-weight:1000;box-shadow:0 18px 50px rgba(0,0,0,.34);font-family:inherit;max-width:min(340px,calc(100vw - 36px));";
+                document.body.appendChild(toast);
+                setTimeout(function () { toast.style.opacity = "0"; toast.style.transform = "translateY(8px)"; toast.style.transition = "all .35s ease"; }, 2400);
+                setTimeout(function () { toast.remove(); }, 2850);
+            }
+            function recordSuccess(gameName, details) {
+                details = details || {};
+                const profile = readProfile();
+                const successId = details.successId ? String(details.successId) : "";
+                if (successId && profile.completedSuccessIds[successId]) return profile;
+                if (successId) profile.completedSuccessIds[successId] = nowIso();
+
+                const game = String(gameName || details.game || "Game");
+                const xp = Math.max(10, Number(details.xp || 50));
+                const beforeLevel = Number(profile.level || 1);
+                profile.successfulPlays += 1;
+                profile.level += 1;
+                profile.xp += xp;
+
+                if (!profile.games[game]) profile.games[game] = blankGame();
+                profile.games[game].successes = Number(profile.games[game].successes || 0) + 1;
+                profile.games[game].bestScore = Math.max(Number(profile.games[game].bestScore || 0), Number(details.score || 0));
+                profile.games[game].bestLevel = Math.max(Number(profile.games[game].bestLevel || 0), Number(details.level || 0));
+                profile.games[game].lastPlayedAt = nowIso();
+
+                profile.recentActivity.unshift({
+                    game,
+                    title: details.title || ("Successful " + game + " play"),
+                    score: Number(details.score || 0),
+                    level: Number(details.level || 0),
+                    xp,
+                    at: nowIso()
+                });
+                profile.recentActivity = profile.recentActivity.slice(0, MAX_RECENT);
+                saveProfile(profile);
+                showToast("Profile Level Up! Lv " + beforeLevel + " → " + profile.level);
+                return profile;
+            }
+            function resetProfile() {
+                const profile = defaultProfile();
+                saveProfile(profile);
+                return profile;
+            }
+            function xpForNext(level) { return Math.max(50, level * 100); }
+
+            window.GameHubProfile = { PROFILE_KEY, readProfile, saveProfile, recordSuccess, resetProfile, xpForNext };
+        })();
+    </script>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
@@ -301,18 +622,29 @@
 
         <div id="game-wrapper">
             <div id="game-canvas-container"></div>
+            <div id="weather-overlay" aria-hidden="true"></div>
 
-            <div id="game-ui">
-                <p class="score-title">Distance</p>
-                <p class="score-val" id="score">0</p>
+            <div class="hud-stack">
+                <div id="game-ui">
+                    <p class="score-title">Distance</p>
+                    <p class="score-val" id="score">0</p>
+                </div>
+                <div id="mini-stats">
+                    <span class="stat-chip">Best <span id="best-score">0</span></span>
+                    <span class="stat-chip">Rank <span id="rank-level">Rookie</span></span>
+                    <span class="stat-chip">Idle <span id="idle-count">Safe</span></span>
+                    <span class="stat-chip">Theme <span id="theme-label">Auto</span></span>
+                </div>
             </div>
 
-            <div id="instructions">Use <span>WASD</span> or <span>ARROW KEYS</span> to Hop</div>
+            <div id="danger-banner">Keep moving — eagle patrol active</div>
+            <div id="instructions">Use <span>WASD</span> or <span>ARROW KEYS</span> to Hop • cross roads, rivers, and rails</div>
 
             <div id="gameover-screen">
                 <div class="go-card">
                     <h2>CRASHED!</h2>
                     <p>Your chicken safe-crossed <span id="final-score" style="color:var(--accent); font-weight:900;">0</span> lines.</p>
+                    <p>Rank reached: <span id="final-rank" style="color:var(--accent-2); font-weight:900;">Rookie</span></p>
                     <button class="action-btn" onclick="resetGame()">Hop Again</button>
                 </div>
             </div>
@@ -320,16 +652,169 @@
     </div>
 
     <script>
+        const FIREBASE_DB_URL = "https://gamelibrary-882b6-default-rtdb.asia-southeast1.firebasedatabase.app";
+
+        function firebaseSafeKey(value) {
+            return String(value || "Player").replace(/[.#$\[\]/]/g, "_").slice(0, 80);
+        }
+
+        const RANK_LEVELS = [
+            { name: "Mythical", min: 120, icon: "🐉", className: "rank-mythical" },
+            { name: "Platinum", min: 90, icon: "💎", className: "rank-platinum" },
+            { name: "Gold", min: 65, icon: "🏆", className: "rank-gold" },
+            { name: "Silver", min: 40, icon: "🛡️", className: "rank-silver" },
+            { name: "Bronze", min: 25, icon: "🥉", className: "rank-bronze" },
+            { name: "Rookie", min: 0, icon: "🐣", className: "rank-rookie" }
+        ];
+
+        function getRankMeta(distance) {
+            const safeDistance = Number(distance) || 0;
+            return RANK_LEVELS.find(rank => safeDistance >= rank.min) || RANK_LEVELS[RANK_LEVELS.length - 1];
+        }
+
+        function getRankLevel(distance) {
+            return getRankMeta(distance).name;
+        }
+
+        function renderRankHTML(distance) {
+            const rank = getRankMeta(distance);
+            return `<span class="rank-emblem ${rank.className}" aria-hidden="true">${rank.icon}</span><span>${rank.name}</span>`;
+        }
+
+        function updateRankUI(distance) {
+            const rank = getRankMeta(Number(distance) || 0);
+            const el = document.getElementById("rank-level");
+            if (el) {
+                el.className = "rank-display";
+                el.innerHTML = renderRankHTML(distance);
+                el.setAttribute("aria-label", rank.name + " rank");
+            }
+            return rank.name;
+        }
+
+        function parseMaybeJsonString(value) {
+            if (typeof value !== "string") return value;
+            try { return JSON.parse(value); }
+            catch (err) { return value; }
+        }
+
+        function getCurrentProfileLevel() {
+            if (window.GameHubProfile && typeof window.GameHubProfile.readProfile === "function") {
+                const profile = window.GameHubProfile.readProfile() || {};
+                if (profile.level) return Number(profile.level) || 1;
+            }
+            return Number(localStorage.getItem("gamehub_level") || localStorage.getItem("crossyroad_currentLevel") || 1);
+        }
+
+        async function readCurrentLevelFromDatabase(playerName) {
+            if (!window.GameHubAuth) return null;
+            const safeUser = typeof window.GameHubAuth.safeUsernameKey === "function"
+                ? window.GameHubAuth.safeUsernameKey(playerName)
+                : String(playerName || "Player").trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
+            const urlFor = typeof window.GameHubAuth.firebaseUrl === "function"
+                ? window.GameHubAuth.firebaseUrl
+                : (parts) => FIREBASE_DB_URL.replace(/\/$/, "") + "/" + parts.map(encodeURIComponent).join("/") + ".json";
+
+            try {
+                const profileRes = await fetch(urlFor(["users", safeUser, "gameData", "gamehub_profile_v1"]));
+                if (profileRes.ok) {
+                    const rawProfile = parseMaybeJsonString(await profileRes.json());
+                    if (rawProfile && typeof rawProfile === "object") {
+                        localStorage.setItem("gamehub_profile_v1", JSON.stringify(rawProfile));
+                        if (rawProfile.level) return Math.max(1, Number(rawProfile.level) || 1);
+                    }
+                }
+            } catch (err) { console.warn("Profile level read failed:", err); }
+
+            try {
+                const levelRes = await fetch(urlFor(["users", safeUser, "gameData", "crossyroad_currentLevel"]));
+                if (levelRes.ok) {
+                    const rawLevel = parseMaybeJsonString(await levelRes.json());
+                    if (rawLevel) return Math.max(1, Number(rawLevel) || 1);
+                }
+            } catch (err) { console.warn("Crossy level read failed:", err); }
+
+            return null;
+        }
+
+        async function syncCurrentLevelFromDatabase(playerName) {
+            const dbLevel = await readCurrentLevelFromDatabase(playerName);
+            if (dbLevel) return updateAccountLevelUI(dbLevel);
+            return updateAccountLevelUI(getCurrentProfileLevel());
+        }
+
+        function updateAccountLevelUI(level) {
+            const safeLevel = Math.max(1, Number(level) || 1);
+            localStorage.setItem("crossyroad_currentLevel", String(safeLevel));
+            document.getElementById("accountLevel").textContent = "LV " + safeLevel;
+            return safeLevel;
+        }
+
+        async function loadCrossyFirebaseProfile(playerName) {
+            const key = firebaseSafeKey(playerName);
+            try {
+                const res = await fetch(`${FIREBASE_DB_URL}/crossyRoad/${key}.json`);
+                if (!res.ok) throw new Error(`Firebase read failed: ${res.status}`);
+                const data = await res.json();
+                if (data && typeof data.bestScore === "number") {
+                    const localBest = Number(localStorage.getItem("crossyroad_maxDistance") || 0);
+                    const best = Math.max(localBest, data.bestScore);
+                    localStorage.setItem("crossyroad_maxDistance", String(best));
+                    document.getElementById("best-score").textContent = best;
+                    updateRankUI(best);
+                }
+                const dbProfileLevel = await readCurrentLevelFromDatabase(playerName);
+                if (dbProfileLevel) {
+                    updateAccountLevelUI(dbProfileLevel);
+                } else if (data && data.currentLevel) {
+                    updateAccountLevelUI(data.currentLevel);
+                } else {
+                    updateAccountLevelUI(getCurrentProfileLevel());
+                }
+            } catch (error) {
+                console.warn(error);
+                syncCurrentLevelFromDatabase(playerName);
+            }
+        }
+
+        async function saveCrossyFirebaseScore(playerName, finalScore) {
+            const key = firebaseSafeKey(playerName);
+            const bestScore = Math.max(Number(localStorage.getItem("crossyroad_maxDistance") || 0), finalScore);
+            const currentLevel = updateAccountLevelUI(getCurrentProfileLevel());
+            const rankLevel = getRankLevel(bestScore);
+            try {
+                const payload = {
+                    playerName,
+                    bestScore,
+                    lastScore: finalScore,
+                    currentLevel,
+                    rankLevel,
+                    updatedAt: new Date().toISOString(),
+                    game: "Crossy Road"
+                };
+                const res = await fetch(`${FIREBASE_DB_URL}/crossyRoad/${key}.json`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) throw new Error(`Firebase write failed: ${res.status}`);
+            } catch (error) {
+                console.warn(error);
+            }
+        }
+
         // Synchronized profile read layer directly matching homepage logic
         const username = window.GameHubAuth ? window.GameHubAuth.username : "Player";
         document.getElementById("accountName").textContent = username;
 
         if (window.GameHubProfile && typeof window.GameHubProfile.readProfile === "function") {
             const liveProfile = window.GameHubProfile.readProfile();
-            if (liveProfile && liveProfile.level) {
-                document.getElementById("accountLevel").textContent = "LV " + liveProfile.level;
-            }
+            if (liveProfile && liveProfile.level) updateAccountLevelUI(liveProfile.level);
         }
+
+        document.getElementById("best-score").textContent = localStorage.getItem("crossyroad_maxDistance") || "0";
+        updateRankUI(Number(localStorage.getItem("crossyroad_maxDistance") || 0));
+        syncCurrentLevelFromDatabase(username).then(() => loadCrossyFirebaseProfile(username));
 
         // Post back statistics to user profile upon scoring benchmarks
         function handleLevelUpTracking(finalScore) {
@@ -341,8 +826,9 @@
             const currentMax = Number(localStorage.getItem(MAX_DISTANCE_KEY) || 0);
             if (finalScore > currentMax) {
                 localStorage.setItem(MAX_DISTANCE_KEY, String(finalScore));
+                document.getElementById("best-score").textContent = finalScore;
+                updateRankUI(finalScore);
             }
-
             // Track “levels” for the profile (as in your other games)
             if (window.GameHubProfile && typeof window.GameHubProfile.recordSuccess === "function" && finalScore > 5) {
                 window.GameHubProfile.recordSuccess("Crossy Road", {
@@ -357,75 +843,189 @@
 
                 // Live visual reload for headers
                 const liveProfile = window.GameHubProfile.readProfile();
-                if (liveProfile && liveProfile.level) {
-                    document.getElementById("accountLevel").textContent = "LV " + liveProfile.level;
-                }
+                if (liveProfile && liveProfile.level) updateAccountLevelUI(liveProfile.level);
             }
+
+            // Save after profile updates so Firebase receives the current synced level.
+            saveCrossyFirebaseScore(username, finalScore);
         }
     </script>
 
     <script>
-        const TYPE_SNOW = 0, TYPE_ROAD = 1, TYPE_RIVER = 2;
-        
-        const COLOR_SNOW = 0xfffafa;
-        const COLOR_ROAD = 0x222533; 
-        const COLOR_RIVER = 0x3388aa;
+        const TYPE_SNOW = 0, TYPE_ROAD = 1, TYPE_RIVER = 2, TYPE_RAIL = 3;
+
         const COLOR_CHICKEN = 0xffffff;
         const COLOR_COMB = 0xff3355;
         const COLOR_BEAK = 0xffaa00;
-        const COLOR_TRUNK = 0x442c20;
-        const COLOR_LEAVES = 0x234427;
+
+        const THEME_PRESETS = {
+            day: {
+                label: "Day", sky: 0x87ceeb, ambient: 0.72, sun: 0.72, fog: null,
+                snow: 0x8fdc7b, road: 0x2e3445, river: 0x33a7cc, rail: 0x615c66, trunk: 0x5b3523, leaves: 0x2f8f4e, treeCap: 0x72d36b, treeSnow: false
+            },
+            night: {
+                label: "Night", sky: 0x070b1d, ambient: 0.34, sun: 0.42, fog: 0x070b1d,
+                snow: 0x244063, road: 0x151925, river: 0x102f55, rail: 0x302d3b, trunk: 0x2b1c18, leaves: 0x15351f, treeCap: 0x1f5130, treeSnow: false
+            },
+            summer: {
+                label: "Summer", sky: 0xffd36f, ambient: 0.78, sun: 0.82, fog: null,
+                snow: 0xb7e75b, road: 0x3a332d, river: 0x25b9d6, rail: 0x6a5b52, trunk: 0x6b3f24, leaves: 0x30a64f, treeCap: 0xffd166, treeSnow: false
+            },
+            rainy: {
+                label: "Rainy", sky: 0x3e526d, ambient: 0.46, sun: 0.38, fog: 0x27354a,
+                snow: 0x47795c, road: 0x1b2230, river: 0x2d6f8f, rail: 0x3c3e48, trunk: 0x39281f, leaves: 0x1d5e38, treeCap: 0x65a77d, treeSnow: false
+            },
+            snow: {
+                label: "Snow", sky: 0xddeaff, ambient: 0.68, sun: 0.55, fog: 0xddeaff,
+                snow: 0xf4fbff, road: 0x384052, river: 0x8fc7e8, rail: 0x696f7d, trunk: 0x4f3428, leaves: 0x1f4f37, treeCap: 0xdaf7ff, treeSnow: true
+            }
+        };
+        let activeThemeName = "day";
+        let activeTheme = THEME_PRESETS.day;
+        let rainParticles = null;
+        let ambientLight = null, directionalLight = null;
+
+        function seededRandomFromText(text) {
+            let hash = 2166136261;
+            for (let i = 0; i < text.length; i++) {
+                hash ^= text.charCodeAt(i);
+                hash = Math.imul(hash, 16777619);
+            }
+            return ((hash >>> 0) % 10000) / 10000;
+        }
+
+        function getDailyWeatherThemeName(now) {
+            const dateKey = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+            const userSeed = (window.GameHubAuth && window.GameHubAuth.username) || "Player";
+            const roll = seededRandomFromText(dateKey + "|crossyroad-weather|" + userSeed);
+            if (roll < 0.18) return "rainy";
+            if (roll < 0.34) return "summer";
+            if (roll < 0.48) return "snow";
+            return "day";
+        }
+
+        function getSeasonalThemeName() {
+            const now = new Date();
+            const hour = now.getHours();
+            const forced = new URLSearchParams(window.location.search).get("theme") || localStorage.getItem("crossyroad_theme_override");
+            if (forced && THEME_PRESETS[String(forced).toLowerCase()]) return String(forced).toLowerCase();
+
+            // Day/night follows the current clock. Weather/season looks are random per calendar day.
+            const dailyWeather = getDailyWeatherThemeName(now);
+            const isNight = hour < 6 || hour >= 18;
+            if (dailyWeather !== "day") return dailyWeather;
+            return isNight ? "night" : "day";
+        }
+
+        function setActiveTheme(themeName) {
+            activeThemeName = THEME_PRESETS[themeName] ? themeName : "day";
+            activeTheme = THEME_PRESETS[activeThemeName];
+            const label = document.getElementById("theme-label");
+            if (label) label.textContent = activeTheme.label;
+            const overlay = document.getElementById("weather-overlay");
+            if (overlay) overlay.className = activeThemeName === "rainy" ? "rainy" : (activeThemeName === "snow" ? "snow" : (activeThemeName === "night" ? "night" : ""));
+            if (scene) {
+                scene.background = new THREE.Color(activeTheme.sky);
+                scene.fog = activeTheme.fog ? new THREE.Fog(activeTheme.fog, 10, 42) : null;
+            }
+            if (ambientLight) ambientLight.intensity = activeTheme.ambient;
+            if (directionalLight) directionalLight.intensity = activeTheme.sun;
+        }
+
+        function buildRainParticles() {
+            const rain = new THREE.Group();
+            const mat = new THREE.MeshLambertMaterial({ color: 0x9fdcff, transparent: true, opacity: 0.55 });
+            for (let i = 0; i < 70; i++) {
+                const drop = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.42, 0.025), mat);
+                drop.position.set((Math.random() * 18) - 9, 2 + Math.random() * 7, (Math.random() * 18) - 9);
+                drop.rotation.z = 0.35;
+                rain.add(drop);
+            }
+            rain.visible = activeThemeName === "rainy";
+            scene.add(rain);
+            return rain;
+        }
+
+        function updateRainParticles(delta) {
+            if (!rainParticles) return;
+            rainParticles.visible = activeThemeName === "rainy";
+            if (!rainParticles.visible) return;
+            rainParticles.position.x = chicken ? chicken.position.x : 0;
+            rainParticles.position.z = chicken ? chicken.position.z : 0;
+            rainParticles.children.forEach(drop => {
+                drop.position.y -= delta * 8.5;
+                if (drop.position.y < 0.2) {
+                    drop.position.y = 7 + Math.random() * 2;
+                    drop.position.x = (Math.random() * 18) - 9;
+                    drop.position.z = (Math.random() * 18) - 9;
+                }
+            });
+        }
+
+        function material(color, extra) {
+            return new THREE.MeshLambertMaterial(Object.assign({ color }, extra || {}));
+        }
 
         let scene, camera, renderer, container;
         let chicken;
         let rows = [], rowObjects = [];
         let cars = [], logs = [];
+        let eagle = null;
         let currentMaxRow = 0, score = 0, isGameOver = false;
+        let lastMoveTime = 0, eagleAttackStarted = false, blockedMessageUntil = 0;
+        const IDLE_WARNING_SECONDS = 4.5;
+        const IDLE_CATCH_SECONDS = 7.5;
 
         let playerForwardIndex = 0, playerSideIndex = 0;
         let targetX = 0, targetZ = 0;
         let isJumping = false, jumpProgress = 0, jumpStartX = 0, jumpStartZ = 0;
 
-        const zoomLevel = 8.5;
+        const zoomLevel = 6.2; // closer, more zoomed-in camera
         const clock = new THREE.Clock();
 
         function initEngine() {
             container = document.getElementById('game-canvas-container');
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0a0f24); // Blends natively to background hue
+            scene.background = new THREE.Color(activeTheme.sky);
+            scene.fog = activeTheme.fog ? new THREE.Fog(activeTheme.fog, 10, 42) : null;
 
             const aspect = container.clientWidth / container.clientHeight;
             camera = new THREE.OrthographicCamera(-zoomLevel * aspect, zoomLevel * aspect, zoomLevel, -zoomLevel, 1, 1000);
             
             // TRUE ISOMETRIC PLACEMENT FROM CORNER POINTING DOWN DIAGONALLY
-            camera.position.set(12, 12, 12);
+            camera.position.set(8.5, 9.5, 8.5);
             camera.lookAt(0, 0, 0);
 
-            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
             renderer.setSize(container.clientWidth, container.clientHeight);
             renderer.shadowMap.enabled = true;
             renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             container.appendChild(renderer.domElement);
 
             // Light Environments
-            const ambient = new THREE.AmbientLight(0xffffff, 0.65);
-            scene.add(ambient);
+            ambientLight = new THREE.AmbientLight(0xffffff, activeTheme.ambient);
+            scene.add(ambientLight);
 
-            const directional = new THREE.DirectionalLight(0xffffff, 0.55);
-            directional.position.set(15, 25, 10);
-            directional.castShadow = true;
-            directional.shadow.mapSize.width = 1024;
-            directional.shadow.mapSize.height = 1024;
-            directional.shadow.camera.near = 0.5;
-            directional.shadow.camera.far = 100;
+            directionalLight = new THREE.DirectionalLight(0xffffff, activeTheme.sun);
+            directionalLight.position.set(15, 25, 10);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 1024;
+            directionalLight.shadow.mapSize.height = 1024;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 100;
             const shadowSpan = 25;
-            directional.shadow.camera.left = -shadowSpan;
-            directional.shadow.camera.right = shadowSpan;
-            directional.shadow.camera.top = shadowSpan;
-            directional.shadow.camera.bottom = -shadowSpan;
-            scene.add(directional);
+            directionalLight.shadow.camera.left = -shadowSpan;
+            directionalLight.shadow.camera.right = shadowSpan;
+            directionalLight.shadow.camera.top = shadowSpan;
+            directionalLight.shadow.camera.bottom = -shadowSpan;
+            scene.add(directionalLight);
+            setActiveTheme(activeThemeName);
 
             buildPlayer();
+            eagle = buildPredator();
+            rainParticles = buildRainParticles();
+            lastMoveTime = clock.getElapsedTime();
 
             // Populate starting layout
             for (let i = 0; i < 40; i++) {
@@ -434,8 +1034,9 @@
 
             // Scatter historical initialization units
             for (let i = 3; i < 30; i++) {
-                if (rows[i].type === TYPE_ROAD && Math.random() < 0.65) {
-                    generateCarUnit(i);
+                if ((rows[i].type === TYPE_ROAD || rows[i].type === TYPE_RAIL) && Math.random() < 0.65) {
+                    if (rows[i].type === TYPE_RAIL) generateTrainUnit(i);
+                    else generateCarUnit(i);
                     cars[cars.length - 1].mesh.position.x = (Math.random() * 26) - 13;
                 }
                 if (rows[i].type === TYPE_RIVER && Math.random() < 0.65) {
@@ -448,24 +1049,103 @@
             window.addEventListener('resize', handleResizeResize);
         }
 
+        function buildPredator() {
+            const bird = new THREE.Group();
+            const bodyMat = new THREE.MeshLambertMaterial({ color: 0x2f3545 });
+            const wingMat = new THREE.MeshLambertMaterial({ color: 0x161b25 });
+            const beakMat = new THREE.MeshLambertMaterial({ color: 0xffc857 });
+
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.26, 0.34), bodyMat);
+            body.castShadow = true;
+            bird.add(body);
+
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.22, 0.24), bodyMat);
+            head.position.set(0, 0.12, -0.28);
+            head.castShadow = true;
+            bird.add(head);
+
+            const beak = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.18), beakMat);
+            beak.position.set(0, 0.1, -0.48);
+            bird.add(beak);
+
+            [-1, 1].forEach(side => {
+                const wing = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.08, 0.28), wingMat);
+                wing.position.set(side * 0.58, 0, 0);
+                wing.rotation.z = side * 0.22;
+                wing.castShadow = true;
+                bird.add(wing);
+            });
+
+            bird.visible = false;
+            bird.position.set(0, 6, 4);
+            scene.add(bird);
+            return bird;
+        }
+
         function buildPlayer() {
             chicken = new THREE.Group();
 
-            const body = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.75, 0.65), new THREE.MeshLambertMaterial({ color: COLOR_CHICKEN }));
-            body.position.y = 0.375;
+            const featherMat = new THREE.MeshLambertMaterial({ color: 0xfffbef });
+            const wingMat = new THREE.MeshLambertMaterial({ color: 0xf0e6d2 });
+            const combMat = new THREE.MeshLambertMaterial({ color: COLOR_COMB });
+            const beakMat = new THREE.MeshLambertMaterial({ color: COLOR_BEAK });
+            const eyeMat = new THREE.MeshLambertMaterial({ color: 0x111827 });
+            const legMat = new THREE.MeshLambertMaterial({ color: 0xffb347 });
+
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.72, 0.62), featherMat);
+            body.position.y = 0.42;
             body.castShadow = body.receiveShadow = true;
             chicken.add(body);
 
-            const comb = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.2, 0.35), new THREE.MeshLambertMaterial({ color: COLOR_COMB }));
-            comb.position.set(0, 0.825, 0.05);
-            comb.castShadow = true;
-            chicken.add(comb);
+            const chest = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.45, 0.18), new THREE.MeshLambertMaterial({ color: 0xffffff }));
+            chest.position.set(0, 0.38, -0.34);
+            chest.castShadow = true;
+            chicken.add(chest);
 
-            const beak = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.18), new THREE.MeshLambertMaterial({ color: COLOR_BEAK }));
-            beak.position.set(0, 0.425, -0.4);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.48, 0.45), featherMat);
+            head.position.set(0, 0.92, -0.12);
+            head.castShadow = true;
+            chicken.add(head);
+
+            const wingL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.36, 0.48), wingMat);
+            wingL.position.set(-0.47, 0.43, 0.02);
+            wingL.rotation.z = 0.18;
+            wingL.castShadow = true;
+            chicken.add(wingL);
+
+            const wingR = wingL.clone();
+            wingR.position.x = 0.47;
+            wingR.rotation.z = -0.18;
+            chicken.add(wingR);
+
+            const comb1 = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.24, 0.16), combMat);
+            comb1.position.set(0, 1.25, -0.16);
+            comb1.castShadow = true;
+            chicken.add(comb1);
+            const comb2 = comb1.clone();
+            comb2.position.z = 0.02;
+            comb2.scale.y = 0.8;
+            chicken.add(comb2);
+
+            const beak = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.16, 0.26), beakMat);
+            beak.position.set(0, 0.90, -0.45);
             beak.castShadow = true;
             chicken.add(beak);
 
+            [-0.16, 0.16].forEach(x => {
+                const eye = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.035), eyeMat);
+                eye.position.set(x, 0.99, -0.36);
+                chicken.add(eye);
+            });
+
+            [-0.18, 0.18].forEach(x => {
+                const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.28, 0.08), legMat);
+                leg.position.set(x, 0.02, -0.04);
+                leg.castShadow = true;
+                chicken.add(leg);
+            });
+
+            chicken.scale.set(0.62, 0.62, 0.62);
             scene.add(chicken);
         }
 
@@ -473,9 +1153,24 @@
             let type = TYPE_SNOW;
             if (rowIndex > 2) {
                 const rng = Math.random();
-                if (rng < 0.35) type = TYPE_SNOW;
-                else if (rng < 0.72) type = TYPE_ROAD;
-                else type = TYPE_RIVER;
+                if (rowIndex < 12) {
+                    if (rng < 0.58) type = TYPE_SNOW;
+                    else type = TYPE_ROAD;
+                } else if (rowIndex < 28) {
+                    if (rng < 0.42) type = TYPE_SNOW;
+                    else if (rng < 0.76) type = TYPE_ROAD;
+                    else type = TYPE_RIVER;
+                } else if (rowIndex < 55) {
+                    if (rng < 0.30) type = TYPE_SNOW;
+                    else if (rng < 0.62) type = TYPE_ROAD;
+                    else if (rng < 0.82) type = TYPE_RIVER;
+                    else type = TYPE_RAIL;
+                } else {
+                    if (rng < 0.20) type = TYPE_SNOW;
+                    else if (rng < 0.52) type = TYPE_ROAD;
+                    else if (rng < 0.72) type = TYPE_RIVER;
+                    else type = TYPE_RAIL;
+                }
             }
 
             const rowGroup = new THREE.Group();
@@ -484,13 +1179,16 @@
             let geo, mat, width = 60;
             if (type === TYPE_SNOW) {
                 geo = new THREE.BoxGeometry(width, 1, 1);
-                mat = new THREE.MeshLambertMaterial({ color: COLOR_SNOW });
+                mat = material(activeTheme.snow);
             } else if (type === TYPE_ROAD) {
                 geo = new THREE.BoxGeometry(width, 0.94, 1);
-                mat = new THREE.MeshLambertMaterial({ color: COLOR_ROAD });
+                mat = material(activeTheme.road);
             } else if (type === TYPE_RIVER) {
                 geo = new THREE.BoxGeometry(width, 0.78, 1);
-                mat = new THREE.MeshLambertMaterial({ color: COLOR_RIVER });
+                mat = material(activeTheme.river);
+            } else if (type === TYPE_RAIL) {
+                geo = new THREE.BoxGeometry(width, 0.92, 1);
+                mat = material(activeTheme.rail);
             }
 
             const ground = new THREE.Mesh(geo, mat);
@@ -500,8 +1198,11 @@
 
             let speed = 0, direction = Math.random() > 0.5 ? 1 : -1;
 
+            const difficulty = Math.min(1, Math.max(0, rowIndex / 120));
+            const blockedCells = new Set();
+
             if (type === TYPE_ROAD) {
-                speed = 2.2 + Math.random() * 2.8;
+                speed = 1.25 + difficulty * 3.1 + Math.random() * (0.85 + difficulty * 1.4);
                 // Subtle road markers
                 for (let i = -20; i <= 20; i += 4) {
                     const line = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.02, 0.15), new THREE.MeshLambertMaterial({ color: 0x3e4257 }));
@@ -509,53 +1210,137 @@
                     rowGroup.add(line);
                 }
             } else if (type === TYPE_RIVER) {
-                speed = 1.2 + Math.random() * 1.3;
+                speed = 0.85 + difficulty * 1.6 + Math.random() * 0.75;
+            } else if (type === TYPE_RAIL) {
+                speed = 3.8 + difficulty * 4.5 + Math.random() * 1.8;
+                for (let i = -25; i <= 25; i += 1.4) {
+                    const sleeper = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.82), new THREE.MeshLambertMaterial({ color: 0x2a1e19 }));
+                    sleeper.position.set(i, 0.02, 0);
+                    rowGroup.add(sleeper);
+                }
+                [-0.25, 0.25].forEach(z => {
+                    const rail = new THREE.Mesh(new THREE.BoxGeometry(width, 0.08, 0.08), new THREE.MeshLambertMaterial({ color: 0xb9c0c8 }));
+                    rail.position.set(0, 0.08, z);
+                    rail.castShadow = true;
+                    rowGroup.add(rail);
+                });
             } else if (type === TYPE_SNOW && rowIndex > 0) {
-                for (let i = -20; i <= 20; i += 2.5) {
-                    if (Math.abs(i) > 3.5 && Math.random() < 0.55) {
+                const treeChance = Math.min(0.64, 0.20 + difficulty * 0.28);
+                for (let gridX = -7; gridX <= 7; gridX++) {
+                    const keepPathOpen = Math.abs(gridX) <= 1 && rowIndex < 10;
+                    if (!keepPathOpen && Math.random() < treeChance) {
                         const pine = buildWinterTree();
-                        pine.position.x = i;
+                        pine.position.x = gridX;
                         rowGroup.add(pine);
+                        blockedCells.add(gridX);
                     }
                 }
             }
 
             scene.add(rowGroup);
-            rows[rowIndex] = { index: rowIndex, type: type, speed: speed, direction: direction, lastSpawned: 0, spawnInterval: 1.4 + Math.random() * 1.8 };
+            const spawnInterval = Math.max(0.65, 2.4 - difficulty * 1.25 + Math.random() * (1.0 - difficulty * 0.35));
+            rows[rowIndex] = { index: rowIndex, type: type, speed: speed, direction: direction, lastSpawned: 0, spawnInterval: spawnInterval, blockedCells: Array.from(blockedCells) };
             rowObjects[rowIndex] = rowGroup;
         }
 
         function buildWinterTree() {
             const tree = new THREE.Group();
-            const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.6, 0.35), new THREE.MeshLambertMaterial({ color: COLOR_TRUNK }));
-            trunk.position.y = 0.3;
+            tree.userData.blocksChicken = true;
+            const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.55, 0.26), material(activeTheme.trunk));
+            trunk.position.y = 0.275;
             trunk.castShadow = true;
             tree.add(trunk);
 
-            const leaves = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.7, 1.1), new THREE.MeshLambertMaterial({ color: COLOR_LEAVES }));
-            leaves.position.y = 0.9;
-            leaves.castShadow = true;
-            tree.add(leaves);
+            const lowerLeaves = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.54, 0.76), material(activeTheme.leaves));
+            lowerLeaves.position.y = 0.75;
+            lowerLeaves.castShadow = true;
+            tree.add(lowerLeaves);
 
-            const snowCap = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.35, 0.9), new THREE.MeshLambertMaterial({ color: COLOR_SNOW }));
-            snowCap.position.y = 1.425;
-            snowCap.castShadow = true;
-            tree.add(snowCap);
+            const upperLeaves = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.42, 0.56), material(activeTheme.treeCap));
+            upperLeaves.position.y = 1.17;
+            upperLeaves.castShadow = true;
+            tree.add(upperLeaves);
+
+            if (activeTheme.treeSnow) {
+                const snowCap = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.18, 0.54), material(0xfffafa));
+                snowCap.position.y = 1.45;
+                snowCap.castShadow = true;
+                tree.add(snowCap);
+            }
 
             return tree;
         }
 
+        function buildCarModel(color) {
+            const car = new THREE.Group();
+            const bodyMat = new THREE.MeshLambertMaterial({ color });
+            const darkMat = new THREE.MeshLambertMaterial({ color: 0x141923 });
+            const glassMat = new THREE.MeshLambertMaterial({ color: 0x9fdcff, transparent: true, opacity: 0.9 });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.65, 0.38, 0.78), bodyMat);
+            body.position.y = 0.32;
+            body.castShadow = body.receiveShadow = true;
+            car.add(body);
+            const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.34, 0.62), glassMat);
+            cabin.position.set(-0.08, 0.68, 0);
+            cabin.castShadow = true;
+            car.add(cabin);
+            [-0.55, 0.55].forEach(x => [-0.42, 0.42].forEach(z => {
+                const wheel = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.26, 0.12), darkMat);
+                wheel.position.set(x, 0.16, z);
+                wheel.castShadow = true;
+                car.add(wheel);
+            }));
+            const headlightMat = new THREE.MeshLambertMaterial({ color: 0xfff3a1 });
+            [-0.22, 0.22].forEach(z => {
+                const light = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.12, 0.12), headlightMat);
+                light.position.set(0.86, 0.36, z);
+                car.add(light);
+            });
+            return car;
+        }
+
+        function buildTrainModel() {
+            const train = new THREE.Group();
+            const bodyMat = new THREE.MeshLambertMaterial({ color: 0xdc2f55 });
+            const stripeMat = new THREE.MeshLambertMaterial({ color: 0xf8fafc });
+            const glassMat = new THREE.MeshLambertMaterial({ color: 0x88d8ff });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.82, 0.82), bodyMat);
+            body.position.y = 0.45;
+            body.castShadow = body.receiveShadow = true;
+            train.add(body);
+            const stripe = new THREE.Mesh(new THREE.BoxGeometry(4.45, 0.12, 0.86), stripeMat);
+            stripe.position.y = 0.55;
+            train.add(stripe);
+            for (let x=-1.55; x<=1.55; x+=0.75) {
+                const windowMesh = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.24, 0.05), glassMat);
+                windowMesh.position.set(x, 0.78, -0.43);
+                train.add(windowMesh);
+            }
+            const nose = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.58, 0.72), new THREE.MeshLambertMaterial({ color: 0xff6b83 }));
+            nose.position.set(2.35, 0.45, 0);
+            nose.castShadow = true;
+            train.add(nose);
+            return train;
+        }
+
         function generateCarUnit(rowIndex) {
             const data = rows[rowIndex];
-            const carColors = [0xff5d7a, 0x50f4ff, 0xc77dff, 0xffb65d];
-            const mesh = new THREE.Mesh(
-                new THREE.BoxGeometry(1.5, 0.75, 0.75), 
-                new THREE.MeshLambertMaterial({ color: carColors[Math.floor(Math.random() * carColors.length)] })
-            );
+            const carColors = [0xff5d7a, 0x50f4ff, 0xc77dff, 0xffb65d, 0x5dff99];
+            const mesh = buildCarModel(carColors[Math.floor(Math.random() * carColors.length)]);
             mesh.castShadow = mesh.receiveShadow = true;
-            mesh.position.set(data.direction > 0 ? -24 : 24, 0.375, 0);
+            mesh.rotation.y = data.direction > 0 ? 0 : Math.PI;
+            mesh.position.set(data.direction > 0 ? -24 : 24, 0, 0);
             rowObjects[rowIndex].add(mesh);
-            cars.push({ mesh: mesh, row: rowIndex });
+            cars.push({ mesh: mesh, row: rowIndex, hitWidth: 1.05 });
+        }
+
+        function generateTrainUnit(rowIndex) {
+            const data = rows[rowIndex];
+            const mesh = buildTrainModel();
+            mesh.rotation.y = data.direction > 0 ? 0 : Math.PI;
+            mesh.position.set(data.direction > 0 ? -26 : 26, 0, 0);
+            rowObjects[rowIndex].add(mesh);
+            cars.push({ mesh: mesh, row: rowIndex, hitWidth: 2.45 });
         }
 
         function generateIceUnit(rowIndex) {
@@ -572,6 +1357,8 @@
 
             const delta = clock.getDelta();
             const elapsed = clock.getElapsedTime();
+            updateIdlePredator(delta, elapsed);
+            updateRainParticles(delta);
 
             // Procedural Infinite Row Spawning
             while (rows.length < playerForwardIndex + 30) {
@@ -580,8 +1367,9 @@
 
             rows.forEach(row => {
                 if (!row) return;
-                if ((row.type === TYPE_ROAD || row.type === TYPE_RIVER) && (elapsed - row.lastSpawned > row.spawnInterval)) {
+                if ((row.type === TYPE_ROAD || row.type === TYPE_RIVER || row.type === TYPE_RAIL) && (elapsed - row.lastSpawned > row.spawnInterval)) {
                     if (row.type === TYPE_ROAD) generateCarUnit(row.index);
+                    else if (row.type === TYPE_RAIL) generateTrainUnit(row.index);
                     else generateIceUnit(row.index);
                     row.lastSpawned = elapsed;
                 }
@@ -594,7 +1382,7 @@
                 car.mesh.position.x += activeRow.speed * activeRow.direction * delta;
 
                 if (playerForwardIndex === car.row && !isJumping) {
-                    if (Math.abs(playerSideIndex - car.mesh.position.x) < 1.05) triggerCollision();
+                    if (Math.abs(playerSideIndex - car.mesh.position.x) < (car.hitWidth || 1.05)) triggerCollision();
                 }
                 if (Math.abs(car.mesh.position.x) > 26) {
                     rowObjects[car.row].remove(car.mesh);
@@ -649,12 +1437,70 @@
             }
 
             // TRUE ISOMETRIC CAMERA FOLLOWER MESH
-            const camTargetX = chicken.position.x + 12;
-            const camTargetZ = chicken.position.z + 12;
+            const camTargetX = chicken.position.x + 8.5;
+            const camTargetZ = chicken.position.z + 8.5;
             camera.position.x = THREE.MathUtils.lerp(camera.position.x, camTargetX, 0.08);
             camera.position.z = THREE.MathUtils.lerp(camera.position.z, camTargetZ, 0.08);
 
             renderer.render(scene, camera);
+        }
+
+
+        function updateIdlePredator(delta, elapsed) {
+            const idleFor = elapsed - lastMoveTime;
+            const idleEl = document.getElementById('idle-count');
+            const dangerEl = document.getElementById('danger-banner');
+
+            if (!eagle) return;
+
+            if (idleFor < IDLE_WARNING_SECONDS) {
+                eagle.visible = false;
+                eagleAttackStarted = false;
+                if (idleEl) idleEl.textContent = 'Safe';
+                if (dangerEl && elapsed >= blockedMessageUntil) dangerEl.textContent = 'Keep moving — eagle patrol active';
+                return;
+            }
+
+            const remaining = Math.max(0, Math.ceil(IDLE_CATCH_SECONDS - idleFor));
+            if (idleEl) idleEl.textContent = remaining + 's';
+            if (dangerEl && elapsed >= blockedMessageUntil) dangerEl.textContent = 'Move now — eagle incoming';
+
+            eagle.visible = true;
+            const attackProgress = THREE.MathUtils.clamp((idleFor - IDLE_WARNING_SECONDS) / (IDLE_CATCH_SECONDS - IDLE_WARNING_SECONDS), 0, 1);
+            const startX = chicken.position.x - 3.2;
+            const startY = 6.3;
+            const startZ = chicken.position.z + 4.2;
+            const endX = chicken.position.x;
+            const endY = chicken.position.y + 0.35;
+            const endZ = chicken.position.z;
+            eagle.position.set(
+                THREE.MathUtils.lerp(startX, endX, attackProgress),
+                THREE.MathUtils.lerp(startY, endY, attackProgress),
+                THREE.MathUtils.lerp(startZ, endZ, attackProgress)
+            );
+            eagle.rotation.y = Math.PI / 4;
+            eagle.rotation.z = Math.sin(elapsed * 12) * 0.18;
+
+            if (idleFor >= IDLE_CATCH_SECONDS) {
+                triggerCollision('eagle');
+            }
+        }
+
+        function isBlockedCell(rowIndex, sideIndex) {
+            const row = rows[rowIndex];
+            if (!row || !Array.isArray(row.blockedCells)) return false;
+            return row.blockedCells.includes(Math.round(sideIndex));
+        }
+
+        function showBlockedHopWarning() {
+            const dangerEl = document.getElementById('danger-banner');
+            blockedMessageUntil = clock ? clock.getElapsedTime() + 0.9 : 0;
+            if (dangerEl) dangerEl.textContent = 'Tree blocked — choose another tile';
+            if (renderer && renderer.domElement) {
+                renderer.domElement.classList.remove('blocked-hop');
+                void renderer.domElement.offsetWidth;
+                renderer.domElement.classList.add('blocked-hop');
+            }
         }
 
         function processInput(event) {
@@ -704,7 +1550,15 @@
                     break;
             }
 
+            if (flag && isBlockedCell(nextF, nextS)) {
+                showBlockedHopWarning();
+                flag = false;
+            }
+
             if (flag) {
+                lastMoveTime = clock.getElapsedTime();
+                eagleAttackStarted = false;
+                if (eagle) eagle.visible = false;
                 playerForwardIndex = nextF;
                 playerSideIndex = nextS;
                 targetX = playerSideIndex;
@@ -716,13 +1570,23 @@
                     currentMaxRow = playerForwardIndex;
                     score = currentMaxRow;
                     document.getElementById('score').innerText = score;
+                    updateRankUI(score);
                 }
             }
         }
 
-        function triggerCollision() {
+        function triggerCollision(reason) {
             isGameOver = true;
+            if (reason === 'eagle') {
+                const heading = document.querySelector('.go-card h2');
+                if (heading) heading.textContent = 'SNATCHED!';
+            } else {
+                const heading = document.querySelector('.go-card h2');
+                if (heading) heading.textContent = 'CRASHED!';
+            }
             document.getElementById('final-score').innerText = score;
+            document.getElementById('final-rank').className = 'rank-display';
+            document.getElementById('final-rank').innerHTML = renderRankHTML(score);
             document.getElementById('gameover-screen').style.display = 'flex';
             handleLevelUpTracking(score);
         }
@@ -736,8 +1600,14 @@
             playerForwardIndex = 0; playerSideIndex = 0;
             targetX = 0; targetZ = 0; currentMaxRow = 0; score = 0;
             isJumping = false; isGameOver = false;
+            lastMoveTime = clock.getElapsedTime();
+            eagleAttackStarted = false;
+            blockedMessageUntil = 0;
+            if (eagle) eagle.visible = false;
 
             document.getElementById('score').innerText = "0";
+            updateRankUI(Number(localStorage.getItem("crossyroad_maxDistance") || 0));
+            document.getElementById('idle-count').innerText = "Safe";
             document.getElementById('gameover-screen').style.display = 'none';
 
             chicken.position.set(0, 0.375, 0);
@@ -746,7 +1616,7 @@
             for (let i = 0; i < 40; i++) {
                 generateRowStructure(i);
             }
-            camera.position.set(12, 12, 12);
+            camera.position.set(8.5, 9.5, 8.5);
             clock.getDelta();
         }
 
@@ -762,6 +1632,7 @@
 
         // Engage engine on load
         window.onload = () => {
+            setActiveTheme(getSeasonalThemeName());
             initEngine();
             renderer.setAnimationLoop(engineLoop);
         };

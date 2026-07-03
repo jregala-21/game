@@ -1,0 +1,2 @@
+Game Hub unified theme package. CSS-only visual polish was injected near the end of each HTML style block. JavaScript gameplay/auth/storage functions were not edited. Use the canonical filenames in this folder because the site links already expect names like homepage.html, tetris.html, sudoku.html, etc.
+Update: tetris.html was fixed so the touch controls no longer float over the desktop board, and the Tetris hero/header is compact and aligned with the unified theme.

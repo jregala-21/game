@@ -30,6 +30,82 @@
     .msg { min-height:22px; margin-top:14px; font-weight:800; } .msg.good { color:var(--good); } .msg.bad { color:#ffb6c3; }
     @media (max-width:860px) { .shell { grid-template-columns:1fr; } .hero { min-height:auto; } }
   </style>
+
+<script>
+(function () {
+  if (window.GameHubModal) return;
+  function ensureStyles() {
+    if (document.getElementById("gamehub-modal-styles")) return;
+    const style = document.createElement("style");
+    style.id = "gamehub-modal-styles";
+    style.textContent = `
+      .gh-modal-overlay{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:18px;background:rgba(2,6,19,.78);backdrop-filter:blur(12px) saturate(130%)}
+      .gh-modal-card{width:min(440px,100%);border-radius:24px;padding:20px;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.035)),linear-gradient(135deg,rgba(80,244,255,.10),rgba(199,125,255,.085)),rgba(7,12,31,.96);border:1px solid rgba(255,255,255,.16);box-shadow:0 28px 90px rgba(0,0,0,.58),0 0 0 1px rgba(80,244,255,.22),0 0 36px rgba(80,244,255,.12);color:var(--text,#f4f8ff);font-family:inherit;animation:ghModalPop .18s ease forwards}
+      @keyframes ghModalPop{from{transform:translateY(10px) scale(.98);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+      .gh-modal-icon{width:44px;height:44px;display:grid;place-items:center;border-radius:16px;margin-bottom:12px;background:linear-gradient(135deg,var(--accent,#50f4ff),var(--accent-2,#c77dff));color:#06101a;font-size:1.4rem;box-shadow:0 0 28px rgba(80,244,255,.26)}
+      .gh-modal-card.danger .gh-modal-icon{background:linear-gradient(135deg,#ff5d7a,#ffb65d)}
+      .gh-modal-title{margin:0 0 8px;font-size:1.35rem;line-height:1.1;letter-spacing:-.04em;color:var(--text,#f4f8ff)}
+      .gh-modal-message{margin:0 0 16px;color:var(--muted,#aab7df);line-height:1.5;font-size:.94rem;white-space:pre-wrap}
+      .gh-modal-input{width:100%;margin:0 0 14px;padding:12px 13px;border-radius:14px;border:1px solid rgba(80,244,255,.25);background:rgba(255,255,255,.075);color:var(--text,#f4f8ff);font:inherit;font-weight:800;outline:none}
+      .gh-modal-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+      .gh-modal-btn{border-radius:999px;padding:10px 16px;border:1px solid rgba(255,255,255,.15);font-weight:1000;cursor:pointer;font:inherit}
+      .gh-modal-btn.cancel{color:var(--text,#f4f8ff);background:rgba(255,255,255,.075)}
+      .gh-modal-btn.confirm{color:#06101a;background:linear-gradient(135deg,var(--accent,#50f4ff),#9ffcff);box-shadow:0 0 24px rgba(80,244,255,.22)}
+      .gh-modal-card.danger .gh-modal-btn.confirm{background:linear-gradient(135deg,#ff5d7a,#ffb65d)}
+      .gh-toast{position:fixed;right:18px;bottom:18px;z-index:99998;padding:13px 15px;border-radius:16px;background:linear-gradient(135deg,rgba(80,244,255,.95),rgba(199,125,255,.95));color:#05101d;font-weight:1000;box-shadow:0 18px 50px rgba(0,0,0,.34);font-family:inherit;max-width:min(340px,calc(100vw - 36px));transition:all .35s ease}
+    `;
+    document.head.appendChild(style);
+  }
+  function modal(opts) {
+    ensureStyles();
+    opts = opts || {};
+    return new Promise(function (resolve) {
+      const overlay = document.createElement("div");
+      overlay.className = "gh-modal-overlay";
+      const card = document.createElement("div");
+      card.className = "gh-modal-card" + (opts.danger ? " danger" : "");
+      card.setAttribute("role", "dialog");
+      card.setAttribute("aria-modal", "true");
+      const inputHtml = opts.input ? `<input class="gh-modal-input" id="ghModalInput" value="${String(opts.value || "").replace(/"/g, "&quot;")}" placeholder="${String(opts.placeholder || "").replace(/"/g, "&quot;")}">` : "";
+      card.innerHTML = `<div class="gh-modal-icon">${opts.icon || "💬"}</div><h2 class="gh-modal-title">${opts.title || "Message"}</h2><p class="gh-modal-message">${opts.message || ""}</p>${inputHtml}<div class="gh-modal-actions"><button class="gh-modal-btn cancel" type="button">${opts.cancelText || "Cancel"}</button><button class="gh-modal-btn confirm" type="button">${opts.confirmText || "OK"}</button></div>`;
+      overlay.appendChild(card);
+      document.body.appendChild(overlay);
+      const cancel = card.querySelector(".cancel");
+      const confirm = card.querySelector(".confirm");
+      const input = card.querySelector("#ghModalInput");
+      cancel.style.display = opts.hideCancel ? "none" : "inline-flex";
+      function done(value) { overlay.remove(); resolve(value); }
+      cancel.onclick = function () { done(opts.input ? null : false); };
+      confirm.onclick = function () { done(opts.input ? (input ? input.value : "") : true); };
+      overlay.addEventListener("click", function (event) { if (event.target === overlay) done(opts.input ? null : false); });
+      window.addEventListener("keydown", function onKey(e) {
+        if (!document.body.contains(overlay)) return window.removeEventListener("keydown", onKey);
+        if (e.key === "Escape") { window.removeEventListener("keydown", onKey); done(opts.input ? null : false); }
+        if (e.key === "Enter" && input) { window.removeEventListener("keydown", onKey); done(input.value); }
+      });
+      if (input) setTimeout(function () { input.focus(); input.select(); }, 40);
+    });
+  }
+  function toast(text) {
+    ensureStyles();
+    const t = document.createElement("div");
+    t.className = "gh-toast";
+    t.textContent = text;
+    document.body.appendChild(t);
+    setTimeout(function () { t.style.opacity = "0"; t.style.transform = "translateY(8px)"; }, 2400);
+    setTimeout(function () { t.remove(); }, 2850);
+  }
+  window.GameHubModal = {
+    alert: function (title, message) { return modal({ title: title || "Message", message: message || "", icon: "💬", hideCancel: true }); },
+    confirm: function (title, message, opts) { opts = opts || {}; return modal({ title: title || "Confirm", message: message || "", icon: opts.icon || "⚠️", danger: !!opts.danger, confirmText: opts.confirmText || "Confirm", cancelText: opts.cancelText || "Cancel" }); },
+    prompt: function (title, message, opts) { opts = opts || {}; return modal({ title: title || "Input", message: message || "", icon: opts.icon || "⌨️", input: true, value: opts.value || "", placeholder: opts.placeholder || "", confirmText: opts.confirmText || "OK", cancelText: opts.cancelText || "Cancel" }); },
+    toast: toast
+  };
+  const nativeAlert = window.alert;
+  window.alert = function (message) { try { window.GameHubModal.alert("Message", String(message || "")); } catch (err) { nativeAlert(message); } };
+})();
+</script>
+
 </head>
 <body>
   <main class="shell">
@@ -59,7 +135,7 @@
   </main>
 
   <script>
-    const DB_URL = "https://gamelibrary-882b6-default-rtdb.asia-southeast1.firebasedatabase.app";
+    const DB_URL = "https://gamehubss-default-rtdb.firebaseio.com/";
     const SESSION_KEY = "gamehub_current_user";
     const LOCAL_USER_KEY = "__gamehub_local_user__";
     const GAMEHUB_KEYS = ["gamehub_profile_v1","tetris_highScore","tetris_highLevel","tetris_keyMap","sudoku_v2_visited","sudoku_v2_save_state","crossword_progression","crossword_reveal_used_at","crossword_hint_usage_v1"];
@@ -97,6 +173,26 @@
       const res = await fetch(firebaseUrl(["users", key]), { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(data) });
       if (!res.ok) throw new Error("Could not save account.");
     }
+
+    function defaultGameHubProfile(username) {
+      const now = new Date().toISOString();
+      return {
+        username,
+        displayName: username,
+        avatar: "🎮",
+        mainLevel: 1,
+        mainXp: 0,
+        level: 1,
+        xp: 0,
+        successfulPlays: 0,
+        createdAt: now,
+        updatedAt: now,
+        games: {},
+        recentActivity: [],
+        completedSuccessIds: {}
+      };
+    }
+
     async function patchUser(key, data) {
       const res = await fetch(firebaseUrl(["users", key]), { method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify(data) });
       if (!res.ok) throw new Error("Could not update account.");
@@ -135,7 +231,7 @@
         const existing = await getAccount(key);
         if (mode === "signup") {
           if (existing) throw new Error("That username already exists. Please sign in or choose another username.");
-          await putAccount(key, { username, passwordHash, createdAt: new Date().toISOString(), lastActiveAt: new Date().toISOString(), gameData: {} });
+          await putAccount(key, { username, passwordHash, createdAt: new Date().toISOString(), lastActiveAt: new Date().toISOString(), gameData: { gamehub_profile_v1: JSON.stringify(defaultGameHubProfile(username)) } });
         } else {
           if (!existing || existing.passwordHash !== passwordHash) throw new Error("Incorrect username or password.");
         }

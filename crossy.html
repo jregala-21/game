@@ -1,0 +1,3288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crossy Road - Game Hub</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <style>
+        /* === UNIFIED ARCADE THEME (Adapted from homepage) === */
+        :root {
+            --bg: #050814;
+            --panel: rgba(12, 18, 42, 0.72);
+            --text: #f4f8ff;
+            --muted: #aab7df;
+            --accent: #50f4ff;
+            --accent-2: #c77dff;
+            --shadow: 0 24px 80px rgba(0,0,0,.48);
+            --ring: 0 0 0 1px rgba(80,244,255,.22), 0 0 36px rgba(80,244,255,.12);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at 8% 8%, rgba(80,244,255,.28), transparent 24rem),
+                radial-gradient(circle at 92% 18%, rgba(199,125,255,.25), transparent 26rem),
+                linear-gradient(140deg, #030611 0%, #090e25 48%, #180a26 100%);
+            min-height: 100vh;
+        }
+
+        /* Ambient scanlines grid background */
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            background-image:
+                linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+            background-size: 34px 34px;
+            mask-image: linear-gradient(to bottom, black, transparent 88%);
+            z-index: 0;
+        }
+
+        .app-container {
+            position: relative;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            z-index: 1;
+        }
+
+        /* === HEADER STYLING === */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 24px;
+            padding: 12px 24px;
+            margin: 16px 20px 0;
+            border: 1px solid rgba(255,255,255,.10);
+            border-radius: 24px;
+            background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.025));
+            box-shadow: 0 18px 50px rgba(0,0,0,.25);
+            backdrop-filter: blur(16px) saturate(130%);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 900;
+            letter-spacing: -0.04em;
+            font-size: 1.2rem;
+            text-shadow: 0 0 20px rgba(80,244,255,.14);
+        }
+
+        .logo {
+            width: 32px;
+            height: 32px;
+            border-radius: 12px;
+            background:
+                linear-gradient(135deg, rgba(255,255,255,.28), transparent 40%),
+                linear-gradient(135deg, var(--accent), var(--accent-2));
+            box-shadow: 0 0 28px rgba(80,244,255,.34), inset 0 0 18px rgba(255,255,255,.18);
+        }
+
+        nav {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        nav a, .home-link {
+            display: inline-flex;
+            align-items: center;
+            min-height: 34px;
+            padding: 8px 16px;
+            border-radius: 999px;
+            color: var(--muted);
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.9rem;
+            background: rgba(255,255,255,.045);
+            border: 1px solid rgba(255,255,255,.07);
+            transition: all .18s ease;
+        }
+
+        nav a:hover, .home-link:hover {
+            color: var(--text);
+            background: rgba(80,244,255,.12);
+            border-color: rgba(80,244,255,.32);
+            transform: translateY(-1px);
+        }
+
+        .account-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-height: 34px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            color: var(--text);
+            background: rgba(80,244,255,.10);
+            border: 1px solid rgba(80,244,255,.24);
+            font-weight: 900;
+            font-size: 0.9rem;
+        }
+        
+        .level-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--accent-2), #ff5d7a);
+            color: #ffffff;
+            font-size: 0.72rem;
+            font-weight: 900;
+            padding: 2px 7px;
+            border-radius: 6px;
+            box-shadow: 0 0 10px rgba(199,125,255,0.4);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* === CANVAS GAME SHELL === */
+        #game-wrapper {
+            flex: 1;
+            position: relative;
+            margin: 20px;
+            border-radius: 28px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,.13);
+            box-shadow: var(--shadow), var(--ring);
+            background: rgba(7, 12, 31, 0.4);
+        }
+
+        #game-canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        /* === INTERFACE OVERLAYS === */
+        #game-ui {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            background: var(--panel);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 12px 24px;
+            border-radius: 16px;
+            backdrop-filter: blur(8px);
+            pointer-events: none;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        .score-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--muted);
+            margin: 0 0 2px 0;
+        }
+
+        .score-val {
+            font-size: 2rem;
+            font-weight: 900;
+            margin: 0;
+            background: linear-gradient(135deg, #fff, var(--accent));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        #instructions {
+            position: absolute;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(7, 12, 31, 0.8);
+            border: 1px solid rgba(255,255,255,0.08);
+            padding: 10px 20px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            color: var(--muted);
+            letter-spacing: 0.05em;
+            backdrop-filter: blur(6px);
+            pointer-events: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        #instructions span {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        /* === GAME OVER PANEL === */
+        #gameover-screen {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(3, 6, 19, 0.85);
+            backdrop-filter: blur(12px);
+            z-index: 10;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .go-card {
+            text-align: center;
+            padding: 40px 60px;
+            border-radius: 24px;
+            background: var(--panel);
+            border: 1px solid rgba(255,255,255,.13);
+            box-shadow: var(--shadow), var(--ring);
+        }
+
+        .go-card h2 {
+            font-size: 3rem;
+            font-weight: 900;
+            margin: 0 0 10px 0;
+            background: linear-gradient(135deg, #ff5d7a, #c77dff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: -0.04em;
+        }
+
+        .go-card p {
+            color: var(--muted);
+            margin: 0 0 25px 0;
+            font-size: 1.1rem;
+        }
+
+        button.action-btn {
+            border: 1px solid rgba(255,255,255,.16) !important;
+            background: linear-gradient(135deg, var(--accent), #9ffcff) !important;
+            color: #05101d !important;
+            font-weight: 900 !important;
+            box-shadow: 0 0 24px rgba(80,244,255,.22) !important;
+            padding: 14px 32px;
+            font-size: 1rem;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: transform .18s ease, filter .18s ease;
+        }
+
+        button.action-btn:hover {
+            transform: translateY(-2px) scale(1.02);
+            filter: brightness(1.06);
+        }
+
+
+
+        .hud-stack {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            display: grid;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        #game-ui {
+            position: relative;
+            top: auto;
+            left: auto;
+        }
+
+        #mini-stats {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .stat-chip {
+            background: rgba(255,255,255,.075);
+            border: 1px solid rgba(255,255,255,.11);
+            color: var(--text);
+            border-radius: 999px;
+            padding: 7px 11px;
+            font-size: .74rem;
+            font-weight: 900;
+            backdrop-filter: blur(8px);
+        }
+
+        #danger-banner {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            padding: 10px 16px;
+            border-radius: 999px;
+            background: rgba(255, 93, 122, .16);
+            border: 1px solid rgba(255, 93, 122, .34);
+            color: #ffdce4;
+            font-weight: 900;
+            font-size: .82rem;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            backdrop-filter: blur(10px);
+            opacity: .95;
+            pointer-events: none;
+        }
+
+        #game-wrapper::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: radial-gradient(circle at 50% 42%, transparent 35%, rgba(3,6,19,.24) 100%);
+            mix-blend-mode: multiply;
+        }
+
+
+
+        .rank-display {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            vertical-align: middle;
+        }
+
+        .rank-emblem {
+            width: 22px;
+            height: 22px;
+            display: inline-grid;
+            place-items: center;
+            border-radius: 50%;
+            font-size: 0.82rem;
+            line-height: 1;
+            border: 1px solid rgba(255,255,255,.22);
+            box-shadow: 0 0 16px rgba(255,255,255,.10), inset 0 0 10px rgba(255,255,255,.12);
+        }
+
+        .rank-rookie { background: linear-gradient(135deg, #64748b, #94a3b8); }
+        .rank-bronze { background: linear-gradient(135deg, #8b4a20, #e49a52); }
+        .rank-silver { background: linear-gradient(135deg, #d7dde8, #8e9aad); color: #0f172a; }
+        .rank-gold { background: linear-gradient(135deg, #ffcc33, #ff8c42); color: #281306; }
+        .rank-platinum { background: linear-gradient(135deg, #dffbff, #87f0ff, #c77dff); color: #07101f; }
+        .rank-mythical { background: linear-gradient(135deg, #ff5d7a, #c77dff, #50f4ff); }
+
+        #weather-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 2;
+            opacity: 0;
+            transition: opacity .35s ease;
+        }
+
+        #weather-overlay.rainy {
+            opacity: .75;
+            background-image: linear-gradient(115deg, rgba(160,220,255,.0) 0%, rgba(160,220,255,.0) 42%, rgba(160,220,255,.36) 43%, rgba(160,220,255,.0) 45%);
+            background-size: 18px 42px;
+            animation: rainSheet .42s linear infinite;
+        }
+
+        #weather-overlay.night,
+        #weather-overlay.moon {
+            opacity: .34;
+            background: radial-gradient(circle at 50% 35%, transparent 28%, rgba(0,0,0,.55) 100%);
+        }
+
+        #weather-overlay.snow {
+            opacity: .72;
+            background-image:
+                radial-gradient(circle, rgba(255,255,255,.86) 0 1.4px, transparent 1.8px),
+                radial-gradient(circle, rgba(255,255,255,.58) 0 1px, transparent 1.5px);
+            background-size: 32px 32px, 46px 46px;
+            animation: snowSheet 6s linear infinite;
+        }
+
+        @keyframes snowSheet {
+            from { background-position: 0 0, 0 0; }
+            to { background-position: 32px 96px, -46px 138px; }
+        }
+
+        @keyframes rainSheet {
+            from { background-position: 0 0; }
+            to { background-position: -18px 42px; }
+        }
+
+        .blocked-hop {
+            animation: blockedPulse .22s ease;
+        }
+
+        @keyframes blockedPulse {
+            0% { filter: none; }
+            50% { filter: drop-shadow(0 0 12px rgba(255,93,122,.85)); }
+            100% { filter: none; }
+        }
+
+
+
+
+        .multiplayer-panel {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            width: min(310px, calc(100% - 50px));
+            display: grid;
+            gap: 9px;
+            padding: 12px;
+            border-radius: 18px;
+            background: rgba(7, 12, 31, 0.72);
+            border: 1px solid rgba(255,255,255,.12);
+            box-shadow: 0 14px 40px rgba(0,0,0,.32);
+            backdrop-filter: blur(12px) saturate(130%);
+            z-index: 5;
+        }
+
+        .multiplayer-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            color: var(--text);
+            font-size: .78rem;
+            font-weight: 1000;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+
+        #room-status {
+            color: var(--muted);
+            font-size: .72rem;
+            font-weight: 900;
+            letter-spacing: normal;
+            text-transform: none;
+        }
+
+        .multiplayer-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .mp-btn {
+            min-height: 34px;
+            padding: 8px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(255,255,255,.14);
+            background: rgba(255,255,255,.08);
+            color: var(--text);
+            font-size: .78rem;
+            font-weight: 1000;
+            cursor: pointer;
+            box-shadow: 0 0 18px rgba(80,244,255,.10);
+        }
+
+        .mp-btn.primary {
+            color: #05101d;
+            background: linear-gradient(135deg, var(--accent), #9ffcff);
+        }
+
+        .mp-btn.leave {
+            grid-column: 1 / -1;
+            display: none;
+            color: #ffdce4;
+            background: rgba(255,93,122,.14);
+            border-color: rgba(255,93,122,.28);
+        }
+
+        .multiplayer-list {
+            display: grid;
+            gap: 5px;
+            max-height: 110px;
+            overflow: auto;
+        }
+
+        .mp-player-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            font-size: .72rem;
+            font-weight: 900;
+            padding: 6px 8px;
+            border-radius: 12px;
+            background: rgba(255,255,255,.055);
+        }
+
+        .mp-player-row.me {
+            color: var(--accent);
+            border: 1px solid rgba(80,244,255,.18);
+        }
+
+        /* === POLISHED GAME MODALS === */
+        #game-modal-overlay {
+            display: none;
+            position: absolute;
+            inset: 0;
+            z-index: 30;
+            align-items: center;
+            justify-content: center;
+            padding: 22px;
+            background: radial-gradient(circle at 50% 30%, rgba(80,244,255,.10), transparent 30rem), rgba(2, 6, 19, .72);
+            backdrop-filter: blur(12px) saturate(135%);
+        }
+
+        #game-modal-overlay.show { display: flex; }
+
+        .game-modal-card {
+            width: min(430px, 100%);
+            border-radius: 26px;
+            border: 1px solid rgba(255,255,255,.15);
+            background:
+                linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.035)),
+                linear-gradient(135deg, rgba(80,244,255,.10), rgba(199,125,255,.085)),
+                rgba(7, 12, 31, .94);
+            box-shadow: 0 28px 90px rgba(0,0,0,.58), var(--ring);
+            padding: 22px;
+            transform: translateY(10px) scale(.98);
+            opacity: 0;
+            animation: modalPop .18s ease forwards;
+        }
+
+        @keyframes modalPop {
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+
+        .game-modal-icon {
+            width: 44px;
+            height: 44px;
+            display: grid;
+            place-items: center;
+            border-radius: 16px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            color: #06101a;
+            font-size: 1.45rem;
+            box-shadow: 0 0 28px rgba(80,244,255,.26);
+        }
+
+        .game-modal-card.danger .game-modal-icon {
+            background: linear-gradient(135deg, #ff5d7a, #ffb65d);
+        }
+
+        .game-modal-title {
+            margin: 0 0 8px;
+            font-size: 1.45rem;
+            line-height: 1.05;
+            letter-spacing: -.045em;
+        }
+
+        .game-modal-message {
+            margin: 0 0 16px;
+            color: var(--muted);
+            line-height: 1.5;
+            font-size: .94rem;
+        }
+
+        .game-modal-code {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            border-radius: 16px;
+            background: rgba(255,255,255,.075);
+            border: 1px solid rgba(80,244,255,.22);
+            color: var(--accent);
+            font-size: 1.35rem;
+            font-weight: 1000;
+            letter-spacing: .16em;
+        }
+
+        .game-modal-code.show { display: flex; }
+
+        .game-modal-copy {
+            border: 1px solid rgba(255,255,255,.16);
+            background: rgba(255,255,255,.085);
+            color: var(--text);
+            border-radius: 999px;
+            padding: 8px 10px;
+            font-size: .72rem;
+            font-weight: 900;
+            cursor: pointer;
+        }
+
+        .game-modal-input {
+            display: none;
+            width: 100%;
+            margin-bottom: 14px;
+            padding: 13px 14px;
+            border-radius: 16px;
+            border: 1px solid rgba(80,244,255,.25);
+            background: rgba(255,255,255,.075);
+            color: var(--text);
+            font: inherit;
+            font-weight: 900;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            outline: none;
+        }
+
+        .game-modal-input.show { display: block; }
+        .game-modal-input:focus { box-shadow: 0 0 0 3px rgba(80,244,255,.16); }
+
+        .game-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .game-modal-btn {
+            border-radius: 999px;
+            padding: 11px 16px;
+            border: 1px solid rgba(255,255,255,.15);
+            font-weight: 1000;
+            cursor: pointer;
+        }
+
+        .game-modal-btn.cancel {
+            color: var(--text);
+            background: rgba(255,255,255,.075);
+        }
+
+        .game-modal-btn.confirm {
+            color: #06101a;
+            background: linear-gradient(135deg, var(--accent), #9ffcff);
+            box-shadow: 0 0 24px rgba(80,244,255,.22);
+        }
+
+        .game-modal-card.danger .game-modal-btn.confirm {
+            background: linear-gradient(135deg, #ff5d7a, #ffb65d);
+        }
+
+
+        @media (max-width: 640px) {
+            header { margin: 10px 10px 0; padding: 10px 16px; }
+            #game-wrapper { margin: 10px; }
+            .go-card { padding: 30px 20px; width: 90%; }
+            .multiplayer-panel { top: auto; right: 10px; bottom: 62px; width: min(320px, calc(100% - 20px)); }
+        }
+
+        /* FLOATING CHAT ARCHITECTURE */
+        .chat-dock {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        width: 340px;
+        height: 460px;
+        background: var(--panel);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 20px;
+        box-shadow: var(--shadow), 0 0 40px rgba(93, 242, 255, 0.1);
+        backdrop-filter: blur(20px);
+        display: flex;
+        flex-direction: column;
+        z-index: 1000;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s ease;
+        overflow: hidden;
+        }
+        .chat-dock.minimized {
+        height: 52px;
+        transform: translateY(0);
+        }
+        .chat-header {
+        padding: 14px 18px;
+        background: rgba(23, 30, 68, 0.6);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        cursor: pointer;
+        }
+        .chat-header h3 {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        }
+        .chat-window-toggle {
+        background: none;
+        border: none;
+        color: var(--muted);
+        font-size: 1.2rem;
+        cursor: pointer;
+        padding: 0 4px;
+        }
+        .chat-window-toggle:hover { color: var(--accent); }
+
+        .chat-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        }
+        .chat-view {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        }
+        .chat-view.hidden { display: none; }
+
+        /* CONTACTS SUB-PANEL */
+        .contact-search-bar {
+        padding: 10px 14px;
+        display: flex;
+        gap: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .chat-input-field {
+        flex: 1;
+        background: rgba(0, 0, 0, 0.2);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        padding: 8px 12px;
+        color: var(--text);
+        font-family: inherit;
+        font-size: 0.85rem;
+        }
+        .chat-input-field:focus { outline: 1px solid var(--accent); }
+        .chat-action-btn {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        border: none;
+        border-radius: 10px;
+        color: #080b18;
+        font-weight: 800;
+        padding: 0 14px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        }
+
+        .contacts-list, .messages-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        }
+        .contact-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 12px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        cursor: pointer;
+        }
+        .contact-item:hover { background: rgba(255, 255, 255, 0.07); }
+        .contact-info { display: flex; flex-direction: column; gap: 2px; }
+        .contact-name { font-weight: 700; font-size: 0.88rem; }
+        .contact-status { font-size: 0.72rem; color: var(--muted); }
+
+        /* BUBBLE CHAT MESSAGES */
+        .chat-back-btn {
+        background: transparent;
+        border: none;
+        color: var(--accent);
+        cursor: pointer;
+        font-weight: 700;
+        padding: 8px 12px;
+        text-align: left;
+        font-size: 0.85rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .message-bubble {
+        max-width: 80%;
+        padding: 8px 12px;
+        border-radius: 14px;
+        font-size: 0.85rem;
+        line-height: 1.4;
+        word-break: break-word;
+        }
+        .message-bubble.incoming {
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text);
+        align-self: flex-start;
+        }
+        .message-bubble.outgoing {
+        background: linear-gradient(135deg, rgba(93, 242, 255, 0.2), rgba(180, 107, 255, 0.2));
+        border: 1px solid rgba(93, 242, 255, 0.2);
+        color: var(--text);
+        align-self: flex-end;
+        }
+    
+
+/* === Mobile Crossy controls + city effects upgrade === */
+#city-skyline {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: .58;
+  background:
+    linear-gradient(to top, rgba(2,6,19,.78), transparent 34%),
+    repeating-linear-gradient(90deg, rgba(80,244,255,.10) 0 2px, transparent 2px 34px);
+  mask-image: linear-gradient(to top, black 0 36%, transparent 68%);
+}
+#city-skyline::before,
+#city-skyline::after {
+  content: "";
+  position: absolute;
+  left: -8%;
+  right: -8%;
+  bottom: 0;
+  height: 30%;
+  background:
+    linear-gradient(90deg, transparent 0 3%, rgba(10,18,42,.94) 3% 9%, transparent 9% 13%, rgba(10,18,42,.94) 13% 22%, transparent 22% 27%, rgba(10,18,42,.94) 27% 34%, transparent 34% 39%, rgba(10,18,42,.94) 39% 48%, transparent 48% 54%, rgba(10,18,42,.94) 54% 66%, transparent 66% 71%, rgba(10,18,42,.94) 71% 81%, transparent 81% 86%, rgba(10,18,42,.94) 86% 94%, transparent 94% 100%);
+  filter: drop-shadow(0 0 18px rgba(80,244,255,.18));
+}
+#city-skyline::after {
+  height: 18%;
+  opacity: .8;
+  transform: translateX(38px);
+  background:
+    linear-gradient(90deg, rgba(199,125,255,.18) 0 7%, transparent 7% 12%, rgba(80,244,255,.16) 12% 20%, transparent 20% 26%, rgba(199,125,255,.18) 26% 34%, transparent 34% 42%, rgba(80,244,255,.16) 42% 49%, transparent 49% 55%, rgba(199,125,255,.18) 55% 63%, transparent 63% 71%, rgba(80,244,255,.16) 71% 78%, transparent 78% 84%, rgba(199,125,255,.18) 84% 92%, transparent 92% 100%);
+}
+#impact-flash {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle at 50% 48%, rgba(255,93,122,.84), rgba(255,93,122,.20) 22%, transparent 48%);
+}
+#impact-flash.active { animation: impactFlash .52s ease both; }
+@keyframes impactFlash {
+  0% { opacity: 0; transform: scale(.88); }
+  35% { opacity: 1; transform: scale(1.03); }
+  100% { opacity: 0; transform: scale(1.18); }
+}
+body.chicken-hop #game-wrapper { animation: hopGlow .22s ease; }
+@keyframes hopGlow {
+  0%,100% { filter: none; }
+  45% { filter: drop-shadow(0 0 18px rgba(80,244,255,.28)); }
+}
+#mobile-controls-hint {
+  display: none;
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 7;
+  width: min(92%, 420px);
+  padding: 9px 13px;
+  border-radius: 999px;
+  background: rgba(7,12,31,.76);
+  border: 1px solid rgba(80,244,255,.24);
+  color: var(--muted);
+  font-size: .74rem;
+  font-weight: 900;
+  text-align: center;
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+#game-wrapper { touch-action: none; }
+@media (hover: none), (pointer: coarse), (max-width: 760px) {
+  body { overflow: hidden !important; }
+  .app-container { height: 100svh !important; }
+  header { margin: 8px 8px 0 !important; padding: 8px 10px !important; gap: 8px !important; flex-wrap: wrap; }
+  .brand { font-size: .92rem !important; }
+  nav { gap: 6px !important; flex-wrap: wrap; }
+  nav a, .account-pill { min-height: 30px !important; padding: 6px 9px !important; font-size: .72rem !important; }
+  #game-wrapper { margin: 8px !important; border-radius: 18px !important; }
+  .hud-stack { top: 10px !important; left: 10px !important; gap: 6px !important; }
+  #game-ui { padding: 8px 12px !important; border-radius: 12px !important; }
+  .score-val { font-size: 1.35rem !important; }
+  #mini-stats { max-width: 58vw; gap: 4px !important; }
+  .stat-chip { padding: 5px 7px !important; font-size: .58rem !important; }
+  #danger-banner { top: auto !important; right: 10px !important; bottom: 54px !important; font-size: .64rem !important; padding: 7px 10px !important; }
+  #instructions { display: none !important; }
+  #mobile-controls-hint { display: block; }
+  .multiplayer-panel { transform: scale(.86); transform-origin: top right; top: 8px !important; right: 8px !important; bottom: auto !important; width: min(260px, 58vw) !important; }
+  .chat-dock { display: none !important; }
+  .go-card { padding: 24px 18px !important; width: min(92%, 360px) !important; }
+  .go-card h2 { font-size: 2rem !important; }
+}
+@media (hover: none) and (orientation: landscape), (pointer: coarse) and (orientation: landscape), (max-height: 520px) {
+  header { position: absolute; left: 8px; right: 8px; top: 0; z-index: 8; background: rgba(7,12,31,.58); }
+  #game-wrapper { margin: 6px !important; height: calc(100svh - 12px); }
+  .multiplayer-panel { display: none !important; }
+  #mobile-controls-hint { bottom: 8px; width: min(70%, 420px); font-size: .66rem; }
+  #danger-banner { bottom: 38px !important; }
+  .hud-stack { top: 58px !important; }
+}
+
+</style>
+    <script>
+        // Game Hub auth/profile adapter copied from the homepage pattern.
+        // It lets Crossy Road see the same current profile level stored as gamehub_profile_v1.
+        (function () {
+            const DB_URL = "https://gamehubss-default-rtdb.firebaseio.com/";
+            const SESSION_KEY = "gamehub_current_user";
+            const LOCAL_USER_KEY = "__gamehub_local_user__";
+            const GAMEHUB_KEYS = ["gamehub_profile_v1", "crossyroad_maxDistance", "crossyroad_currentLevel", "crossyroad_lastLevel"];
+
+            function safeUsernameKey(username) {
+                return String(username || "").trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
+            }
+            function getCurrentUser() {
+                try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); }
+                catch (err) { return null; }
+            }
+            function firebaseUrl(parts) {
+                return DB_URL.replace(/\/$/, "") + "/" + parts.map(encodeURIComponent).join("/") + ".json";
+            }
+
+            const currentUser = getCurrentUser() || { username: localStorage.getItem(LOCAL_USER_KEY) || "Player" };
+            const userKey = safeUsernameKey(currentUser.username || "Player");
+
+            if (!window.GameHubAuth) {
+                const originalSetItem = localStorage.setItem.bind(localStorage);
+                const originalRemoveItem = localStorage.removeItem.bind(localStorage);
+
+                function cloudSet(key, value) {
+                    if (!currentUser || !currentUser.username || key === LOCAL_USER_KEY) return;
+                    fetch(firebaseUrl(["users", userKey, "gameData", key]), {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(String(value))
+                    }).catch(function (err) { console.warn("Firebase save failed:", err); });
+                    fetch(firebaseUrl(["users", userKey, "lastActiveAt"]), {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(new Date().toISOString())
+                    }).catch(function () {});
+                }
+                function cloudRemove(key) {
+                    if (!currentUser || !currentUser.username || key === LOCAL_USER_KEY) return;
+                    fetch(firebaseUrl(["users", userKey, "gameData", key]), { method: "DELETE" })
+                        .catch(function (err) { console.warn("Firebase remove failed:", err); });
+                }
+
+                localStorage.setItem = function (key, value) {
+                    originalSetItem(key, value);
+                    cloudSet(key, value);
+                };
+                localStorage.removeItem = function (key) {
+                    originalRemoveItem(key);
+                    cloudRemove(key);
+                };
+
+                window.GameHubAuth = {
+                    dbUrl: DB_URL,
+                    user: currentUser,
+                    username: currentUser.username || "Player",
+                    safeUsernameKey: safeUsernameKey,
+                    firebaseUrl: firebaseUrl,
+                    logout: function () {
+                        sessionStorage.removeItem(SESSION_KEY);
+                        window.location.href = "/";
+                    },
+                    saveNow: function () {
+                        GAMEHUB_KEYS.forEach(function (key) {
+                            const value = localStorage.getItem(key);
+                            if (value !== null) cloudSet(key, value);
+                        });
+                    }
+                };
+            }
+        })();
+    </script>
+
+    <script>
+    (function () {
+      const PROFILE_KEY = "gamehub_profile_v1";
+      const MAX_RECENT = 12;
+      const MAX_PROFILE_LEVEL = 100;
+
+      function nowIso() { return new Date().toISOString(); }
+      function getUsername() {
+        return (window.GameHubAuth && window.GameHubAuth.username) || "Player";
+      }
+      function blankGame() {
+        return { successes: 0, bestScore: 0, bestLevel: 0, lastPlayedAt: null };
+      }
+      function clampLevel(level) {
+        return Math.max(1, Math.min(MAX_PROFILE_LEVEL, Math.floor(Number(level) || 1)));
+      }
+      function xpGapForLevel(level) {
+        level = clampLevel(level);
+        if (level >= MAX_PROFILE_LEVEL) return 0;
+        if (level === 1) return 250;
+        return 325 + ((level - 2) * 60);
+      }
+      function xpForLevelStart(level) {
+        level = clampLevel(level);
+        let total = 0;
+        for (let lv = 1; lv < level; lv++) total += xpGapForLevel(lv);
+        return total;
+      }
+      function xpForNext(level) {
+        level = clampLevel(level);
+        if (level >= MAX_PROFILE_LEVEL) return xpForLevelStart(MAX_PROFILE_LEVEL);
+        return xpForLevelStart(level) + xpGapForLevel(level);
+      }
+      function levelFromXp(totalXp) {
+        const xp = Math.max(0, Number(totalXp) || 0);
+        let level = 1;
+        while (level < MAX_PROFILE_LEVEL && xp >= xpForNext(level)) level++;
+        return level;
+      }
+      function xpRangeForLevel(level) {
+        level = clampLevel(level);
+        const start = xpForLevelStart(level);
+        const end = level >= MAX_PROFILE_LEVEL ? start : xpForNext(level);
+        return { level, start, end, gap: Math.max(0, end - start), isMax: level >= MAX_PROFILE_LEVEL };
+      }
+      function defaultProfile() {
+        const username = getUsername();
+        return {
+          username,
+          displayName: username,
+          avatar: "🎮",
+          mainLevel: 1,
+          mainXp: 0,
+          level: 1,
+          xp: 0,
+          successfulPlays: 0,
+          createdAt: nowIso(),
+          updatedAt: nowIso(),
+          games: {},
+          recentActivity: [],
+          completedSuccessIds: {}
+        };
+      }
+      function normalizeProfile(profile) {
+        const base = defaultProfile();
+        profile = profile && typeof profile === "object" ? profile : base;
+        profile.username = getUsername();
+        profile.displayName = profile.displayName || profile.username;
+        profile.avatar = profile.avatar || "🎮";
+        profile.games = profile.games && typeof profile.games === "object" ? profile.games : {};
+        profile.recentActivity = Array.isArray(profile.recentActivity) ? profile.recentActivity : [];
+        profile.completedSuccessIds = profile.completedSuccessIds && typeof profile.completedSuccessIds === "object" ? profile.completedSuccessIds : {};
+        profile.successfulPlays = Math.max(0, Number(profile.successfulPlays || 0));
+
+        // One source of truth for the account level:
+        // mainXp/mainLevel are the official account values. level/xp stay as aliases for older pages.
+        const officialXp = Math.max(0, Number(profile.mainXp ?? profile.xp ?? 0) || 0);
+        const officialLevel = levelFromXp(officialXp);
+        profile.mainXp = officialXp;
+        profile.xp = officialXp;
+        profile.mainLevel = officialLevel;
+        profile.level = officialLevel;
+        profile.updatedAt = profile.updatedAt || nowIso();
+        profile.createdAt = profile.createdAt || nowIso();
+        return profile;
+      }
+      function readProfile() {
+        let profile = null;
+        try { profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || "null"); }
+        catch (err) { profile = null; }
+        profile = normalizeProfile(profile);
+        try {
+          const normalized = JSON.stringify(profile);
+          if (localStorage.getItem(PROFILE_KEY) !== normalized) localStorage.setItem(PROFILE_KEY, normalized);
+        } catch (err) {}
+        return profile;
+      }
+      function saveProfile(profile) {
+        profile = normalizeProfile(profile);
+        profile.updatedAt = nowIso();
+        localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+        return profile;
+      }
+      function showToast(text) {
+        if (!document.body) return;
+        if (window.GameHubModal && typeof window.GameHubModal.toast === "function") {
+          window.GameHubModal.toast(text);
+          return;
+        }
+        const toast = document.createElement("div");
+        toast.textContent = text;
+        toast.style.cssText = "position:fixed;right:18px;bottom:18px;z-index:9999;padding:13px 15px;border-radius:16px;background:linear-gradient(135deg,rgba(80,244,255,.95),rgba(199,125,255,.95));color:#05101d;font-weight:1000;box-shadow:0 18px 50px rgba(0,0,0,.34);font-family:inherit;max-width:min(340px,calc(100vw - 36px));";
+        document.body.appendChild(toast);
+        setTimeout(function () { toast.style.opacity = "0"; toast.style.transform = "translateY(8px)"; toast.style.transition = "all .35s ease"; }, 2400);
+        setTimeout(function () { toast.remove(); }, 2850);
+      }
+      function recordSuccess(gameName, details) {
+        details = details || {};
+        const profile = readProfile();
+        const successId = details.successId ? String(details.successId) : "";
+        if (successId && profile.completedSuccessIds[successId]) return profile;
+        if (successId) profile.completedSuccessIds[successId] = nowIso();
+
+        const game = String(gameName || details.game || "Game");
+        const xpGained = Math.max(0, Number(details.xp || 50));
+        const beforeLevel = Number(profile.mainLevel || profile.level || 1);
+        profile.successfulPlays += 1;
+        profile.mainXp = Math.max(0, Number(profile.mainXp || profile.xp || 0)) + xpGained;
+        profile.xp = profile.mainXp;
+        profile.mainLevel = levelFromXp(profile.mainXp);
+        profile.level = profile.mainLevel;
+
+        if (!profile.games[game]) profile.games[game] = blankGame();
+        profile.games[game].successes = Number(profile.games[game].successes || 0) + 1;
+        profile.games[game].bestScore = Math.max(Number(profile.games[game].bestScore || 0), Number(details.score || 0));
+        profile.games[game].bestLevel = Math.max(Number(profile.games[game].bestLevel || 0), Number(details.level || 0));
+        profile.games[game].lastPlayedAt = nowIso();
+
+        profile.recentActivity.unshift({
+          game,
+          title: details.title || ("Successful " + game + " play"),
+          score: Number(details.score || 0),
+          level: Number(details.level || 0),
+          xp: xpGained,
+          at: nowIso()
+        });
+        profile.recentActivity = profile.recentActivity.slice(0, MAX_RECENT);
+        saveProfile(profile);
+
+        if (profile.mainLevel > beforeLevel) showToast("Main Level Up! Lv " + beforeLevel + " → " + profile.mainLevel);
+        else if (xpGained > 0) showToast("+" + xpGained + " XP gained");
+        return profile;
+      }
+      function resetProfile() {
+        const profile = defaultProfile();
+        saveProfile(profile);
+        return profile;
+      }
+      window.GameHubProfile = { PROFILE_KEY, MAX_PROFILE_LEVEL, readProfile, saveProfile, recordSuccess, resetProfile, xpForNext, xpForLevelStart, xpGapForLevel, xpRangeForLevel, levelFromXp };
+    })();
+  </script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+(function () {
+  if (window.GameHubModal) return;
+  function ensureStyles() {
+    if (document.getElementById("gamehub-modal-styles")) return;
+    const style = document.createElement("style");
+    style.id = "gamehub-modal-styles";
+    style.textContent = `
+      .gh-modal-overlay{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:18px;background:rgba(2,6,19,.78);backdrop-filter:blur(12px) saturate(130%)}
+      .gh-modal-card{width:min(440px,100%);border-radius:24px;padding:20px;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.035)),linear-gradient(135deg,rgba(80,244,255,.10),rgba(199,125,255,.085)),rgba(7,12,31,.96);border:1px solid rgba(255,255,255,.16);box-shadow:0 28px 90px rgba(0,0,0,.58),0 0 0 1px rgba(80,244,255,.22),0 0 36px rgba(80,244,255,.12);color:var(--text,#f4f8ff);font-family:inherit;animation:ghModalPop .18s ease forwards}
+      @keyframes ghModalPop{from{transform:translateY(10px) scale(.98);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+      .gh-modal-icon{width:44px;height:44px;display:grid;place-items:center;border-radius:16px;margin-bottom:12px;background:linear-gradient(135deg,var(--accent,#50f4ff),var(--accent-2,#c77dff));color:#06101a;font-size:1.4rem;box-shadow:0 0 28px rgba(80,244,255,.26)}
+      .gh-modal-card.danger .gh-modal-icon{background:linear-gradient(135deg,#ff5d7a,#ffb65d)}
+      .gh-modal-title{margin:0 0 8px;font-size:1.35rem;line-height:1.1;letter-spacing:-.04em;color:var(--text,#f4f8ff)}
+      .gh-modal-message{margin:0 0 16px;color:var(--muted,#aab7df);line-height:1.5;font-size:.94rem;white-space:pre-wrap}
+      .gh-modal-input{width:100%;margin:0 0 14px;padding:12px 13px;border-radius:14px;border:1px solid rgba(80,244,255,.25);background:rgba(255,255,255,.075);color:var(--text,#f4f8ff);font:inherit;font-weight:800;outline:none}
+      .gh-modal-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+      .gh-modal-btn{border-radius:999px;padding:10px 16px;border:1px solid rgba(255,255,255,.15);font-weight:1000;cursor:pointer;font:inherit}
+      .gh-modal-btn.cancel{color:var(--text,#f4f8ff);background:rgba(255,255,255,.075)}
+      .gh-modal-btn.confirm{color:#06101a;background:linear-gradient(135deg,var(--accent,#50f4ff),#9ffcff);box-shadow:0 0 24px rgba(80,244,255,.22)}
+      .gh-modal-card.danger .gh-modal-btn.confirm{background:linear-gradient(135deg,#ff5d7a,#ffb65d)}
+      .gh-toast{position:fixed;right:18px;bottom:18px;z-index:99998;padding:13px 15px;border-radius:16px;background:linear-gradient(135deg,rgba(80,244,255,.95),rgba(199,125,255,.95));color:#05101d;font-weight:1000;box-shadow:0 18px 50px rgba(0,0,0,.34);font-family:inherit;max-width:min(340px,calc(100vw - 36px));transition:all .35s ease}
+    `;
+    document.head.appendChild(style);
+  }
+  function modal(opts) {
+    ensureStyles();
+    opts = opts || {};
+    return new Promise(function (resolve) {
+      const overlay = document.createElement("div");
+      overlay.className = "gh-modal-overlay";
+      const card = document.createElement("div");
+      card.className = "gh-modal-card" + (opts.danger ? " danger" : "");
+      card.setAttribute("role", "dialog");
+      card.setAttribute("aria-modal", "true");
+      const inputHtml = opts.input ? `<input class="gh-modal-input" id="ghModalInput" value="${String(opts.value || "").replace(/"/g, "&quot;")}" placeholder="${String(opts.placeholder || "").replace(/"/g, "&quot;")}">` : "";
+      card.innerHTML = `<div class="gh-modal-icon">${opts.icon || "💬"}</div><h2 class="gh-modal-title">${opts.title || "Message"}</h2><p class="gh-modal-message">${opts.message || ""}</p>${inputHtml}<div class="gh-modal-actions"><button class="gh-modal-btn cancel" type="button">${opts.cancelText || "Cancel"}</button><button class="gh-modal-btn confirm" type="button">${opts.confirmText || "OK"}</button></div>`;
+      overlay.appendChild(card);
+      document.body.appendChild(overlay);
+      const cancel = card.querySelector(".cancel");
+      const confirm = card.querySelector(".confirm");
+      const input = card.querySelector("#ghModalInput");
+      cancel.style.display = opts.hideCancel ? "none" : "inline-flex";
+      function done(value) { overlay.remove(); resolve(value); }
+      cancel.onclick = function () { done(opts.input ? null : false); };
+      confirm.onclick = function () { done(opts.input ? (input ? input.value : "") : true); };
+      overlay.addEventListener("click", function (event) { if (event.target === overlay) done(opts.input ? null : false); });
+      window.addEventListener("keydown", function onKey(e) {
+        if (!document.body.contains(overlay)) return window.removeEventListener("keydown", onKey);
+        if (e.key === "Escape") { window.removeEventListener("keydown", onKey); done(opts.input ? null : false); }
+        if (e.key === "Enter" && input) { window.removeEventListener("keydown", onKey); done(input.value); }
+      });
+      if (input) setTimeout(function () { input.focus(); input.select(); }, 40);
+    });
+  }
+  function toast(text) {
+    ensureStyles();
+    const t = document.createElement("div");
+    t.className = "gh-toast";
+    t.textContent = text;
+    document.body.appendChild(t);
+    setTimeout(function () { t.style.opacity = "0"; t.style.transform = "translateY(8px)"; }, 2400);
+    setTimeout(function () { t.remove(); }, 2850);
+  }
+  window.GameHubModal = {
+    alert: function (title, message) { return modal({ title: title || "Message", message: message || "", icon: "💬", hideCancel: true }); },
+    confirm: function (title, message, opts) { opts = opts || {}; return modal({ title: title || "Confirm", message: message || "", icon: opts.icon || "⚠️", danger: !!opts.danger, confirmText: opts.confirmText || "Confirm", cancelText: opts.cancelText || "Cancel" }); },
+    prompt: function (title, message, opts) { opts = opts || {}; return modal({ title: title || "Input", message: message || "", icon: opts.icon || "⌨️", input: true, value: opts.value || "", placeholder: opts.placeholder || "", confirmText: opts.confirmText || "OK", cancelText: opts.cancelText || "Cancel" }); },
+    toast: toast
+  };
+  const nativeAlert = window.alert;
+  window.alert = function (message) { try { window.GameHubModal.alert("Message", String(message || "")); } catch (err) { nativeAlert(message); } };
+})();
+</script>
+
+</head>
+<body>
+
+    <div class="app-container">
+        <header>
+            <div class="brand"><span class="logo" aria-hidden="true"></span>Game Hub</div>
+            <nav aria-label="Main navigation">
+                <a href="homepage" class="home-link">← Back Arcade</a>
+                <span class="account-pill">
+                    👤 <span id="accountName">Player</span>
+                    <span class="level-badge" id="accountLevel">LV 1</span>
+                </span>
+            </nav>
+        </header>
+
+        <div id="game-wrapper">
+            <div id="game-canvas-container"></div>
+            <div id="city-skyline" aria-hidden="true"></div>
+            <div id="impact-flash" aria-hidden="true"></div>
+            <div id="weather-overlay" aria-hidden="true"></div>
+
+            <div class="hud-stack">
+                <div id="game-ui">
+                    <p class="score-title">Distance</p>
+                    <p class="score-val" id="score">0</p>
+                </div>
+                <div id="mini-stats">
+                    <span class="stat-chip">Best <span id="best-score">0</span></span>
+                    <span class="stat-chip">Rank <span id="rank-level">Rookie</span></span>
+                    <span class="stat-chip">Idle <span id="idle-count">Safe</span></span>
+                    <span class="stat-chip">Theme <span id="theme-label">Auto</span></span>
+                </div>
+            </div>
+
+
+
+            <div class="multiplayer-panel" id="multiplayer-panel">
+                <div class="multiplayer-title">
+                    <span>Multiplayer</span>
+                    <span id="room-status">Solo</span>
+                </div>
+                <div class="multiplayer-actions">
+                    <button class="mp-btn primary" id="create-room-btn" type="button">Create Room</button>
+                    <button class="mp-btn" id="join-room-btn" type="button">Join Room</button>
+                    <button class="mp-btn leave" id="leave-room-btn" type="button">Leave Room</button>
+                </div>
+                <div id="multiplayer-list" class="multiplayer-list" aria-live="polite"></div>
+            </div>
+
+            <div id="danger-banner">Keep moving — eagle patrol active</div>
+            <div id="instructions">Use <span>WASD</span> or <span>ARROW KEYS</span> to Hop • cross roads, rivers, and rails</div>
+            <div id="mobile-controls-hint">Swipe up/down/left/right to hop the chicken. Keep moving and avoid traffic.</div>
+
+
+
+            <div id="game-modal-overlay" aria-hidden="true">
+                <div class="game-modal-card" role="dialog" aria-modal="true" aria-labelledby="game-modal-title">
+                    <div class="game-modal-icon" id="game-modal-icon">💬</div>
+                    <h2 class="game-modal-title" id="game-modal-title">Message</h2>
+                    <p class="game-modal-message" id="game-modal-message">Message text</p>
+                    <div class="game-modal-code" id="game-modal-code"><span id="game-modal-code-text"></span><button class="game-modal-copy" id="game-modal-copy" type="button">Copy</button></div>
+                    <input class="game-modal-input" id="game-modal-input" maxlength="8" autocomplete="off" spellcheck="false" />
+                    <div class="game-modal-actions">
+                        <button class="game-modal-btn cancel" id="game-modal-cancel" type="button">Cancel</button>
+                        <button class="game-modal-btn confirm" id="game-modal-confirm" type="button">OK</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="gameover-screen">
+                <div class="go-card">
+                    <h2>CRASHED!</h2>
+                    <p>Your chicken safe-crossed <span id="final-score" style="color:var(--accent); font-weight:900;">0</span> lines.</p>
+                    <p>Rank reached: <span id="final-rank" style="color:var(--accent-2); font-weight:900;">Rookie</span></p>
+                    <button class="action-btn" onclick="resetGame()">Hop Again</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="globalChatDock" class="chat-dock minimized">
+        <div class="chat-header" id="chatHeaderClickable">
+            <h3>💬 GameHub Comm-Link</h3>
+            <button class="chat-window-toggle" id="chatToggleIcon">—</button>
+        </div>
+        
+        <div class="chat-body">
+            <div id="chatContactsView" class="chat-view">
+            <div class="contact-search-bar">
+                <input type="text" id="targetFriendInput" class="chat-input-field" placeholder="Search player username..." autocomplete="off"/>
+                <button id="addFriendActionBtn" class="chat-action-btn">Add</button>
+            </div>
+            <div id="contactsBox" class="contacts-list"></div>
+            </div>
+
+            <div id="chatMessagingView" class="chat-view hidden">
+            <button id="leaveChatRoomBtn" class="chat-back-btn">← Back to Contacts</button>
+            <div id="messagesBox" class="messages-container"></div>
+            <div class="contact-search-bar">
+                <input type="text" id="rawMessageText" class="chat-input-field" placeholder="Type a message..." autocomplete="off"/>
+                <button id="sendMessageActionBtn" class="chat-action-btn">Send</button>
+            </div>
+            </div>
+        </div>
+        </div>
+
+    <script>
+        const FIREBASE_DB_URL = "https://gamehubss-default-rtdb.firebaseio.com/";
+
+        function firebaseSafeKey(value) {
+            return String(value || "Player").replace(/[.#$\[\]/]/g, "_").slice(0, 80);
+        }
+
+        const RANK_LEVELS = [
+            { name: "Mythical", min: 120, icon: "🐉", className: "rank-mythical" },
+            { name: "Platinum", min: 90, icon: "💎", className: "rank-platinum" },
+            { name: "Gold", min: 65, icon: "🏆", className: "rank-gold" },
+            { name: "Silver", min: 40, icon: "🛡️", className: "rank-silver" },
+            { name: "Bronze", min: 25, icon: "🥉", className: "rank-bronze" },
+            { name: "Rookie", min: 0, icon: "🐣", className: "rank-rookie" }
+        ];
+
+        function getRankMeta(distance) {
+            const safeDistance = Number(distance) || 0;
+            return RANK_LEVELS.find(rank => safeDistance >= rank.min) || RANK_LEVELS[RANK_LEVELS.length - 1];
+        }
+
+        function getRankLevel(distance) {
+            return getRankMeta(distance).name;
+        }
+
+        function renderRankHTML(distance) {
+            const rank = getRankMeta(distance);
+            return `<span class="rank-emblem ${rank.className}" aria-hidden="true">${rank.icon}</span><span>${rank.name}</span>`;
+        }
+
+        function updateRankUI(distance) {
+            const rank = getRankMeta(Number(distance) || 0);
+            const el = document.getElementById("rank-level");
+            if (el) {
+                el.className = "rank-display";
+                el.innerHTML = renderRankHTML(distance);
+                el.setAttribute("aria-label", rank.name + " rank");
+            }
+            return rank.name;
+        }
+
+        function parseMaybeJsonString(value) {
+            if (typeof value !== "string") return value;
+            try { return JSON.parse(value); }
+            catch (err) { return value; }
+        }
+
+        function getCurrentProfileLevel() {
+            if (window.GameHubProfile && typeof window.GameHubProfile.readProfile === "function") {
+                const profile = window.GameHubProfile.readProfile() || {};
+                if (profile.mainLevel || profile.level) return Number(profile.mainLevel || profile.level) || 1;
+            }
+            return Number(localStorage.getItem("gamehub_level") || localStorage.getItem("crossyroad_currentLevel") || 1);
+        }
+
+        async function readCurrentLevelFromDatabase(playerName) {
+            if (!window.GameHubAuth) return null;
+            const safeUser = typeof window.GameHubAuth.safeUsernameKey === "function"
+                ? window.GameHubAuth.safeUsernameKey(playerName)
+                : String(playerName || "Player").trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
+            const urlFor = typeof window.GameHubAuth.firebaseUrl === "function"
+                ? window.GameHubAuth.firebaseUrl
+                : (parts) => FIREBASE_DB_URL.replace(/\/$/, "") + "/" + parts.map(encodeURIComponent).join("/") + ".json";
+
+            try {
+                const profileRes = await fetch(urlFor(["users", safeUser, "gameData", "gamehub_profile_v1"]));
+                if (profileRes.ok) {
+                    const rawProfile = parseMaybeJsonString(await profileRes.json());
+                    if (rawProfile && typeof rawProfile === "object") {
+                        localStorage.setItem("gamehub_profile_v1", JSON.stringify(rawProfile));
+                        if (rawProfile.mainLevel || rawProfile.level) return Math.max(1, Number(rawProfile.mainLevel || rawProfile.level) || 1);
+                    }
+                }
+            } catch (err) { console.warn("Profile level read failed:", err); }
+
+            try {
+                const levelRes = await fetch(urlFor(["users", safeUser, "gameData", "crossyroad_currentLevel"]));
+                if (levelRes.ok) {
+                    const rawLevel = parseMaybeJsonString(await levelRes.json());
+                    if (rawLevel) return Math.max(1, Number(rawLevel) || 1);
+                }
+            } catch (err) { console.warn("Crossy level read failed:", err); }
+
+            return null;
+        }
+
+        async function syncCurrentLevelFromDatabase(playerName) {
+            const dbLevel = await readCurrentLevelFromDatabase(playerName);
+            if (dbLevel) return updateAccountLevelUI(dbLevel);
+            return updateAccountLevelUI(getCurrentProfileLevel());
+        }
+
+        function updateAccountLevelUI(level) {
+            const safeLevel = Math.max(1, Number(level) || 1);
+            localStorage.setItem("crossyroad_currentLevel", String(safeLevel));
+            document.getElementById("accountLevel").textContent = "LV " + safeLevel;
+            return safeLevel;
+        }
+
+        async function loadCrossyFirebaseProfile(playerName) {
+            const key = firebaseSafeKey(playerName);
+            try {
+                const res = await fetch(`${FIREBASE_DB_URL}/crossyRoad/${key}.json`);
+                if (!res.ok) throw new Error(`Firebase read failed: ${res.status}`);
+                const data = await res.json();
+                if (data && typeof data.bestScore === "number") {
+                    const localBest = Number(localStorage.getItem("crossyroad_maxDistance") || 0);
+                    const best = Math.max(localBest, data.bestScore);
+                    localStorage.setItem("crossyroad_maxDistance", String(best));
+                    document.getElementById("best-score").textContent = best;
+                    updateRankUI(best);
+                }
+                const dbProfileLevel = await readCurrentLevelFromDatabase(playerName);
+                if (dbProfileLevel) {
+                    updateAccountLevelUI(dbProfileLevel);
+                } else if (data && data.currentLevel) {
+                    updateAccountLevelUI(data.currentLevel);
+                } else {
+                    updateAccountLevelUI(getCurrentProfileLevel());
+                }
+            } catch (error) {
+                console.warn(error);
+                syncCurrentLevelFromDatabase(playerName);
+            }
+        }
+
+        async function saveCrossyFirebaseScore(playerName, finalScore) {
+            const key = firebaseSafeKey(playerName);
+            const bestScore = Math.max(Number(localStorage.getItem("crossyroad_maxDistance") || 0), finalScore);
+            const currentLevel = updateAccountLevelUI(getCurrentProfileLevel());
+            const rankLevel = getRankLevel(bestScore);
+            try {
+                const payload = {
+                    playerName,
+                    bestScore,
+                    lastScore: finalScore,
+                    currentLevel,
+                    rankLevel,
+                    updatedAt: new Date().toISOString(),
+                    game: "Crossy Road"
+                };
+                const res = await fetch(`${FIREBASE_DB_URL}/crossyRoad/${key}.json`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) throw new Error(`Firebase write failed: ${res.status}`);
+            } catch (error) {
+                console.warn(error);
+            }
+        }
+
+        // Synchronized profile read layer directly matching homepage logic
+        const username = window.GameHubAuth ? window.GameHubAuth.username : "Player";
+        document.getElementById("accountName").textContent = username;
+
+        if (window.GameHubProfile && typeof window.GameHubProfile.readProfile === "function") {
+            const liveProfile = window.GameHubProfile.readProfile();
+            if (liveProfile && (liveProfile.mainLevel || liveProfile.level)) updateAccountLevelUI(liveProfile.mainLevel || liveProfile.level);
+        }
+
+        document.getElementById("best-score").textContent = localStorage.getItem("crossyroad_maxDistance") || "0";
+        updateRankUI(Number(localStorage.getItem("crossyroad_maxDistance") || 0));
+        syncCurrentLevelFromDatabase(username).then(() => loadCrossyFirebaseProfile(username));
+
+        function calculateCrossyRoadXp(finalScore, previousBest) {
+            const distance = Math.max(0, Number(finalScore) || 0);
+            if (distance < 6) return 0;
+
+            // Low-distance runs should not level the profile quickly.
+            // XP grows slowly, and a meaningful bonus is only added when the player beats their best score.
+            let xp = 0;
+            if (distance < 10) xp = 2;
+            else if (distance < 20) xp = 4;
+            else if (distance < 25) xp = 6;
+            else if (distance < 40) xp = 10;
+            else if (distance < 65) xp = 16;
+            else if (distance < 90) xp = 24;
+            else if (distance < 120) xp = 34;
+            else xp = 48;
+
+            if (distance > previousBest) {
+                xp += Math.min(22, Math.max(4, Math.floor((distance - previousBest) / 3)));
+            } else {
+                xp = Math.max(0, Math.floor(xp * 0.35));
+            }
+            return Math.min(70, xp);
+        }
+
+        function awardCrossyRoadProfileXp(finalScore, previousBest) {
+            if (!window.GameHubProfile || typeof window.GameHubProfile.recordSuccess !== "function") return;
+            const xp = calculateCrossyRoadXp(finalScore, previousBest);
+            if (xp <= 0) return;
+            const profile = window.GameHubProfile.recordSuccess("Crossy Road", {
+                score: Number(finalScore || 0),
+                level: Number(finalScore || 0),
+                xp: xp,
+                title: "Crossed " + finalScore + " lanes"
+            });
+            if (profile && (profile.mainLevel || profile.level)) updateAccountLevelUI(profile.mainLevel || profile.level);
+        }
+
+        // Post back statistics to user profile upon scoring benchmarks
+        function handleLevelUpTracking(finalScore) {
+            const MAX_DISTANCE_KEY = "crossyroad_maxDistance";
+            const LEVEL_KEY = "crossyroad_lastLevel";
+
+            const previousBest = Number(localStorage.getItem(MAX_DISTANCE_KEY) || 0);
+            if (finalScore > previousBest) {
+                localStorage.setItem(MAX_DISTANCE_KEY, String(finalScore));
+                document.getElementById("best-score").textContent = finalScore;
+                updateRankUI(finalScore);
+            }
+
+            awardCrossyRoadProfileXp(finalScore, previousBest);
+            localStorage.setItem(LEVEL_KEY, String(getCurrentProfileLevel()));
+
+            // Save after profile updates so Firebase receives the current synced level.
+            saveCrossyFirebaseScore(username, finalScore);
+        }
+    </script>
+
+    <script>
+        const TYPE_SNOW = 0, TYPE_ROAD = 1, TYPE_RIVER = 2, TYPE_RAIL = 3;
+
+        const COLOR_CHICKEN = 0xffffff;
+        const COLOR_COMB = 0xff3355;
+        const COLOR_BEAK = 0xffaa00;
+
+        const THEME_PRESETS = {
+            sunrise: {
+                label: "Sunrise", sky: 0xffcfa3, ambient: 0.70, sun: 0.68, fog: null,
+                snow: 0x8fdc7b, road: 0x2e3445, river: 0x33a7cc, rail: 0x615c66, trunk: 0x5b3523, leaves: 0x2f8f4e, treeCap: 0x72d36b, treeSnow: false
+            },
+            moon: {
+                label: "Moon", sky: 0x070b1d, ambient: 0.34, sun: 0.42, fog: 0x070b1d,
+                snow: 0x244063, road: 0x151925, river: 0x102f55, rail: 0x302d3b, trunk: 0x2b1c18, leaves: 0x15351f, treeCap: 0x1f5130, treeSnow: false
+            },
+            sunset: {
+                label: "Sunset", sky: 0xff8f70, ambient: 0.72, sun: 0.78, fog: null,
+                snow: 0xb7e75b, road: 0x3a332d, river: 0x25b9d6, rail: 0x6a5b52, trunk: 0x6b3f24, leaves: 0x30a64f, treeCap: 0xffd166, treeSnow: false
+            },
+            rainy: {
+                label: "Rainy", sky: 0x3e526d, ambient: 0.46, sun: 0.38, fog: 0x27354a,
+                snow: 0x47795c, road: 0x1b2230, river: 0x2d6f8f, rail: 0x3c3e48, trunk: 0x39281f, leaves: 0x1d5e38, treeCap: 0x65a77d, treeSnow: false
+            },
+            snow: {
+                label: "Snow", sky: 0xddeaff, ambient: 0.68, sun: 0.55, fog: 0xddeaff,
+                snow: 0xf4fbff, road: 0x384052, river: 0x8fc7e8, rail: 0x696f7d, trunk: 0x4f3428, leaves: 0x1f4f37, treeCap: 0xdaf7ff, treeSnow: true
+            }
+        };
+
+        // Backward-compatible aliases for old saved/query theme names.
+        THEME_PRESETS.day = THEME_PRESETS.sunrise;
+        THEME_PRESETS.night = THEME_PRESETS.moon;
+        THEME_PRESETS.summer = THEME_PRESETS.sunset;
+
+        let activeThemeName = "sunrise";
+        let activeTheme = THEME_PRESETS.sunrise;
+        let rainParticles = null;
+        let ambientLight = null, directionalLight = null, moonFillLight = null;
+
+        function seededRandomFromText(text) {
+            let hash = 2166136261;
+            for (let i = 0; i < text.length; i++) {
+                hash ^= text.charCodeAt(i);
+                hash = Math.imul(hash, 16777619);
+            }
+            return ((hash >>> 0) % 10000) / 10000;
+        }
+
+        function getDailyWeatherThemeName(now) {
+            const dateKey = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+            const userSeed = (window.GameHubAuth && window.GameHubAuth.username) || "Player";
+            const roll = seededRandomFromText(dateKey + "|crossyroad-weather|" + userSeed);
+            if (roll < 0.18) return "rainy";
+            if (roll < 0.34) return "summer";
+            if (roll < 0.48) return "snow";
+            return "day";
+        }
+
+        function getSeasonalThemeName() {
+            const now = new Date();
+            const hour = now.getHours();
+            const forced = new URLSearchParams(window.location.search).get("theme") || localStorage.getItem("crossyroad_theme_override");
+            if (forced && THEME_PRESETS[String(forced).toLowerCase()]) return String(forced).toLowerCase();
+
+            // Time-based map lighting:
+            // 6:00 AM to 12:59 PM = Sunrise mode
+            // 1:00 PM to 6:59 PM = Sunset mode
+            // 7:00 PM to 5:59 AM = Moon mode
+            if (hour >= 6 && hour <= 12) return "sunrise";
+            if (hour >= 13 && hour <= 18) return "sunset";
+            return "moon";
+        }
+
+        function setActiveTheme(themeName) {
+            activeThemeName = THEME_PRESETS[themeName] ? themeName : "sunrise";
+            activeTheme = THEME_PRESETS[activeThemeName];
+            const label = document.getElementById("theme-label");
+            if (label) label.textContent = activeTheme.label;
+            const overlay = document.getElementById("weather-overlay");
+            if (overlay) overlay.className = activeThemeName === "rainy" ? "rainy" : (activeThemeName === "snow" ? "snow" : (activeThemeName === "moon" ? "moon" : ""));
+            if (scene) {
+                scene.background = new THREE.Color(activeTheme.sky);
+                scene.fog = activeTheme.fog ? new THREE.Fog(activeTheme.fog, 10, 42) : null;
+            }
+            if (ambientLight) ambientLight.intensity = activeTheme.ambient;
+            if (directionalLight) directionalLight.intensity = activeTheme.sun;
+            if (moonFillLight) moonFillLight.intensity = activeThemeName === "moon" ? 0.32 : 0;
+            if (rows && rows.length) refreshStreetLampsForRows();
+        }
+
+        function isMoonMode() {
+            return activeThemeName === "moon" || activeThemeName === "night";
+        }
+
+        function buildRainParticles() {
+            const rain = new THREE.Group();
+            const mat = new THREE.MeshLambertMaterial({ color: 0x9fdcff, transparent: true, opacity: 0.55 });
+            for (let i = 0; i < 70; i++) {
+                const drop = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.42, 0.025), mat);
+                drop.position.set((Math.random() * 18) - 9, 2 + Math.random() * 7, (Math.random() * 18) - 9);
+                drop.rotation.z = 0.35;
+                rain.add(drop);
+            }
+            rain.visible = activeThemeName === "rainy";
+            scene.add(rain);
+            return rain;
+        }
+
+        function updateRainParticles(delta) {
+            if (!rainParticles) return;
+            rainParticles.visible = activeThemeName === "rainy";
+            if (!rainParticles.visible) return;
+            rainParticles.position.x = chicken ? chicken.position.x : 0;
+            rainParticles.position.z = chicken ? chicken.position.z : 0;
+            rainParticles.children.forEach(drop => {
+                drop.position.y -= delta * 8.5;
+                if (drop.position.y < 0.2) {
+                    drop.position.y = 7 + Math.random() * 2;
+                    drop.position.x = (Math.random() * 18) - 9;
+                    drop.position.z = (Math.random() * 18) - 9;
+                }
+            });
+        }
+
+        function updateWaterWaves(delta, elapsed) {
+            for (let i = 0; i < waterWaves.length; i++) {
+                const wave = waterWaves[i];
+                if (!wave || !wave.mesh) continue;
+                const data = wave.mesh.userData.wave || {};
+                wave.mesh.position.x = data.baseX + Math.sin(elapsed * (data.speed || 1) + (data.phase || 0)) * (data.amp || 0.08);
+                wave.mesh.position.y = data.baseY + Math.sin(elapsed * 2.3 + (data.phase || 0)) * 0.006;
+            }
+        }
+
+        function material(color, extra) {
+            return new THREE.MeshLambertMaterial(Object.assign({ color }, extra || {}));
+        }
+
+        let scene, camera, renderer, container;
+        let chicken;
+        let rows = [], rowObjects = [];
+        let cars = [], logs = [];
+        let waterWaves = [];
+        let eagle = null;
+        const MAX_MULTIPLAYER_PLAYERS = 4;
+        const MULTIPLAYER_ROOM_PATH = "crossyRoadRooms";
+        const MULTIPLAYER_COLORS = [0xfffbef, 0x8be9ff, 0xffd166, 0xc77dff];
+        let multiplayerRoomCode = "";
+        let multiplayerIsHost = false;
+        let multiplayerPlayers = {};
+        let multiplayerMeshes = {};
+        let multiplayerSyncTimer = null;
+        let multiplayerPlayerId = localStorage.getItem("crossyroad_multiplayer_player_id") || ("p_" + Math.random().toString(36).slice(2, 10));
+        localStorage.setItem("crossyroad_multiplayer_player_id", multiplayerPlayerId);
+        let currentMaxRow = 0, score = 0, isGameOver = false;
+        let lastMoveTime = 0, eagleAttackStarted = false, blockedMessageUntil = 0;
+        const IDLE_WARNING_SECONDS = 4.5;
+        const IDLE_CATCH_SECONDS = 7.5;
+
+        let playerForwardIndex = 0, playerSideIndex = 0;
+        let targetX = 0, targetZ = 0;
+        let isJumping = false, jumpProgress = 0, jumpStartX = 0, jumpStartZ = 0;
+
+        const zoomLevel = 6.2; // closer, more zoomed-in camera
+        const clock = new THREE.Clock();
+
+        function initEngine() {
+            container = document.getElementById('game-canvas-container');
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(activeTheme.sky);
+            scene.fog = activeTheme.fog ? new THREE.Fog(activeTheme.fog, 10, 42) : null;
+
+            const aspect = container.clientWidth / container.clientHeight;
+            camera = new THREE.OrthographicCamera(-zoomLevel * aspect, zoomLevel * aspect, zoomLevel, -zoomLevel, 1, 1000);
+            
+            // TRUE ISOMETRIC PLACEMENT FROM CORNER POINTING DOWN DIAGONALLY
+            camera.position.set(8.5, 9.5, 8.5);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Light Environments
+            ambientLight = new THREE.AmbientLight(0xffffff, activeTheme.ambient);
+            scene.add(ambientLight);
+
+            directionalLight = new THREE.DirectionalLight(0xffffff, activeTheme.sun);
+            directionalLight.position.set(15, 25, 10);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 1024;
+            directionalLight.shadow.mapSize.height = 1024;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 100;
+            const shadowSpan = 25;
+            directionalLight.shadow.camera.left = -shadowSpan;
+            directionalLight.shadow.camera.right = shadowSpan;
+            directionalLight.shadow.camera.top = shadowSpan;
+            directionalLight.shadow.camera.bottom = -shadowSpan;
+            scene.add(directionalLight);
+
+            moonFillLight = new THREE.HemisphereLight(0xbfd7ff, 0x050814, 0);
+            scene.add(moonFillLight);
+
+            setActiveTheme(activeThemeName);
+
+            buildPlayer();
+            eagle = buildPredator();
+            rainParticles = buildRainParticles();
+            lastMoveTime = clock.getElapsedTime();
+
+            // Populate starting layout
+            for (let i = 0; i < 40; i++) {
+                generateRowStructure(i);
+            }
+
+            // Keep the world alive before the player moves, but avoid overcrowding early lanes.
+            seedVisibleTraffic();
+
+            window.addEventListener('keydown', processInput);
+            window.addEventListener('resize', handleResizeResize);
+        }
+
+        function buildPredator() {
+            const bird = new THREE.Group();
+            const bodyMat = new THREE.MeshLambertMaterial({ color: 0x2f3545 });
+            const wingMat = new THREE.MeshLambertMaterial({ color: 0x161b25 });
+            const beakMat = new THREE.MeshLambertMaterial({ color: 0xffc857 });
+
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.26, 0.34), bodyMat);
+            body.castShadow = true;
+            bird.add(body);
+
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.22, 0.24), bodyMat);
+            head.position.set(0, 0.12, -0.28);
+            head.castShadow = true;
+            bird.add(head);
+
+            const beak = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 0.18), beakMat);
+            beak.position.set(0, 0.1, -0.48);
+            bird.add(beak);
+
+            [-1, 1].forEach(side => {
+                const wing = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.08, 0.28), wingMat);
+                wing.position.set(side * 0.58, 0, 0);
+                wing.rotation.z = side * 0.22;
+                wing.castShadow = true;
+                bird.add(wing);
+            });
+
+            bird.visible = false;
+            bird.position.set(0, 6, 4);
+            scene.add(bird);
+            return bird;
+        }
+
+        function buildPlayer() {
+            chicken = new THREE.Group();
+
+            const featherMat = new THREE.MeshLambertMaterial({ color: 0xfffbef });
+            const wingMat = new THREE.MeshLambertMaterial({ color: 0xf0e6d2 });
+            const combMat = new THREE.MeshLambertMaterial({ color: COLOR_COMB });
+            const beakMat = new THREE.MeshLambertMaterial({ color: COLOR_BEAK });
+            const eyeMat = new THREE.MeshLambertMaterial({ color: 0x111827 });
+            const legMat = new THREE.MeshLambertMaterial({ color: 0xffb347 });
+
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.72, 0.62), featherMat);
+            body.position.y = 0.42;
+            body.castShadow = body.receiveShadow = true;
+            chicken.add(body);
+
+            const chest = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.45, 0.18), new THREE.MeshLambertMaterial({ color: 0xffffff }));
+            chest.position.set(0, 0.38, -0.34);
+            chest.castShadow = true;
+            chicken.add(chest);
+
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.48, 0.45), featherMat);
+            head.position.set(0, 0.92, -0.12);
+            head.castShadow = true;
+            chicken.add(head);
+
+            const wingL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.36, 0.48), wingMat);
+            wingL.position.set(-0.47, 0.43, 0.02);
+            wingL.rotation.z = 0.18;
+            wingL.castShadow = true;
+            chicken.add(wingL);
+
+            const wingR = wingL.clone();
+            wingR.position.x = 0.47;
+            wingR.rotation.z = -0.18;
+            chicken.add(wingR);
+
+            const comb1 = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.24, 0.16), combMat);
+            comb1.position.set(0, 1.25, -0.16);
+            comb1.castShadow = true;
+            chicken.add(comb1);
+            const comb2 = comb1.clone();
+            comb2.position.z = 0.02;
+            comb2.scale.y = 0.8;
+            chicken.add(comb2);
+
+            const beak = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.16, 0.26), beakMat);
+            beak.position.set(0, 0.90, -0.45);
+            beak.castShadow = true;
+            chicken.add(beak);
+
+            [-0.16, 0.16].forEach(x => {
+                const eye = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.035), eyeMat);
+                eye.position.set(x, 0.99, -0.36);
+                chicken.add(eye);
+            });
+
+            [-0.18, 0.18].forEach(x => {
+                const leg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.28, 0.08), legMat);
+                leg.position.set(x, 0.02, -0.04);
+                leg.castShadow = true;
+                chicken.add(leg);
+            });
+
+            chicken.scale.set(0.62, 0.62, 0.62);
+            scene.add(chicken);
+        }
+
+        function multiplayerUrl(parts) {
+            return FIREBASE_DB_URL.replace(/\/$/, "") + "/" + parts.map(encodeURIComponent).join("/") + ".json";
+        }
+
+        function generateRoomCode() {
+            return Math.random().toString(36).replace(/[^a-z0-9]/g, "").slice(2, 8).toUpperCase();
+        }
+
+        function getMultiplayerName() {
+            return username || "Player";
+        }
+
+        function getLocalMultiplayerState() {
+            return {
+                id: multiplayerPlayerId,
+                name: getMultiplayerName(),
+                x: Number(playerSideIndex) || 0,
+                row: Number(playerForwardIndex) || 0,
+                y: chicken ? Number(chicken.position.y || 0.375) : 0.375,
+                rotationY: chicken ? Number(chicken.rotation.y || 0) : 0,
+                score: Number(score) || 0,
+                rank: getRankLevel(Math.max(Number(score) || 0, Number(localStorage.getItem("crossyroad_maxDistance") || 0))),
+                colorIndex: 0,
+                updatedAt: Date.now()
+            };
+        }
+
+        function buildRemoteChickenModel(color) {
+            const bird = new THREE.Group();
+            const featherMat = new THREE.MeshLambertMaterial({ color: color || 0x8be9ff });
+            const wingMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            const darkMat = new THREE.MeshLambertMaterial({ color: 0x111827 });
+            const combMat = new THREE.MeshLambertMaterial({ color: COLOR_COMB });
+            const beakMat = new THREE.MeshLambertMaterial({ color: COLOR_BEAK });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.55), featherMat);
+            body.position.y = 0.38;
+            body.castShadow = true;
+            bird.add(body);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.42, 0.40), featherMat);
+            head.position.set(0, 0.82, -0.10);
+            head.castShadow = true;
+            bird.add(head);
+            const wingL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.30, 0.42), wingMat);
+            wingL.position.set(-0.40, 0.38, 0.02);
+            bird.add(wingL);
+            const wingR = wingL.clone();
+            wingR.position.x = 0.40;
+            bird.add(wingR);
+            const beak = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.13, 0.22), beakMat);
+            beak.position.set(0, 0.80, -0.39);
+            bird.add(beak);
+            const comb = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.20, 0.14), combMat);
+            comb.position.set(0, 1.10, -0.12);
+            bird.add(comb);
+            [-0.13, 0.13].forEach(x => {
+                const eye = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.03), darkMat);
+                eye.position.set(x, 0.89, -0.32);
+                bird.add(eye);
+            });
+            bird.scale.set(0.62, 0.62, 0.62);
+            return bird;
+        }
+
+
+
+        let activeGameModalResolver = null;
+
+        function openGameModal(options) {
+            options = options || {};
+            const overlay = document.getElementById("game-modal-overlay");
+            const card = overlay ? overlay.querySelector(".game-modal-card") : null;
+            const icon = document.getElementById("game-modal-icon");
+            const title = document.getElementById("game-modal-title");
+            const messageEl = document.getElementById("game-modal-message");
+            const input = document.getElementById("game-modal-input");
+            const codeWrap = document.getElementById("game-modal-code");
+            const codeText = document.getElementById("game-modal-code-text");
+            const copyBtn = document.getElementById("game-modal-copy");
+            const cancelBtn = document.getElementById("game-modal-cancel");
+            const confirmBtn = document.getElementById("game-modal-confirm");
+
+            if (!overlay || !card || !confirmBtn || !cancelBtn) {
+                return Promise.resolve({ confirmed: true, value: "" });
+            }
+
+            if (activeGameModalResolver) activeGameModalResolver({ confirmed: false, value: "" });
+
+            card.classList.toggle("danger", !!options.danger);
+            if (icon) icon.textContent = options.icon || (options.danger ? "⚠️" : "💬");
+            if (title) title.textContent = options.title || "Message";
+            if (messageEl) messageEl.textContent = options.message || "";
+
+            const wantsInput = !!options.input;
+            if (input) {
+                input.classList.toggle("show", wantsInput);
+                input.value = options.defaultValue || "";
+                input.placeholder = options.placeholder || "ROOM CODE";
+            }
+
+            const hasCode = !!options.code;
+            if (codeWrap && codeText) {
+                codeWrap.classList.toggle("show", hasCode);
+                codeText.textContent = options.code || "";
+            }
+
+            if (cancelBtn) {
+                cancelBtn.textContent = options.cancelText || "Cancel";
+                cancelBtn.style.display = options.hideCancel ? "none" : "inline-flex";
+            }
+            if (confirmBtn) confirmBtn.textContent = options.confirmText || "OK";
+
+            overlay.classList.add("show");
+            overlay.setAttribute("aria-hidden", "false");
+            setTimeout(() => { if (wantsInput && input) input.focus(); else confirmBtn.focus(); }, 30);
+
+            return new Promise(resolve => {
+                activeGameModalResolver = resolve;
+
+                function cleanup(result) {
+                    overlay.classList.remove("show");
+                    overlay.setAttribute("aria-hidden", "true");
+                    confirmBtn.removeEventListener("click", onConfirm);
+                    cancelBtn.removeEventListener("click", onCancel);
+                    overlay.removeEventListener("click", onBackdrop);
+                    document.removeEventListener("keydown", onKeydown);
+                    if (copyBtn) copyBtn.removeEventListener("click", onCopy);
+                    activeGameModalResolver = null;
+                    resolve(result);
+                }
+                function onConfirm() {
+                    cleanup({ confirmed: true, value: input ? input.value : "" });
+                }
+                function onCancel() {
+                    cleanup({ confirmed: false, value: "" });
+                }
+                function onBackdrop(event) {
+                    if (event.target === overlay && !options.disableBackdropClose) onCancel();
+                }
+                function onKeydown(event) {
+                    if (event.key === "Escape" && !options.disableBackdropClose) onCancel();
+                    if (event.key === "Enter") onConfirm();
+                }
+                function onCopy() {
+                    const text = options.code || "";
+                    if (navigator.clipboard && text) {
+                        navigator.clipboard.writeText(text).then(() => { copyBtn.textContent = "Copied"; setTimeout(() => { copyBtn.textContent = "Copy"; }, 900); }).catch(() => {});
+                    }
+                }
+
+                confirmBtn.addEventListener("click", onConfirm);
+                cancelBtn.addEventListener("click", onCancel);
+                overlay.addEventListener("click", onBackdrop);
+                document.addEventListener("keydown", onKeydown);
+                if (copyBtn) copyBtn.addEventListener("click", onCopy);
+            });
+        }
+
+        function showGameAlert(title, message, icon) {
+            return openGameModal({ title, message, icon: icon || "💬", hideCancel: true, confirmText: "OK" });
+        }
+
+        function showMultiplayerMessage(text) {
+            const dangerEl = document.getElementById('danger-banner');
+            blockedMessageUntil = clock ? clock.getElapsedTime() + 1.6 : 0;
+            if (dangerEl) dangerEl.textContent = text;
+        }
+
+        function updateMultiplayerUI() {
+            const status = document.getElementById("room-status");
+            const list = document.getElementById("multiplayer-list");
+            const createBtn = document.getElementById("create-room-btn");
+            const joinBtn = document.getElementById("join-room-btn");
+            const leaveBtn = document.getElementById("leave-room-btn");
+            const players = Object.values(multiplayerPlayers || {}).filter(Boolean).sort((a, b) => String(a.id).localeCompare(String(b.id)));
+            if (status) status.textContent = multiplayerRoomCode ? ("Room " + multiplayerRoomCode + " • " + players.length + "/4") : "Solo";
+            if (createBtn) createBtn.style.display = multiplayerRoomCode ? "none" : "block";
+            if (joinBtn) joinBtn.style.display = multiplayerRoomCode ? "none" : "block";
+            if (leaveBtn) leaveBtn.style.display = multiplayerRoomCode ? "block" : "none";
+            if (list) {
+                list.innerHTML = "";
+                if (!multiplayerRoomCode) {
+                    const empty = document.createElement("div");
+                    empty.className = "mp-player-row";
+                    empty.innerHTML = "<span>Create or join a room</span><span>max 4</span>";
+                    list.appendChild(empty);
+                } else {
+                    players.forEach((p, index) => {
+                        const row = document.createElement("div");
+                        row.className = "mp-player-row" + (p.id === multiplayerPlayerId ? " me" : "");
+                        row.innerHTML = `<span>${index + 1}. ${p.id === multiplayerPlayerId ? "You" : (p.name || "Player")}</span><span>${Number(p.score || 0)}m</span>`;
+                        list.appendChild(row);
+                    });
+                }
+            }
+        }
+
+        async function publishMultiplayerState() {
+            if (!multiplayerRoomCode) return;
+            const state = getLocalMultiplayerState();
+            multiplayerPlayers[multiplayerPlayerId] = state;
+            try {
+                await fetch(multiplayerUrl([MULTIPLAYER_ROOM_PATH, multiplayerRoomCode, "players", multiplayerPlayerId]), {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(state)
+                });
+                await fetch(multiplayerUrl([MULTIPLAYER_ROOM_PATH, multiplayerRoomCode, "updatedAt"]), {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(Date.now())
+                });
+            } catch (err) {
+                console.warn("Multiplayer publish failed:", err);
+            }
+        }
+
+        async function refreshMultiplayerRoom() {
+            if (!multiplayerRoomCode) return;
+            try {
+                const res = await fetch(multiplayerUrl([MULTIPLAYER_ROOM_PATH, multiplayerRoomCode, "players"]));
+                const data = res.ok ? (await res.json() || {}) : {};
+                const now = Date.now();
+                Object.keys(data).forEach(id => {
+                    if (!data[id] || now - Number(data[id].updatedAt || 0) > 20000) delete data[id];
+                });
+                if (!data[multiplayerPlayerId]) data[multiplayerPlayerId] = getLocalMultiplayerState();
+                multiplayerPlayers = data;
+                renderRemotePlayers();
+                updateMultiplayerUI();
+                if (multiplayerIsHost) cleanupStalePlayers(data);
+            } catch (err) {
+                console.warn("Multiplayer refresh failed:", err);
+            }
+        }
+
+        function cleanupStalePlayers(players) {
+            const now = Date.now();
+            Object.keys(players || {}).forEach(id => {
+                if (now - Number(players[id].updatedAt || 0) > 20000) {
+                    fetch(multiplayerUrl([MULTIPLAYER_ROOM_PATH, multiplayerRoomCode, "players", id]), { method: "DELETE" }).catch(() => {});
+                }
+            });
+        }
+
+        function resolveRemoteVisualPosition(player, allPlayers) {
+            const sameCell = allPlayers.filter(p => Math.round(Number(p.x || 0)) === Math.round(Number(player.x || 0)) && Number(p.row || 0) === Number(player.row || 0))
+                .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+            const index = Math.max(0, sameCell.findIndex(p => p.id === player.id));
+            const offsets = [
+                { x: 0.00, z: 0.00 },
+                { x: -0.28, z: -0.18 },
+                { x: 0.28, z: 0.18 },
+                { x: -0.28, z: 0.18 }
+            ];
+            const off = offsets[index % offsets.length];
+            return { x: Number(player.x || 0) + off.x, y: Number(player.y || 0.375), z: -Number(player.row || 0) + off.z };
+        }
+
+        function renderRemotePlayers() {
+            if (!scene) return;
+            const players = Object.values(multiplayerPlayers || {}).filter(Boolean);
+            const activeIds = new Set(players.map(p => p.id));
+            Object.keys(multiplayerMeshes).forEach(id => {
+                if (!activeIds.has(id) || id === multiplayerPlayerId || !multiplayerRoomCode) {
+                    if (multiplayerMeshes[id].parent) multiplayerMeshes[id].parent.remove(multiplayerMeshes[id]);
+                    delete multiplayerMeshes[id];
+                }
+            });
+            players.forEach((player, displayIndex) => {
+                if (!player || player.id === multiplayerPlayerId) return;
+                if (!multiplayerMeshes[player.id]) {
+                    const color = MULTIPLAYER_COLORS[(displayIndex % (MULTIPLAYER_COLORS.length - 1)) + 1] || 0x8be9ff;
+                    multiplayerMeshes[player.id] = buildRemoteChickenModel(color);
+                    scene.add(multiplayerMeshes[player.id]);
+                }
+                const mesh = multiplayerMeshes[player.id];
+                const pos = resolveRemoteVisualPosition(player, players.concat([getLocalMultiplayerState()]));
+                mesh.position.x = THREE.MathUtils.lerp(mesh.position.x, pos.x, 0.35);
+                mesh.position.y = THREE.MathUtils.lerp(mesh.position.y, pos.y, 0.35);
+                mesh.position.z = THREE.MathUtils.lerp(mesh.position.z, pos.z, 0.35);
+                mesh.rotation.y = Number(player.rotationY || 0);
+            });
+        }
+
+        function startMultiplayerSync() {
+            clearInterval(multiplayerSyncTimer);
+            publishMultiplayerState();
+            refreshMultiplayerRoom();
+            multiplayerSyncTimer = setInterval(() => {
+                publishMultiplayerState();
+                refreshMultiplayerRoom();
+            }, 900);
+        }
+
+        async function createMultiplayerRoom() {
+            let code = generateRoomCode();
+            multiplayerRoomCode = code;
+            multiplayerIsHost = true;
+            multiplayerPlayers = {};
+            multiplayerPlayers[multiplayerPlayerId] = getLocalMultiplayerState();
+            try {
+                await fetch(multiplayerUrl([MULTIPLAYER_ROOM_PATH, code]), {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        createdAt: Date.now(),
+                        hostId: multiplayerPlayerId,
+                        maxPlayers: MAX_MULTIPLAYER_PLAYERS,
+                        players: multiplayerPlayers
+                    })
+                });
+                showMultiplayerMessage("Room created: " + code);
+                startMultiplayerSync();
+                updateMultiplayerUI();
+                await openGameModal({
+                    title: "Room created",
+                    message: "Share this room code with up to 3 friends. Other chickens will appear beside you without overlapping.",
+                    icon: "🐔",
+                    code: code,
+                    hideCancel: true,
+                    confirmText: "Start crossing"
+                });
+            } catch (err) {
+                console.warn("Create room failed:", err);
+                multiplayerRoomCode = "";
+                showMultiplayerMessage("Room create failed — try again");
+                await showGameAlert("Room create failed", "The room could not be created. Check your connection and try again.", "⚠️");
+            }
+        }
+
+        async function joinMultiplayerRoom() {
+            const answer = await openGameModal({
+                title: "Join multiplayer room",
+                message: "Enter the room code from your friend. Rooms allow up to 4 chickens only.",
+                icon: "🚪",
+                input: true,
+                placeholder: "ROOM CODE",
+                confirmText: "Join room",
+                cancelText: "Cancel"
+            });
+            if (!answer.confirmed) return;
+            const code = String(answer.value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8);
+            if (!code) {
+                await showGameAlert("Missing room code", "Please enter a valid room code to join multiplayer.", "⌨️");
+                return;
+            }
+            try {
+                const res = await fetch(multiplayerUrl([MULTIPLAYER_ROOM_PATH, code, "players"]));
+                const players = res.ok ? (await res.json() || {}) : {};
+                const now = Date.now();
+                const activePlayers = Object.values(players).filter(p => p && now - Number(p.updatedAt || 0) <= 20000);
+                const alreadyInRoom = !!players[multiplayerPlayerId];
+                if (!alreadyInRoom && activePlayers.length >= MAX_MULTIPLAYER_PLAYERS) {
+                    showMultiplayerMessage("Room is full — 4 chickens max");
+                    await showGameAlert("Room is full", "This room already has 4 active chickens. Create a new room or wait for someone to leave.", "🐔");
+                    return;
+                }
+                multiplayerRoomCode = code;
+                multiplayerIsHost = false;
+                multiplayerPlayers = players || {};
+                multiplayerPlayers[multiplayerPlayerId] = getLocalMultiplayerState();
+                await publishMultiplayerState();
+                showMultiplayerMessage("Joined room: " + code);
+                startMultiplayerSync();
+                updateMultiplayerUI();
+                await openGameModal({
+                    title: "Joined room",
+                    message: "You are now in multiplayer. Keep moving and watch the other chickens cross beside you.",
+                    icon: "✅",
+                    code: code,
+                    hideCancel: true,
+                    confirmText: "Play"
+                });
+            } catch (err) {
+                console.warn("Join room failed:", err);
+                showMultiplayerMessage("Join failed — check room code");
+                await showGameAlert("Join failed", "Could not join that room. Check the code and your connection, then try again.", "⚠️");
+            }
+        }
+
+        async function leaveMultiplayerRoom() {
+            const code = multiplayerRoomCode;
+            if (!code) return;
+            const answer = await openGameModal({
+                title: "Leave room?",
+                message: "You will return to solo mode and your chicken will disappear from this multiplayer room.",
+                icon: "🚪",
+                danger: true,
+                confirmText: "Leave room",
+                cancelText: "Stay"
+            });
+            if (!answer.confirmed) return;
+            multiplayerRoomCode = "";
+            multiplayerIsHost = false;
+            clearInterval(multiplayerSyncTimer);
+            multiplayerSyncTimer = null;
+            Object.keys(multiplayerMeshes).forEach(id => {
+                if (multiplayerMeshes[id].parent) multiplayerMeshes[id].parent.remove(multiplayerMeshes[id]);
+            });
+            multiplayerMeshes = {};
+            multiplayerPlayers = {};
+            updateMultiplayerUI();
+            try {
+                await fetch(multiplayerUrl([MULTIPLAYER_ROOM_PATH, code, "players", multiplayerPlayerId]), { method: "DELETE" });
+            } catch (err) {
+                console.warn("Leave room cleanup failed:", err);
+            }
+            showMultiplayerMessage("Left multiplayer room");
+            await showGameAlert("Left room", "You are now playing solo again.", "✅");
+        }
+
+        function generateRowStructure(rowIndex) {
+            let type = TYPE_SNOW;
+            if (rowIndex > 2) {
+                const rng = Math.random();
+                if (rowIndex < 12) {
+                    if (rng < 0.58) type = TYPE_SNOW;
+                    else type = TYPE_ROAD;
+                } else if (rowIndex < 28) {
+                    if (rng < 0.42) type = TYPE_SNOW;
+                    else if (rng < 0.76) type = TYPE_ROAD;
+                    else type = TYPE_RIVER;
+                } else if (rowIndex < 55) {
+                    if (rng < 0.30) type = TYPE_SNOW;
+                    else if (rng < 0.62) type = TYPE_ROAD;
+                    else if (rng < 0.82) type = TYPE_RIVER;
+                    else type = TYPE_RAIL;
+                } else {
+                    if (rng < 0.20) type = TYPE_SNOW;
+                    else if (rng < 0.52) type = TYPE_ROAD;
+                    else if (rng < 0.72) type = TYPE_RIVER;
+                    else type = TYPE_RAIL;
+                }
+            }
+
+            const rowGroup = new THREE.Group();
+            rowGroup.position.set(0, 0, -rowIndex); 
+
+            let geo, mat, width = 60;
+            if (type === TYPE_SNOW) {
+                geo = new THREE.BoxGeometry(width, 1, 1);
+                mat = material(activeTheme.snow);
+            } else if (type === TYPE_ROAD) {
+                geo = new THREE.BoxGeometry(width, 0.94, 1);
+                mat = material(activeTheme.road);
+            } else if (type === TYPE_RIVER) {
+                geo = new THREE.BoxGeometry(width, 0.78, 1);
+                mat = material(activeTheme.river);
+            } else if (type === TYPE_RAIL) {
+                geo = new THREE.BoxGeometry(width, 0.92, 1);
+                mat = material(activeTheme.rail);
+            }
+
+            const ground = new THREE.Mesh(geo, mat);
+            ground.position.y = -0.5;
+            ground.receiveShadow = true;
+            rowGroup.add(ground);
+
+            let speed = 0, direction = Math.random() > 0.5 ? 1 : -1;
+
+            const difficulty = Math.min(1, Math.max(0, rowIndex / 120));
+            const blockedCells = new Set();
+
+            if (type === TYPE_ROAD) {
+                speed = 1.25 + difficulty * 3.1 + Math.random() * (0.85 + difficulty * 1.4);
+                // Subtle road markers
+                for (let i = -20; i <= 20; i += 4) {
+                    const line = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.02, 0.15), new THREE.MeshLambertMaterial({ color: 0x3e4257 }));
+                    line.position.set(i, -0.02, 0);
+                    rowGroup.add(line);
+                }
+            } else if (type === TYPE_RIVER) {
+                speed = 0.85 + difficulty * 1.6 + Math.random() * 0.75;
+                addWaterWavesToRow(rowGroup, rowIndex);
+            } else if (type === TYPE_RAIL) {
+                speed = 3.8 + difficulty * 4.5 + Math.random() * 1.8;
+                for (let i = -25; i <= 25; i += 1.4) {
+                    const sleeper = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.82), new THREE.MeshLambertMaterial({ color: 0x2a1e19 }));
+                    sleeper.position.set(i, 0.02, 0);
+                    rowGroup.add(sleeper);
+                }
+                [-0.25, 0.25].forEach(z => {
+                    const rail = new THREE.Mesh(new THREE.BoxGeometry(width, 0.08, 0.08), new THREE.MeshLambertMaterial({ color: 0xb9c0c8 }));
+                    rail.position.set(0, 0.08, z);
+                    rail.castShadow = true;
+                    rowGroup.add(rail);
+                });
+            } else if (type === TYPE_SNOW && rowIndex > 0) {
+                const treeChance = Math.min(0.64, 0.20 + difficulty * 0.28);
+                for (let gridX = -7; gridX <= 7; gridX++) {
+                    const keepPathOpen = Math.abs(gridX) <= 1 && rowIndex < 10;
+                    if (!keepPathOpen && Math.random() < treeChance) {
+                        const pine = buildWinterTree();
+                        pine.position.x = gridX;
+                        rowGroup.add(pine);
+                        blockedCells.add(gridX);
+                    }
+                }
+            }
+
+            scene.add(rowGroup);
+            const spawnInterval = Math.max(0.65, 2.4 - difficulty * 1.25 + Math.random() * (1.0 - difficulty * 0.35));
+            rows[rowIndex] = { index: rowIndex, type: type, speed: speed, direction: direction, lastSpawned: 0, spawnInterval: spawnInterval, blockedCells: Array.from(blockedCells) };
+            rowObjects[rowIndex] = rowGroup;
+            refreshStreetLampsForRows();
+        }
+
+        function isLampLane(row) {
+            return row && (row.type === TYPE_ROAD || row.type === TYPE_RAIL);
+        }
+
+        function clearStreetLampsFromRow(rowGroup) {
+            if (!rowGroup) return;
+            for (let i = rowGroup.children.length - 1; i >= 0; i--) {
+                const child = rowGroup.children[i];
+                if (child && child.userData && child.userData.streetLamp) rowGroup.remove(child);
+            }
+        }
+
+        function refreshStreetLampsForRows() {
+            for (let i = 0; i < rowObjects.length; i++) clearStreetLampsFromRow(rowObjects[i]);
+            if (!isMoonMode()) return;
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const rowGroup = rowObjects[i];
+                if (!isLampLane(row) || !rowGroup) continue;
+
+                // Only place lamps on the OUTER shoulders of a connected road/rail block.
+                // For 2 or 3 adjacent road rows, this prevents lamps from appearing between lanes.
+                const needsStartSide = !isLampLane(rows[i - 1]);
+                const needsFarSide = !isLampLane(rows[i + 1]);
+                if (needsStartSide) addStreetLampsToRow(rowGroup, i, 0.78);
+                if (needsFarSide) addStreetLampsToRow(rowGroup, i, -0.78);
+            }
+        }
+
+        function addWaterWavesToRow(rowGroup, rowIndex) {
+            const waveMat = new THREE.MeshLambertMaterial({ color: 0xd7fbff, transparent: true, opacity: activeThemeName === "moon" ? 0.44 : 0.62 });
+            const foamMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: activeThemeName === "moon" ? 0.24 : 0.36 });
+            const zBands = [-0.27, 0.02, 0.31];
+            for (let band = 0; band < zBands.length; band++) {
+                for (let x = -22; x <= 22; x += 3.2) {
+                    const wave = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.026, 0.055), band % 2 ? foamMat : waveMat);
+                    const offset = ((rowIndex + band) % 3) * 0.7;
+                    wave.position.set(x + offset, -0.06 + band * 0.006, zBands[band]);
+                    wave.rotation.y = (band % 2 === 0 ? 1 : -1) * 0.09;
+                    wave.userData.wave = {
+                        baseX: wave.position.x,
+                        baseY: wave.position.y,
+                        amp: 0.06 + band * 0.025,
+                        speed: 1.2 + band * 0.28,
+                        phase: rowIndex * 0.45 + x * 0.18 + band
+                    };
+                    rowGroup.add(wave);
+                    waterWaves.push({ mesh: wave, row: rowIndex });
+                }
+            }
+        }
+
+        function addStreetLampsToRow(rowGroup, rowIndex, shoulderZ) {
+            const poleMat = new THREE.MeshLambertMaterial({ color: 0x273246 });
+            const bulbMat = new THREE.MeshBasicMaterial({ color: 0xfff0a8 });
+            const glowMat = new THREE.MeshBasicMaterial({ color: 0xffe8a3, transparent: true, opacity: 0.20 });
+            const xPositions = rowIndex % 2 === 0 ? [-7.35, 7.35] : [-5.35, 5.35];
+            const roadSideDir = shoulderZ > 0 ? -1 : 1;
+
+            xPositions.forEach((x) => {
+                const lamp = new THREE.Group();
+                lamp.userData.streetLamp = true;
+                const pole = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.35, 0.08), poleMat);
+                pole.position.y = 0.62;
+                pole.castShadow = true;
+                lamp.add(pole);
+
+                // Arm points inward from the shoulder toward the road.
+                const arm = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, 0.52), poleMat);
+                arm.position.set(0, 1.28, roadSideDir * 0.24);
+                arm.castShadow = true;
+                lamp.add(arm);
+
+                const bulb = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.16, 0.18), bulbMat);
+                bulb.position.set(0, 1.20, roadSideDir * 0.52);
+                lamp.add(bulb);
+
+                // The glow reaches into the road, while the pole remains on the edge.
+                const glow = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.025, 0.86), glowMat);
+                glow.position.set(0, 0.08, roadSideDir * 0.42);
+                lamp.add(glow);
+
+                lamp.position.set(x, 0, shoulderZ);
+                rowGroup.add(lamp);
+            });
+        }
+
+        function buildWinterTree() {
+            const tree = new THREE.Group();
+            tree.userData.blocksChicken = true;
+            const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.55, 0.26), material(activeTheme.trunk));
+            trunk.position.y = 0.275;
+            trunk.castShadow = true;
+            tree.add(trunk);
+
+            const lowerLeaves = new THREE.Mesh(new THREE.BoxGeometry(0.76, 0.54, 0.76), material(activeTheme.leaves));
+            lowerLeaves.position.y = 0.75;
+            lowerLeaves.castShadow = true;
+            tree.add(lowerLeaves);
+
+            const upperLeaves = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.42, 0.56), material(activeTheme.treeCap));
+            upperLeaves.position.y = 1.17;
+            upperLeaves.castShadow = true;
+            tree.add(upperLeaves);
+
+            if (activeTheme.treeSnow) {
+                const snowCap = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.18, 0.54), material(0xfffafa));
+                snowCap.position.y = 1.45;
+                snowCap.castShadow = true;
+                tree.add(snowCap);
+            }
+
+            return tree;
+        }
+
+        function buildCarModel(color) {
+            const car = new THREE.Group();
+            const bodyMat = new THREE.MeshLambertMaterial({ color });
+            const darkMat = new THREE.MeshLambertMaterial({ color: 0x141923 });
+            const glassMat = new THREE.MeshLambertMaterial({ color: 0x9fdcff, transparent: true, opacity: 0.9 });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1.65, 0.38, 0.78), bodyMat);
+            body.position.y = 0.32;
+            body.castShadow = body.receiveShadow = true;
+            car.add(body);
+            const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.34, 0.62), glassMat);
+            cabin.position.set(-0.08, 0.68, 0);
+            cabin.castShadow = true;
+            car.add(cabin);
+            [-0.55, 0.55].forEach(x => [-0.42, 0.42].forEach(z => {
+                const wheel = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.26, 0.12), darkMat);
+                wheel.position.set(x, 0.16, z);
+                wheel.castShadow = true;
+                car.add(wheel);
+            }));
+            const headlightMat = isMoonMode()
+                ? new THREE.MeshBasicMaterial({ color: 0xffffc7 })
+                : new THREE.MeshLambertMaterial({ color: 0xfff3a1 });
+            const beamMat = new THREE.MeshBasicMaterial({ color: 0xfff1a8, transparent: true, opacity: isMoonMode() ? 0.34 : 0.08 });
+            [-0.22, 0.22].forEach(z => {
+                const light = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.13, 0.13), headlightMat);
+                light.position.set(0.86, 0.36, z);
+                car.add(light);
+
+                const beam = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.025, 0.16), beamMat);
+                beam.position.set(1.45, 0.25, z);
+                car.add(beam);
+            });
+            return car;
+        }
+
+        function buildTrainModel() {
+            const train = new THREE.Group();
+            const bodyMat = new THREE.MeshLambertMaterial({ color: 0xdc2f55 });
+            const stripeMat = new THREE.MeshLambertMaterial({ color: 0xf8fafc });
+            const glassMat = new THREE.MeshLambertMaterial({ color: 0x88d8ff });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.82, 0.82), bodyMat);
+            body.position.y = 0.45;
+            body.castShadow = body.receiveShadow = true;
+            train.add(body);
+            const stripe = new THREE.Mesh(new THREE.BoxGeometry(4.45, 0.12, 0.86), stripeMat);
+            stripe.position.y = 0.55;
+            train.add(stripe);
+            for (let x=-1.55; x<=1.55; x+=0.75) {
+                const windowMesh = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.24, 0.05), glassMat);
+                windowMesh.position.set(x, 0.78, -0.43);
+                train.add(windowMesh);
+            }
+            const nose = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.58, 0.72), new THREE.MeshLambertMaterial({ color: 0xff6b83 }));
+            nose.position.set(2.35, 0.45, 0);
+            nose.castShadow = true;
+            train.add(nose);
+
+            const trainLightMat = isMoonMode()
+                ? new THREE.MeshBasicMaterial({ color: 0xffffc7 })
+                : new THREE.MeshLambertMaterial({ color: 0xfff3a1 });
+            const trainBeamMat = new THREE.MeshBasicMaterial({ color: 0xfff1a8, transparent: true, opacity: isMoonMode() ? 0.30 : 0.06 });
+            [-0.22, 0.22].forEach(z => {
+                const light = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.12), trainLightMat);
+                light.position.set(2.55, 0.50, z);
+                train.add(light);
+
+                const beam = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.028, 0.18), trainBeamMat);
+                beam.position.set(3.35, 0.32, z);
+                train.add(beam);
+            });
+            return train;
+        }
+
+        function generateCarUnit(rowIndex) {
+            const data = rows[rowIndex];
+            const carColors = [0xff5d7a, 0x50f4ff, 0xc77dff, 0xffb65d, 0x5dff99];
+            const mesh = buildCarModel(carColors[Math.floor(Math.random() * carColors.length)]);
+            mesh.castShadow = mesh.receiveShadow = true;
+            mesh.rotation.y = data.direction > 0 ? 0 : Math.PI;
+            mesh.position.set(data.direction > 0 ? -24 : 24, 0, 0);
+            rowObjects[rowIndex].add(mesh);
+            cars.push({ mesh: mesh, row: rowIndex, hitWidth: 1.05 });
+        }
+
+        function generateTrainUnit(rowIndex) {
+            const data = rows[rowIndex];
+            const mesh = buildTrainModel();
+            mesh.rotation.y = data.direction > 0 ? 0 : Math.PI;
+            mesh.position.set(data.direction > 0 ? -26 : 26, 0, 0);
+            rowObjects[rowIndex].add(mesh);
+            cars.push({ mesh: mesh, row: rowIndex, hitWidth: 2.45 });
+        }
+
+        function generateIceUnit(rowIndex) {
+            const data = rows[rowIndex];
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.22, 0.85), new THREE.MeshLambertMaterial({ color: 0xddf7ff, transparent: true, opacity: 0.85 }));
+            mesh.castShadow = mesh.receiveShadow = true;
+            mesh.position.set(data.direction > 0 ? -24 : 24, -0.11, 0);
+            rowObjects[rowIndex].add(mesh);
+            logs.push({ mesh: mesh, row: rowIndex });
+        }
+
+
+        function trafficCountOnRow(rowIndex) {
+            return cars.filter(unit => unit.row === rowIndex).length;
+        }
+
+        function getTrafficLimitForRow(rowIndex) {
+            const difficulty = Math.min(1, Math.max(0, (Number(score) || 0) / 90));
+            if (rowIndex < 10) return 1;
+            if (rowIndex < 24) return difficulty > 0.45 ? 2 : 1;
+            return difficulty > 0.75 ? 3 : 2;
+        }
+
+        function hasSafeTrafficGap(rowIndex) {
+            const row = rows[rowIndex];
+            if (!row) return false;
+            const startX = row.direction > 0 ? -24 : 24;
+            const neededGap = row.type === TYPE_RAIL ? 8.5 : Math.max(4.8, 7.2 - Math.min(2.4, (Number(score) || 0) / 70));
+            return cars.every(unit => unit.row !== rowIndex || Math.abs(unit.mesh.position.x - startX) >= neededGap);
+        }
+
+        function canSpawnTrafficOnRow(rowIndex) {
+            const row = rows[rowIndex];
+            if (!row || !(row.type === TYPE_ROAD || row.type === TYPE_RAIL)) return false;
+            if (trafficCountOnRow(rowIndex) >= getTrafficLimitForRow(rowIndex)) return false;
+            return hasSafeTrafficGap(rowIndex);
+        }
+
+        function spawnTrafficForRow(rowIndex) {
+            if (!canSpawnTrafficOnRow(rowIndex)) return false;
+            if (rows[rowIndex].type === TYPE_RAIL) generateTrainUnit(rowIndex);
+            else generateCarUnit(rowIndex);
+            return true;
+        }
+
+        function seedVisibleTraffic() {
+            for (let i = 3; i < Math.min(rows.length, 30); i++) {
+                if (!rows[i]) continue;
+                if ((rows[i].type === TYPE_ROAD || rows[i].type === TYPE_RAIL) && trafficCountOnRow(i) === 0) {
+                    const earlyChance = i < 12 ? 0.25 : 0.48;
+                    if (Math.random() < earlyChance && spawnTrafficForRow(i)) {
+                        cars[cars.length - 1].mesh.position.x = (Math.random() * 24) - 12;
+                    }
+                }
+                if (rows[i].type === TYPE_RIVER && logs.filter(l => l.row === i).length === 0 && Math.random() < 0.52) {
+                    generateIceUnit(i);
+                    logs[logs.length - 1].mesh.position.x = (Math.random() * 24) - 12;
+                }
+            }
+        }
+
+        function engineLoop() {
+            if (isGameOver) return;
+
+            const delta = clock.getDelta();
+            const elapsed = clock.getElapsedTime();
+            updateIdlePredator(delta, elapsed);
+            updateRainParticles(delta);
+            renderRemotePlayers();
+            updateWaterWaves(delta, elapsed);
+
+            // Procedural Infinite Row Spawning
+            while (rows.length < playerForwardIndex + 30) {
+                generateRowStructure(rows.length);
+            }
+
+            rows.forEach(row => {
+                if (!row) return;
+                if ((row.type === TYPE_ROAD || row.type === TYPE_RIVER || row.type === TYPE_RAIL) && (elapsed - row.lastSpawned > row.spawnInterval)) {
+                    if (row.type === TYPE_ROAD || row.type === TYPE_RAIL) {
+                        if (spawnTrafficForRow(row.index)) row.lastSpawned = elapsed;
+                    } else {
+                        const activeLogs = logs.filter(unit => unit.row === row.index).length;
+                        if (activeLogs < 2) {
+                            generateIceUnit(row.index);
+                            row.lastSpawned = elapsed;
+                        }
+                    }
+                }
+            });
+
+            // Update Vehicle Vectors
+            for (let i = cars.length - 1; i >= 0; i--) {
+                const car = cars[i];
+                const activeRow = rows[car.row];
+                car.mesh.position.x += activeRow.speed * activeRow.direction * delta;
+
+                if (playerForwardIndex === car.row && !isJumping) {
+                    if (Math.abs(playerSideIndex - car.mesh.position.x) < (car.hitWidth || 1.05)) triggerCollision();
+                }
+                if (Math.abs(car.mesh.position.x) > 26) {
+                    rowObjects[car.row].remove(car.mesh);
+                    cars.splice(i, 1);
+                }
+            }
+
+            // Update Ice Log Vectors
+            let currentCarrier = null;
+            for (let i = logs.length - 1; i >= 0; i--) {
+                const log = logs[i];
+                const activeRow = rows[log.row];
+                log.mesh.position.x += activeRow.speed * activeRow.direction * delta;
+
+                if (playerForwardIndex === log.row && !isJumping) {
+                    if (Math.abs(playerSideIndex - log.mesh.position.x) < 1.4) currentCarrier = log;
+                }
+                if (Math.abs(log.mesh.position.x) > 26) {
+                    rowObjects[log.row].remove(log.mesh);
+                    logs.splice(i, 1);
+                }
+            }
+
+            // Animation Vector Calculation
+            if (isJumping) {
+                jumpProgress += delta * 13.5;
+                if (jumpProgress >= 1) {
+                    jumpProgress = 1;
+                    isJumping = false;
+                }
+                const lx = THREE.MathUtils.lerp(jumpStartX, targetX, jumpProgress);
+                const lz = THREE.MathUtils.lerp(jumpStartZ, targetZ, jumpProgress);
+                const ly = 0.375 + Math.sin(jumpProgress * Math.PI) * 0.75;
+                chicken.position.set(lx, ly, lz);
+            } else {
+                if (rows[playerForwardIndex] && rows[playerForwardIndex].type === TYPE_RIVER) {
+                    if (currentCarrier) {
+                        const activeRow = rows[currentCarrier.row];
+                        playerSideIndex += activeRow.speed * activeRow.direction * delta;
+                        chicken.position.x = playerSideIndex;
+                        chicken.position.z = -playerForwardIndex;
+                        if (Math.abs(playerSideIndex) > 7.5) triggerCollision();
+                    } else {
+                        chicken.position.y = -0.4;
+                        triggerCollision();
+                    }
+                } else {
+                    chicken.position.x = THREE.MathUtils.lerp(chicken.position.x, playerSideIndex, 0.25);
+                    chicken.position.z = THREE.MathUtils.lerp(chicken.position.z, -playerForwardIndex, 0.25);
+                    chicken.position.y = THREE.MathUtils.lerp(chicken.position.y, 0.375, 0.25);
+                }
+            }
+
+            // TRUE ISOMETRIC CAMERA FOLLOWER MESH
+            const camTargetX = chicken.position.x + 8.5;
+            const camTargetZ = chicken.position.z + 8.5;
+            camera.position.x = THREE.MathUtils.lerp(camera.position.x, camTargetX, 0.08);
+            camera.position.z = THREE.MathUtils.lerp(camera.position.z, camTargetZ, 0.08);
+
+            renderer.render(scene, camera);
+        }
+
+
+        function updateIdlePredator(delta, elapsed) {
+            const idleFor = elapsed - lastMoveTime;
+            const idleEl = document.getElementById('idle-count');
+            const dangerEl = document.getElementById('danger-banner');
+
+            if (!eagle) return;
+
+            if (idleFor < IDLE_WARNING_SECONDS) {
+                eagle.visible = false;
+                eagleAttackStarted = false;
+                if (idleEl) idleEl.textContent = 'Safe';
+                if (dangerEl && elapsed >= blockedMessageUntil) dangerEl.textContent = 'Keep moving — eagle patrol active';
+                return;
+            }
+
+            const remaining = Math.max(0, Math.ceil(IDLE_CATCH_SECONDS - idleFor));
+            if (idleEl) idleEl.textContent = remaining + 's';
+            if (dangerEl && elapsed >= blockedMessageUntil) dangerEl.textContent = 'Move now — eagle incoming';
+
+            eagle.visible = true;
+            const attackProgress = THREE.MathUtils.clamp((idleFor - IDLE_WARNING_SECONDS) / (IDLE_CATCH_SECONDS - IDLE_WARNING_SECONDS), 0, 1);
+            const startX = chicken.position.x - 3.2;
+            const startY = 6.3;
+            const startZ = chicken.position.z + 4.2;
+            const endX = chicken.position.x;
+            const endY = chicken.position.y + 0.35;
+            const endZ = chicken.position.z;
+            eagle.position.set(
+                THREE.MathUtils.lerp(startX, endX, attackProgress),
+                THREE.MathUtils.lerp(startY, endY, attackProgress),
+                THREE.MathUtils.lerp(startZ, endZ, attackProgress)
+            );
+            eagle.rotation.y = Math.PI / 4;
+            eagle.rotation.z = Math.sin(elapsed * 12) * 0.18;
+
+            if (idleFor >= IDLE_CATCH_SECONDS) {
+                triggerCollision('eagle');
+            }
+        }
+
+        function isBlockedCell(rowIndex, sideIndex) {
+            const row = rows[rowIndex];
+            if (!row || !Array.isArray(row.blockedCells)) return false;
+            return row.blockedCells.includes(Math.round(sideIndex));
+        }
+
+        function showBlockedHopWarning() {
+            const dangerEl = document.getElementById('danger-banner');
+            blockedMessageUntil = clock ? clock.getElapsedTime() + 0.9 : 0;
+            if (dangerEl) dangerEl.textContent = 'Tree blocked — choose another tile';
+            if (renderer && renderer.domElement) {
+                renderer.domElement.classList.remove('blocked-hop');
+                void renderer.domElement.offsetWidth;
+                renderer.domElement.classList.add('blocked-hop');
+            }
+        }
+
+        function processInput(event) {
+            if (isGameOver || isJumping) return;
+
+            let flag = false;
+            jumpStartX = chicken.position.x;
+            jumpStartZ = chicken.position.z;
+
+            let nextF = playerForwardIndex;
+            let nextS = playerSideIndex;
+
+            switch (event.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    nextF = playerForwardIndex + 1;
+                    chicken.rotation.y = 0; // Point forward up-right
+                    flag = true;
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    if (playerForwardIndex > 0) {
+                        nextF = playerForwardIndex - 1;
+                        chicken.rotation.y = Math.PI;
+                        flag = true;
+                    }
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    if (playerSideIndex > -7) {
+                        nextS = Math.round(playerSideIndex) - 1;
+                        chicken.rotation.y = Math.PI / 2;
+                        flag = true;
+                    }
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    if (playerSideIndex < 7) {
+                        nextS = Math.round(playerSideIndex) + 1;
+                        chicken.rotation.y = -Math.PI / 2;
+                        flag = true;
+                    }
+                    break;
+            }
+
+            if (flag && isBlockedCell(nextF, nextS)) {
+                showBlockedHopWarning();
+                flag = false;
+            }
+
+            if (flag) {
+                lastMoveTime = clock.getElapsedTime();
+                document.body.classList.remove('chicken-hop');
+                void document.body.offsetWidth;
+                document.body.classList.add('chicken-hop');
+                setTimeout(() => document.body.classList.remove('chicken-hop'), 260);
+                eagleAttackStarted = false;
+                if (eagle) eagle.visible = false;
+                playerForwardIndex = nextF;
+                playerSideIndex = nextS;
+                targetX = playerSideIndex;
+                targetZ = -playerForwardIndex;
+                isJumping = true;
+                jumpProgress = 0;
+
+                if (playerForwardIndex > currentMaxRow) {
+                    currentMaxRow = playerForwardIndex;
+                    score = currentMaxRow;
+                    document.getElementById('score').innerText = score;
+                    updateRankUI(score);
+                }
+                publishMultiplayerState();
+            }
+        }
+
+        function triggerCollision(reason) {
+            const impact = document.getElementById('impact-flash');
+            if (impact) { impact.classList.remove('active'); void impact.offsetWidth; impact.classList.add('active'); }
+            isGameOver = true;
+            if (reason === 'eagle') {
+                const heading = document.querySelector('.go-card h2');
+                if (heading) heading.textContent = 'SNATCHED!';
+            } else {
+                const heading = document.querySelector('.go-card h2');
+                if (heading) heading.textContent = 'CRASHED!';
+            }
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('final-rank').className = 'rank-display';
+            document.getElementById('final-rank').innerHTML = renderRankHTML(score);
+            document.getElementById('gameover-screen').style.display = 'flex';
+            handleLevelUpTracking(score);
+        }
+
+        function resetGame() {
+            cars.forEach(c => { if (c.mesh.parent) c.mesh.parent.remove(c.mesh); });
+            logs.forEach(l => { if (l.mesh.parent) l.mesh.parent.remove(l.mesh); });
+            rowObjects.forEach(o => scene.remove(o));
+
+            cars = []; logs = []; waterWaves = []; rows = []; rowObjects = [];
+            playerForwardIndex = 0; playerSideIndex = 0;
+            targetX = 0; targetZ = 0; currentMaxRow = 0; score = 0;
+            isJumping = false; isGameOver = false;
+            lastMoveTime = clock.getElapsedTime();
+            eagleAttackStarted = false;
+            blockedMessageUntil = 0;
+            if (eagle) eagle.visible = false;
+
+            document.getElementById('score').innerText = "0";
+            updateRankUI(Number(localStorage.getItem("crossyroad_maxDistance") || 0));
+            document.getElementById('idle-count').innerText = "Safe";
+            document.getElementById('gameover-screen').style.display = 'none';
+
+            chicken.position.set(0, 0.375, 0);
+            chicken.rotation.y = 0;
+
+            for (let i = 0; i < 40; i++) {
+                generateRowStructure(i);
+            }
+            seedVisibleTraffic();
+            camera.position.set(8.5, 9.5, 8.5);
+            publishMultiplayerState();
+            clock.getDelta();
+        }
+
+        function handleResizeResize() {
+            const aspect = container.clientWidth / container.clientHeight;
+            camera.left = -zoomLevel * aspect;
+            camera.right = zoomLevel * aspect;
+            camera.top = zoomLevel;
+            camera.bottom = -zoomLevel;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+
+        function setupCrossyTouchControls() {
+            const target = document.getElementById('game-wrapper');
+            if (!target) return;
+            let sx = 0;
+            let sy = 0;
+            let st = 0;
+            let active = false;
+
+            function start(event) {
+                const point = event.touches ? event.touches[0] : event;
+                if (!point) return;
+                sx = point.clientX;
+                sy = point.clientY;
+                st = performance.now();
+                active = true;
+            }
+
+            function finish(event) {
+                if (!active) return;
+                const point = event.changedTouches ? event.changedTouches[0] : event;
+                if (!point) return;
+                active = false;
+                const dx = point.clientX - sx;
+                const dy = point.clientY - sy;
+                const absX = Math.abs(dx);
+                const absY = Math.abs(dy);
+                if (Math.max(absX, absY) < 24 && performance.now() - st < 360) {
+                    processInput({ key: 'ArrowUp' });
+                    return;
+                }
+                if (absX > absY) processInput({ key: dx > 0 ? 'ArrowRight' : 'ArrowLeft' });
+                else processInput({ key: dy > 0 ? 'ArrowDown' : 'ArrowUp' });
+            }
+
+            target.addEventListener('touchstart', function (event) { if (event.cancelable) event.preventDefault(); start(event); }, { passive: false });
+            target.addEventListener('touchend', function (event) { if (event.cancelable) event.preventDefault(); finish(event); }, { passive: false });
+            target.addEventListener('pointerdown', function (event) { if (event.pointerType === 'mouse') return; if (event.cancelable) event.preventDefault(); start(event); }, { passive: false });
+            target.addEventListener('pointerup', function (event) { if (event.pointerType === 'mouse') return; if (event.cancelable) event.preventDefault(); finish(event); }, { passive: false });
+        }
+
+        // Engage engine on load
+        window.onload = () => {
+            setActiveTheme(getSeasonalThemeName());
+            initEngine();
+            setupCrossyTouchControls();
+            renderer.setAnimationLoop(engineLoop);
+            updateMultiplayerUI();
+            const createBtn = document.getElementById('create-room-btn');
+            const joinBtn = document.getElementById('join-room-btn');
+            const leaveBtn = document.getElementById('leave-room-btn');
+            if (createBtn) createBtn.addEventListener('click', createMultiplayerRoom);
+            if (joinBtn) joinBtn.addEventListener('click', joinMultiplayerRoom);
+            if (leaveBtn) leaveBtn.addEventListener('click', leaveMultiplayerRoom);
+        };
+
+        window.addEventListener('beforeunload', () => {
+            if (multiplayerRoomCode) {
+                fetch(multiplayerUrl([MULTIPLAYER_ROOM_PATH, multiplayerRoomCode, 'players', multiplayerPlayerId]), { method: 'DELETE', keepalive: true }).catch(() => {});
+            }
+        });
+
+        // ========================================================
+        // REAL-TIME CHAT & USER CONNECTION SYSTEM
+        // ========================================================
+        (function() {
+            const DB_URL = "https://gamehubss-default-rtdb.firebaseio.com/";
+            const myUsername = username;
+            
+            function cleanKey(name) { 
+            return String(name || "").trim().toLowerCase().replace(/[^a-z0-9_]/g, "_"); 
+            }
+            const myKey = cleanKey(myUsername);
+
+            let activeChatTarget = null;
+            let syncIntervalId = null;
+
+            // Grab Chat Element Handles
+            const dock = document.getElementById('globalChatDock');
+            const header = document.getElementById('chatHeaderClickable');
+            const toggleIcon = document.getElementById('chatToggleIcon');
+            const contactsView = document.getElementById('chatContactsView');
+            const messagingView = document.getElementById('chatMessagingView');
+            const contactInput = document.getElementById('targetFriendInput');
+            const addBtn = document.getElementById('addFriendActionBtn');
+            const contactsBox = document.getElementById('contactsBox');
+            const messagesBox = document.getElementById('messagesBox');
+            const messageInput = document.getElementById('rawMessageText');
+            const sendMsgBtn = document.getElementById('sendMessageActionBtn');
+            const backBtn = document.getElementById('leaveChatRoomBtn');
+
+            // --- CUSTOM MODAL STYLED NOTIFICATIONS ---
+            function showCustomAlert(title, message) {
+            const modalOverlay = document.createElement('div');
+            modalOverlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(5,8,20,0.85); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; z-index:99999;";
+            
+            const card = document.createElement('div');
+            card.style = "background:var(--panel, #0f142d); border:1px solid rgba(93,242,255,0.2); border-radius:16px; padding:24px; width:90%; max-width:400px; box-shadow:0 20px 50px rgba(0,0,0,0.6); text-align:center; font-family:inherit; color:var(--text, #eef4ff);";
+            
+            card.innerHTML = `
+                <h3 style="margin-top:0; color:var(--accent, #5df2ff); font-size:1.2rem; font-weight:800; letter-spacing:0.05em;">${title}</h3>
+                <p style="margin:16px 0 24px; font-size:0.9rem; line-height:1.5; color:var(--muted, #95a3c7);">${message}</p>
+                <button id="customAlertCloseBtn" class="chat-action-btn" style="padding:10px 24px; font-size:0.9rem; width:100%; border-radius:10px;">Acknowledge</button>
+            `;
+            
+            modalOverlay.appendChild(card);
+            document.body.appendChild(modalOverlay);
+            
+            document.getElementById('customAlertCloseBtn').addEventListener('click', () => {
+                modalOverlay.remove();
+            });
+            }
+
+            function showCustomConfirm(title, message, onConfirm) {
+            const modalOverlay = document.createElement('div');
+            modalOverlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(5,8,20,0.85); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; z-index:99999;";
+            
+            const card = document.createElement('div');
+            card.style = "background:var(--panel, #0f142d); border:1px solid rgba(180,107,255,0.2); border-radius:16px; padding:24px; width:90%; max-width:400px; box-shadow:0 20px 50px rgba(0,0,0,0.6); font-family:inherit; color:var(--text, #eef4ff);";
+            
+            card.innerHTML = `
+                <h3 style="margin-top:0; color:var(--accent-2, #b46bff); font-size:1.2rem; font-weight:800; text-align:center; letter-spacing:0.05em;">${title}</h3>
+                <p style="margin:16px 0 24px; font-size:0.9rem; line-height:1.5; text-align:center; color:var(--muted, #95a3c7);">${message}</p>
+                <div style="display:flex; gap:12px;">
+                <button id="customConfirmCancelBtn" class="chat-action-btn" style="background:rgba(255,255,255,0.08); color:var(--text); padding:10px 16px; font-size:0.9rem; flex:1; border-radius:10px; border:1px solid rgba(255,255,255,0.1);">Decline</button>
+                <button id="customConfirmAcceptBtn" class="chat-action-btn" style="padding:10px 16px; font-size:0.9rem; flex:1; border-radius:10px;">Accept</button>
+                </div>
+            `;
+            
+            modalOverlay.appendChild(card);
+            document.body.appendChild(modalOverlay);
+            
+            document.getElementById('customConfirmCancelBtn').addEventListener('click', () => {
+                modalOverlay.remove();
+            });
+            
+            document.getElementById('customConfirmAcceptBtn').addEventListener('click', () => {
+                modalOverlay.remove();
+                onConfirm();
+            });
+            }
+
+            // 1. Minimize / Maximize Dock Toggle Animation Logic
+            if (header) {
+            header.addEventListener('click', () => {
+                const isMin = dock.classList.toggle('minimized');
+                toggleIcon.textContent = isMin ? '▲' : '—';
+                if (!isMin) {
+                refreshSocialLoop();
+                if (!syncIntervalId) syncIntervalId = setInterval(refreshSocialLoop, 3000);
+                } else {
+                if (syncIntervalId) { 
+                    clearInterval(syncIntervalId); 
+                    syncIntervalId = null; 
+                }
+                }
+            });
+            }
+
+            // 2. Add Username Verification & Friend Request Generation
+            if (addBtn) {
+            addBtn.addEventListener('click', async () => {
+                const targetName = contactInput.value.trim();
+                const targetKey = cleanKey(targetName);
+
+                if (!targetName || targetKey === myKey) {
+                showCustomAlert("Invalid Target", "Please input a valid username different from your own.");
+                return;
+                }
+
+                try {
+                const checkRes = await fetch(`${DB_URL}/users/${targetKey}.json`);
+                const targetProfile = await checkRes.json();
+
+                if (!targetProfile) {
+                    showCustomAlert("User Not Found", `The username "${targetName}" does not exist in the platform data directory.`);
+                    return;
+                }
+
+                const sortedRoomKey = myKey < targetKey ? `${myKey}_vs_${targetKey}` : `${targetKey}_vs_${myKey}`;
+
+                await fetch(`${DB_URL}/chats/${sortedRoomKey}/status.json`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ 
+                    requester: myUsername, 
+                    responder: targetProfile.username || targetName, 
+                    accepted: false 
+                    })
+                });
+
+                showCustomAlert("Success", `Connection invitation successfully dispatched to ${targetName}!`);
+                contactInput.value = "";
+                refreshSocialLoop();
+                } catch (e) {
+                console.error("Error setting up dynamic invitation request:", e);
+                }
+            });
+            }
+
+            // 3. Dynamic Synchronization of Contact Relationships Listing
+            async function refreshSocialLoop() {
+            try {
+                const res = await fetch(`${DB_URL}/chats.json`);
+                const allChats = await res.json() || {};
+                if (!contactsBox) return;
+                contactsBox.innerHTML = "";
+
+                Object.keys(allChats).forEach(roomKey => {
+                if (roomKey.includes(myKey)) {
+                    const room = allChats[roomKey];
+                    const status = room.status || {};
+                    const isRequester = cleanKey(status.requester) === myKey;
+                    const peerName = isRequester ? status.responder : status.requester;
+                    
+                    const item = document.createElement('div');
+                    item.className = 'contact-item';
+
+                    const info = document.createElement('div');
+                    info.className = 'contact-info';
+                    
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'contact-name';
+                    nameSpan.textContent = peerName;
+                    info.appendChild(nameSpan);
+
+                    const statusSpan = document.createElement('span');
+                    statusSpan.className = 'contact-status';
+
+                    if (status.accepted) {
+                    statusSpan.textContent = "🟢 Connected - Click to Chat";
+                    item.addEventListener('click', () => openDirectMessaging(roomKey, peerName));
+                    } else {
+                    if (isRequester) {
+                        statusSpan.textContent = "⏳ Sent - Pending Verification";
+                    } else {
+                        statusSpan.textContent = "📥 Request Received - Click to Accept";
+                        item.style.borderLeft = "3px solid var(--accent)";
+                        item.addEventListener('click', () => handleAcceptRequest(roomKey, peerName));
+                    }
+                    }
+                    info.appendChild(statusSpan);
+                    item.appendChild(info);
+                    contactsBox.appendChild(item);
+                }
+                });
+
+                if (activeChatTarget) {
+                renderLiveMessages(allChats[activeChatTarget.roomKey]?.messages || {});
+                }
+            } catch(err) {
+                console.error("Error retrieving background updates:", err);
+            }
+            }
+
+            // 4. Accept Mutual Agreement Handshake using Custom Styled Confirm Modals
+            async function handleAcceptRequest(roomKey, peerName) {
+            showCustomConfirm(
+                "Accept Connection", 
+                `Would you like to accept the chat invitation and open transmissions with ${peerName}?`, 
+                async () => {
+                await fetch(`${DB_URL}/chats/${roomKey}/status/accepted.json`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(true)
+                });
+                refreshSocialLoop();
+                }
+            );
+            }
+
+            // 5. Interface View Changes
+            function openDirectMessaging(roomKey, peerName) {
+            activeChatTarget = { roomKey, peerName };
+            contactsView.classList.add('hidden');
+            messagingView.classList.remove('hidden');
+            refreshSocialLoop();
+            }
+
+            if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                activeChatTarget = null;
+                messagingView.classList.add('hidden');
+                contactsView.classList.remove('hidden');
+            });
+            }
+
+            // 6. Transmit Messages Payload Loop
+            async function transmitChatMessage() {
+            const text = messageInput.value.trim();
+            if (!text || !activeChatTarget) return;
+
+            const payload = {
+                sender: myUsername,
+                text: text,
+                timestamp: new Date().toISOString()
+            };
+
+            messageInput.value = "";
+            await fetch(`${DB_URL}/chats/${activeChatTarget.roomKey}/messages.json`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            refreshSocialLoop();
+            }
+
+            if (sendMsgBtn) sendMsgBtn.addEventListener('click', transmitChatMessage);
+            if (messageInput) {
+            messageInput.addEventListener('keydown', (e) => { 
+                if (e.key === 'Enter') transmitChatMessage(); 
+            });
+            }
+
+            // 7. Render Chat History Output Container
+            function renderLiveMessages(messagesObj) {
+            if (!messagesBox) return;
+            messagesBox.innerHTML = "";
+            
+            Object.values(messagesObj).forEach(msg => {
+                const bubble = document.createElement('div');
+                bubble.className = `message-bubble ${cleanKey(msg.sender) === myKey ? 'outgoing' : 'incoming'}`;
+                bubble.textContent = msg.text;
+                messagesBox.appendChild(bubble);
+            });
+            
+            messagesBox.scrollTop = messagesBox.scrollHeight;
+            }
+        })();
+
+    </script>
+</body>
+</html>

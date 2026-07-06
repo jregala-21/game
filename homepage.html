@@ -496,11 +496,159 @@
       font-weight: 900;
       cursor: pointer;
     }
+
+        /* FLOATING CHAT ARCHITECTURE */
+    .chat-dock {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      width: 340px;
+      height: 460px;
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 20px;
+      box-shadow: var(--shadow), 0 0 40px rgba(93, 242, 255, 0.1);
+      backdrop-filter: blur(20px);
+      display: flex;
+      flex-direction: column;
+      z-index: 1000;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s ease;
+      overflow: hidden;
+    }
+    .chat-dock.minimized {
+      height: 52px;
+      transform: translateY(0);
+    }
+    .chat-header {
+      padding: 14px 18px;
+      background: rgba(23, 30, 68, 0.6);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .chat-header h3 {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .chat-window-toggle {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+    .chat-window-toggle:hover { color: var(--accent); }
+
+    .chat-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .chat-view {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+    .chat-view.hidden { display: none; }
+
+    /* CONTACTS SUB-PANEL */
+    .contact-search-bar {
+      padding: 10px 14px;
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .chat-input-field {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      padding: 8px 12px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.85rem;
+    }
+    .chat-input-field:focus { outline: 1px solid var(--accent); }
+    .chat-action-btn {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      border: none;
+      border-radius: 10px;
+      color: #080b18;
+      font-weight: 800;
+      padding: 0 14px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .contacts-list, .messages-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .contact-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    .contact-item:hover { background: rgba(255, 255, 255, 0.07); }
+    .contact-info { display: flex; flex-direction: column; gap: 2px; }
+    .contact-name { font-weight: 700; font-size: 0.88rem; }
+    .contact-status { font-size: 0.72rem; color: var(--muted); }
+
+    /* BUBBLE CHAT MESSAGES */
+    .chat-back-btn {
+      background: transparent;
+      border: none;
+      color: var(--accent);
+      cursor: pointer;
+      font-weight: 700;
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 0.85rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .message-bubble {
+      max-width: 80%;
+      padding: 8px 12px;
+      border-radius: 14px;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+    .message-bubble.incoming {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      align-self: flex-start;
+    }
+    .message-bubble.outgoing {
+      background: linear-gradient(135deg, rgba(93, 242, 255, 0.2), rgba(180, 107, 255, 0.2));
+      border: 1px solid rgba(93, 242, 255, 0.2);
+      color: var(--text);
+      align-self: flex-end;
+    }
   </style>
 
   <script>
     (function () {
-      const DB_URL = "https://gamelibrary-882b6-default-rtdb.asia-southeast1.firebasedatabase.app";
+      const DB_URL = "https://gamehubss-default-rtdb.firebaseio.com/";
       const SESSION_KEY = "gamehub_current_user";
       const LOCAL_USER_KEY = "__gamehub_local_user__";
       const GAMEHUB_KEYS = ["gamehub_profile_v1",
@@ -522,7 +670,7 @@
       }
       const currentUser = getCurrentUser();
       if (!currentUser || !currentUser.username) {
-        window.location.replace("index.html");
+        window.location.replace("index");
         return;
       }
       const userKey = safeUsernameKey(currentUser.username);
@@ -564,7 +712,7 @@
         safeUsernameKey: safeUsernameKey,
         logout: function () {
           sessionStorage.removeItem(SESSION_KEY);
-          window.location.href = "index.html";
+          window.location.href = "/";
         },
         saveNow: function () {
           GAMEHUB_KEYS.forEach(function (key) {
@@ -580,6 +728,7 @@
     (function () {
       const PROFILE_KEY = "gamehub_profile_v1";
       const MAX_RECENT = 12;
+      const MAX_PROFILE_LEVEL = 100;
 
       function nowIso() { return new Date().toISOString(); }
       function getUsername() {
@@ -588,12 +737,46 @@
       function blankGame() {
         return { successes: 0, bestScore: 0, bestLevel: 0, lastPlayedAt: null };
       }
+      function clampLevel(level) {
+        return Math.max(1, Math.min(MAX_PROFILE_LEVEL, Math.floor(Number(level) || 1)));
+      }
+      function xpGapForLevel(level) {
+        level = clampLevel(level);
+        if (level >= MAX_PROFILE_LEVEL) return 0;
+        if (level === 1) return 250;
+        return 325 + ((level - 2) * 60);
+      }
+      function xpForLevelStart(level) {
+        level = clampLevel(level);
+        let total = 0;
+        for (let lv = 1; lv < level; lv++) total += xpGapForLevel(lv);
+        return total;
+      }
+      function xpForNext(level) {
+        level = clampLevel(level);
+        if (level >= MAX_PROFILE_LEVEL) return xpForLevelStart(MAX_PROFILE_LEVEL);
+        return xpForLevelStart(level) + xpGapForLevel(level);
+      }
+      function levelFromXp(totalXp) {
+        const xp = Math.max(0, Number(totalXp) || 0);
+        let level = 1;
+        while (level < MAX_PROFILE_LEVEL && xp >= xpForNext(level)) level++;
+        return level;
+      }
+      function xpRangeForLevel(level) {
+        level = clampLevel(level);
+        const start = xpForLevelStart(level);
+        const end = level >= MAX_PROFILE_LEVEL ? start : xpForNext(level);
+        return { level, start, end, gap: Math.max(0, end - start), isMax: level >= MAX_PROFILE_LEVEL };
+      }
       function defaultProfile() {
         const username = getUsername();
         return {
           username,
           displayName: username,
           avatar: "🎮",
+          mainLevel: 1,
+          mainXp: 0,
           level: 1,
           xp: 0,
           successfulPlays: 0,
@@ -604,31 +787,52 @@
           completedSuccessIds: {}
         };
       }
-      function readProfile() {
-        let profile = null;
-        try { profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || "null"); }
-        catch (err) { profile = null; }
+      function normalizeProfile(profile) {
         const base = defaultProfile();
         profile = profile && typeof profile === "object" ? profile : base;
         profile.username = getUsername();
         profile.displayName = profile.displayName || profile.username;
         profile.avatar = profile.avatar || "🎮";
-        profile.level = Math.max(1, Number(profile.level || 1));
-        profile.xp = Math.max(0, Number(profile.xp || 0));
-        profile.successfulPlays = Math.max(0, Number(profile.successfulPlays || 0));
         profile.games = profile.games && typeof profile.games === "object" ? profile.games : {};
         profile.recentActivity = Array.isArray(profile.recentActivity) ? profile.recentActivity : [];
         profile.completedSuccessIds = profile.completedSuccessIds && typeof profile.completedSuccessIds === "object" ? profile.completedSuccessIds : {};
+        profile.successfulPlays = Math.max(0, Number(profile.successfulPlays || 0));
+
+        // One source of truth for the account level:
+        // mainXp/mainLevel are the official account values. level/xp stay as aliases for older pages.
+        const officialXp = Math.max(0, Number(profile.mainXp ?? profile.xp ?? 0) || 0);
+        const officialLevel = levelFromXp(officialXp);
+        profile.mainXp = officialXp;
+        profile.xp = officialXp;
+        profile.mainLevel = officialLevel;
+        profile.level = officialLevel;
+        profile.updatedAt = profile.updatedAt || nowIso();
+        profile.createdAt = profile.createdAt || nowIso();
+        return profile;
+      }
+      function readProfile() {
+        let profile = null;
+        try { profile = JSON.parse(localStorage.getItem(PROFILE_KEY) || "null"); }
+        catch (err) { profile = null; }
+        profile = normalizeProfile(profile);
+        try {
+          const normalized = JSON.stringify(profile);
+          if (localStorage.getItem(PROFILE_KEY) !== normalized) localStorage.setItem(PROFILE_KEY, normalized);
+        } catch (err) {}
         return profile;
       }
       function saveProfile(profile) {
+        profile = normalizeProfile(profile);
         profile.updatedAt = nowIso();
         localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
         return profile;
       }
-      function xpForNext(level) { return Math.max(50, level * 100); }
       function showToast(text) {
         if (!document.body) return;
+        if (window.GameHubModal && typeof window.GameHubModal.toast === "function") {
+          window.GameHubModal.toast(text);
+          return;
+        }
         const toast = document.createElement("div");
         toast.textContent = text;
         toast.style.cssText = "position:fixed;right:18px;bottom:18px;z-index:9999;padding:13px 15px;border-radius:16px;background:linear-gradient(135deg,rgba(80,244,255,.95),rgba(199,125,255,.95));color:#05101d;font-weight:1000;box-shadow:0 18px 50px rgba(0,0,0,.34);font-family:inherit;max-width:min(340px,calc(100vw - 36px));";
@@ -644,11 +848,13 @@
         if (successId) profile.completedSuccessIds[successId] = nowIso();
 
         const game = String(gameName || details.game || "Game");
-        const xp = Math.max(10, Number(details.xp || 50));
-        const beforeLevel = Number(profile.level || 1);
+        const xpGained = Math.max(0, Number(details.xp || 50));
+        const beforeLevel = Number(profile.mainLevel || profile.level || 1);
         profile.successfulPlays += 1;
-        profile.level += 1;
-        profile.xp += xp;
+        profile.mainXp = Math.max(0, Number(profile.mainXp || profile.xp || 0)) + xpGained;
+        profile.xp = profile.mainXp;
+        profile.mainLevel = levelFromXp(profile.mainXp);
+        profile.level = profile.mainLevel;
 
         if (!profile.games[game]) profile.games[game] = blankGame();
         profile.games[game].successes = Number(profile.games[game].successes || 0) + 1;
@@ -661,12 +867,14 @@
           title: details.title || ("Successful " + game + " play"),
           score: Number(details.score || 0),
           level: Number(details.level || 0),
-          xp,
+          xp: xpGained,
           at: nowIso()
         });
         profile.recentActivity = profile.recentActivity.slice(0, MAX_RECENT);
         saveProfile(profile);
-        showToast("Profile Level Up! Lv " + beforeLevel + " → " + profile.level);
+
+        if (profile.mainLevel > beforeLevel) showToast("Main Level Up! Lv " + beforeLevel + " → " + profile.mainLevel);
+        else if (xpGained > 0) showToast("+" + xpGained + " XP gained");
         return profile;
       }
       function resetProfile() {
@@ -674,9 +882,85 @@
         saveProfile(profile);
         return profile;
       }
-      window.GameHubProfile = { PROFILE_KEY, readProfile, saveProfile, recordSuccess, resetProfile, xpForNext };
+      window.GameHubProfile = { PROFILE_KEY, MAX_PROFILE_LEVEL, readProfile, saveProfile, recordSuccess, resetProfile, xpForNext, xpForLevelStart, xpGapForLevel, xpRangeForLevel, levelFromXp };
     })();
   </script>
+
+
+<script>
+(function () {
+  if (window.GameHubModal) return;
+  function ensureStyles() {
+    if (document.getElementById("gamehub-modal-styles")) return;
+    const style = document.createElement("style");
+    style.id = "gamehub-modal-styles";
+    style.textContent = `
+      .gh-modal-overlay{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:18px;background:rgba(2,6,19,.78);backdrop-filter:blur(12px) saturate(130%)}
+      .gh-modal-card{width:min(440px,100%);border-radius:24px;padding:20px;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.035)),linear-gradient(135deg,rgba(80,244,255,.10),rgba(199,125,255,.085)),rgba(7,12,31,.96);border:1px solid rgba(255,255,255,.16);box-shadow:0 28px 90px rgba(0,0,0,.58),0 0 0 1px rgba(80,244,255,.22),0 0 36px rgba(80,244,255,.12);color:var(--text,#f4f8ff);font-family:inherit;animation:ghModalPop .18s ease forwards}
+      @keyframes ghModalPop{from{transform:translateY(10px) scale(.98);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+      .gh-modal-icon{width:44px;height:44px;display:grid;place-items:center;border-radius:16px;margin-bottom:12px;background:linear-gradient(135deg,var(--accent,#50f4ff),var(--accent-2,#c77dff));color:#06101a;font-size:1.4rem;box-shadow:0 0 28px rgba(80,244,255,.26)}
+      .gh-modal-card.danger .gh-modal-icon{background:linear-gradient(135deg,#ff5d7a,#ffb65d)}
+      .gh-modal-title{margin:0 0 8px;font-size:1.35rem;line-height:1.1;letter-spacing:-.04em;color:var(--text,#f4f8ff)}
+      .gh-modal-message{margin:0 0 16px;color:var(--muted,#aab7df);line-height:1.5;font-size:.94rem;white-space:pre-wrap}
+      .gh-modal-input{width:100%;margin:0 0 14px;padding:12px 13px;border-radius:14px;border:1px solid rgba(80,244,255,.25);background:rgba(255,255,255,.075);color:var(--text,#f4f8ff);font:inherit;font-weight:800;outline:none}
+      .gh-modal-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+      .gh-modal-btn{border-radius:999px;padding:10px 16px;border:1px solid rgba(255,255,255,.15);font-weight:1000;cursor:pointer;font:inherit}
+      .gh-modal-btn.cancel{color:var(--text,#f4f8ff);background:rgba(255,255,255,.075)}
+      .gh-modal-btn.confirm{color:#06101a;background:linear-gradient(135deg,var(--accent,#50f4ff),#9ffcff);box-shadow:0 0 24px rgba(80,244,255,.22)}
+      .gh-modal-card.danger .gh-modal-btn.confirm{background:linear-gradient(135deg,#ff5d7a,#ffb65d)}
+      .gh-toast{position:fixed;right:18px;bottom:18px;z-index:99998;padding:13px 15px;border-radius:16px;background:linear-gradient(135deg,rgba(80,244,255,.95),rgba(199,125,255,.95));color:#05101d;font-weight:1000;box-shadow:0 18px 50px rgba(0,0,0,.34);font-family:inherit;max-width:min(340px,calc(100vw - 36px));transition:all .35s ease}
+    `;
+    document.head.appendChild(style);
+  }
+  function modal(opts) {
+    ensureStyles();
+    opts = opts || {};
+    return new Promise(function (resolve) {
+      const overlay = document.createElement("div");
+      overlay.className = "gh-modal-overlay";
+      const card = document.createElement("div");
+      card.className = "gh-modal-card" + (opts.danger ? " danger" : "");
+      card.setAttribute("role", "dialog");
+      card.setAttribute("aria-modal", "true");
+      const inputHtml = opts.input ? `<input class="gh-modal-input" id="ghModalInput" value="${String(opts.value || "").replace(/"/g, "&quot;")}" placeholder="${String(opts.placeholder || "").replace(/"/g, "&quot;")}">` : "";
+      card.innerHTML = `<div class="gh-modal-icon">${opts.icon || "💬"}</div><h2 class="gh-modal-title">${opts.title || "Message"}</h2><p class="gh-modal-message">${opts.message || ""}</p>${inputHtml}<div class="gh-modal-actions"><button class="gh-modal-btn cancel" type="button">${opts.cancelText || "Cancel"}</button><button class="gh-modal-btn confirm" type="button">${opts.confirmText || "OK"}</button></div>`;
+      overlay.appendChild(card);
+      document.body.appendChild(overlay);
+      const cancel = card.querySelector(".cancel");
+      const confirm = card.querySelector(".confirm");
+      const input = card.querySelector("#ghModalInput");
+      cancel.style.display = opts.hideCancel ? "none" : "inline-flex";
+      function done(value) { overlay.remove(); resolve(value); }
+      cancel.onclick = function () { done(opts.input ? null : false); };
+      confirm.onclick = function () { done(opts.input ? (input ? input.value : "") : true); };
+      overlay.addEventListener("click", function (event) { if (event.target === overlay) done(opts.input ? null : false); });
+      window.addEventListener("keydown", function onKey(e) {
+        if (!document.body.contains(overlay)) return window.removeEventListener("keydown", onKey);
+        if (e.key === "Escape") { window.removeEventListener("keydown", onKey); done(opts.input ? null : false); }
+        if (e.key === "Enter" && input) { window.removeEventListener("keydown", onKey); done(input.value); }
+      });
+      if (input) setTimeout(function () { input.focus(); input.select(); }, 40);
+    });
+  }
+  function toast(text) {
+    ensureStyles();
+    const t = document.createElement("div");
+    t.className = "gh-toast";
+    t.textContent = text;
+    document.body.appendChild(t);
+    setTimeout(function () { t.style.opacity = "0"; t.style.transform = "translateY(8px)"; }, 2400);
+    setTimeout(function () { t.remove(); }, 2850);
+  }
+  window.GameHubModal = {
+    alert: function (title, message) { return modal({ title: title || "Message", message: message || "", icon: "💬", hideCancel: true }); },
+    confirm: function (title, message, opts) { opts = opts || {}; return modal({ title: title || "Confirm", message: message || "", icon: opts.icon || "⚠️", danger: !!opts.danger, confirmText: opts.confirmText || "Confirm", cancelText: opts.cancelText || "Cancel" }); },
+    prompt: function (title, message, opts) { opts = opts || {}; return modal({ title: title || "Input", message: message || "", icon: opts.icon || "⌨️", input: true, value: opts.value || "", placeholder: opts.placeholder || "", confirmText: opts.confirmText || "OK", cancelText: opts.cancelText || "Cancel" }); },
+    toast: toast
+  };
+  const nativeAlert = window.alert;
+  window.alert = function (message) { try { window.GameHubModal.alert("Message", String(message || "")); } catch (err) { nativeAlert(message); } };
+})();
+</script>
 
 </head>
 <body>
@@ -684,7 +968,7 @@
     <header>
       <div class="brand"><span class="logo" aria-hidden="true"></span>Game Hub</div>
       <nav aria-label="Main navigation">
-        <a href="profile.html">Profile</a>
+        <a href="profile">Profile</a>
         <span class="account-pill">
           👤 <span id="accountName">Player</span>
           <span class="level-badge" id="accountLevel">LV 1</span>
@@ -709,7 +993,7 @@
       </div>
 
       <div class="grid">
-        <a class="game-card" href="tetris.html" aria-label="Play Tetris">
+        <a class="game-card" href="tetris" aria-label="Play Tetris">
           <div class="game-art" aria-hidden="true">
             <span></span><span></span><span class="cyan"></span><span class="cyan"></span><span class="cyan"></span><span class="cyan"></span><span></span><span></span>
             <span></span><span class="purple"></span><span class="purple"></span><span class="purple"></span><span></span><span class="yellow"></span><span class="yellow"></span><span></span>
@@ -724,7 +1008,7 @@
           <span class="play">Play now →</span>
         </a>
 
-        <a class="game-card" href="sudoku.html" aria-label="Play Sudoku">
+        <a class="game-card" href="sudokugame.html" aria-label="Play Sudoku">
           <div class="game-art sudoku-art" aria-hidden="true">
             <span>5</span><span></span><span>3</span><span></span><span>7</span><span></span><span></span><span></span>
             <span>6</span><span></span><span></span><span>1</span><span>9</span><span>5</span><span></span><span></span>
@@ -739,7 +1023,7 @@
           <span class="play">Play now →</span>
         </a>
 
-        <a class="game-card" href="crossword.html" aria-label="Play Crossword">
+        <a class="game-card" href="crossword" aria-label="Play Crossword">
           <div class="game-art crossword-art" aria-hidden="true">
             <span class="filled">B</span><span>I</span><span>O</span><span>S</span><span class="dark"></span><span class="dark"></span>
             <span>U</span><span class="dark"></span><span class="dark"></span><span>L</span><span class="dark"></span><span class="dark"></span>
@@ -753,7 +1037,7 @@
           <span class="play">Play now →</span>
         </a>
 
-        <a class="game-card" href="wordhunt.html" aria-label="Play Word Hunt">
+        <a class="game-card" href="wordhunt" aria-label="Play Word Hunt">
           <div class="game-art wordhunt-art" aria-hidden="true">
             <span class="hot">W</span><span>O</span><span>R</span><span>D</span><span></span><span></span><span></span>
             <span></span><span class="hot">H</span><span></span><span></span><span>G</span><span>A</span><span>M</span>
@@ -768,7 +1052,7 @@
           <span class="play">Play now →</span>
         </a>
 
-        <a class="game-card" href="flappybird.html" aria-label="Play Flappy Bird">
+        <a class="game-card" href="flappybird" aria-label="Play Flappy Bird">
           <div class="game-art flappy-art" aria-hidden="true">
             <span class="sky"></span><span class="sky"></span><span></span><span></span><span class="pipe"></span><span class="pipe"></span><span></span><span></span>
             <span></span><span></span><span class="bird">●</span><span></span><span class="pipe"></span><span class="pipe"></span><span></span><span></span>
@@ -783,7 +1067,7 @@
           <span class="play">Play now →</span>
         </a>
 
-        <a class="game-card" href="colorswitch.html" aria-label="Play Color Switch">
+        <a class="game-card" href="colorswitch" aria-label="Play Color Switch">
           <div class="game-art colorswitch-art" aria-hidden="true">
             <span class="cyan"></span><span class="purple"></span><span class="yellow"></span><span class="red"></span><span class="cyan"></span><span class="purple"></span>
             <span class="purple"></span><span></span><span></span><span></span><span></span><span class="red"></span>
@@ -798,7 +1082,7 @@
         </a>
 
         <!-- === CROSSY ROAD INTEGRATION CARD === -->
-        <a class="game-card" href="crossyroad.html" aria-label="Play Crossy Road">
+        <a class="game-card" href="crossy.html" aria-label="Play Crossy Road">
           <div class="game-art crossyroad-art" aria-hidden="true">
             <span class="grass">🌲</span><span class="grass"></span><span class="grass">🌲</span><span class="grass"></span><span class="grass"></span><span class="grass"></span><span class="grass">🌲</span>
             <span class="river"></span><span class="river"></span><span class="river"></span><span class="river"></span><span class="river"></span><span class="river"></span><span class="river"></span>
@@ -816,17 +1100,311 @@
       </div>
     </section>
   </main>
+
+  <div id="globalChatDock" class="chat-dock minimized">
+    <div class="chat-header" id="chatHeaderClickable">
+      <h3>💬 GameHub Comm-Link</h3>
+      <button class="chat-window-toggle" id="chatToggleIcon">—</button>
+    </div>
+    
+    <div class="chat-body">
+      <div id="chatContactsView" class="chat-view">
+        <div class="contact-search-bar">
+          <input type="text" id="targetFriendInput" class="chat-input-field" placeholder="Search player username..." autocomplete="off"/>
+          <button id="addFriendActionBtn" class="chat-action-btn">Add</button>
+        </div>
+        <div id="contactsBox" class="contacts-list"></div>
+      </div>
+
+      <div id="chatMessagingView" class="chat-view hidden">
+        <button id="leaveChatRoomBtn" class="chat-back-btn">← Back to Contacts</button>
+        <div id="messagesBox" class="messages-container"></div>
+        <div class="contact-search-bar">
+          <input type="text" id="rawMessageText" class="chat-input-field" placeholder="Type a message..." autocomplete="off"/>
+          <button id="sendMessageActionBtn" class="chat-action-btn">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
   
   <script>
     const username = window.GameHubAuth ? window.GameHubAuth.username : "Player";
-    document.getElementById("accountName").textContent = username;
+      document.getElementById("accountName").textContent = username;
 
-    if (window.GameHubProfile && typeof window.GameHubProfile.readProfile === "function") {
-      const liveProfile = window.GameHubProfile.readProfile();
-      if (liveProfile && liveProfile.level) {
-        document.getElementById("accountLevel").textContent = "LV " + liveProfile.level;
+      if (window.GameHubProfile && typeof window.GameHubProfile.readProfile === "function") {
+        const liveProfile = window.GameHubProfile.readProfile();
+        if (liveProfile && (liveProfile.mainLevel || liveProfile.level)) {
+          document.getElementById("accountLevel").textContent = "LV " + (liveProfile.mainLevel || liveProfile.level);
+        }
       }
-    }
+
+      // ========================================================
+      // REAL-TIME CHAT & USER CONNECTION SYSTEM
+      // ========================================================
+      (function() {
+        const DB_URL = "https://gamehubss-default-rtdb.firebaseio.com/";
+        const myUsername = username;
+        
+        function cleanKey(name) { 
+          return String(name || "").trim().toLowerCase().replace(/[^a-z0-9_]/g, "_"); 
+        }
+        const myKey = cleanKey(myUsername);
+
+        let activeChatTarget = null;
+        let syncIntervalId = null;
+
+        // Grab Chat Element Handles
+        const dock = document.getElementById('globalChatDock');
+        const header = document.getElementById('chatHeaderClickable');
+        const toggleIcon = document.getElementById('chatToggleIcon');
+        const contactsView = document.getElementById('chatContactsView');
+        const messagingView = document.getElementById('chatMessagingView');
+        const contactInput = document.getElementById('targetFriendInput');
+        const addBtn = document.getElementById('addFriendActionBtn');
+        const contactsBox = document.getElementById('contactsBox');
+        const messagesBox = document.getElementById('messagesBox');
+        const messageInput = document.getElementById('rawMessageText');
+        const sendMsgBtn = document.getElementById('sendMessageActionBtn');
+        const backBtn = document.getElementById('leaveChatRoomBtn');
+
+        // --- CUSTOM MODAL STYLED NOTIFICATIONS ---
+        function showCustomAlert(title, message) {
+          const modalOverlay = document.createElement('div');
+          modalOverlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(5,8,20,0.85); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; z-index:99999;";
+          
+          const card = document.createElement('div');
+          card.style = "background:var(--panel, #0f142d); border:1px solid rgba(93,242,255,0.2); border-radius:16px; padding:24px; width:90%; max-width:400px; box-shadow:0 20px 50px rgba(0,0,0,0.6); text-align:center; font-family:inherit; color:var(--text, #eef4ff);";
+          
+          card.innerHTML = `
+            <h3 style="margin-top:0; color:var(--accent, #5df2ff); font-size:1.2rem; font-weight:800; letter-spacing:0.05em;">${title}</h3>
+            <p style="margin:16px 0 24px; font-size:0.9rem; line-height:1.5; color:var(--muted, #95a3c7);">${message}</p>
+            <button id="customAlertCloseBtn" class="chat-action-btn" style="padding:10px 24px; font-size:0.9rem; width:100%; border-radius:10px;">Acknowledge</button>
+          `;
+          
+          modalOverlay.appendChild(card);
+          document.body.appendChild(modalOverlay);
+          
+          document.getElementById('customAlertCloseBtn').addEventListener('click', () => {
+            modalOverlay.remove();
+          });
+        }
+
+        function showCustomConfirm(title, message, onConfirm) {
+          const modalOverlay = document.createElement('div');
+          modalOverlay.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(5,8,20,0.85); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; z-index:99999;";
+          
+          const card = document.createElement('div');
+          card.style = "background:var(--panel, #0f142d); border:1px solid rgba(180,107,255,0.2); border-radius:16px; padding:24px; width:90%; max-width:400px; box-shadow:0 20px 50px rgba(0,0,0,0.6); font-family:inherit; color:var(--text, #eef4ff);";
+          
+          card.innerHTML = `
+            <h3 style="margin-top:0; color:var(--accent-2, #b46bff); font-size:1.2rem; font-weight:800; text-align:center; letter-spacing:0.05em;">${title}</h3>
+            <p style="margin:16px 0 24px; font-size:0.9rem; line-height:1.5; text-align:center; color:var(--muted, #95a3c7);">${message}</p>
+            <div style="display:flex; gap:12px;">
+              <button id="customConfirmCancelBtn" class="chat-action-btn" style="background:rgba(255,255,255,0.08); color:var(--text); padding:10px 16px; font-size:0.9rem; flex:1; border-radius:10px; border:1px solid rgba(255,255,255,0.1);">Decline</button>
+              <button id="customConfirmAcceptBtn" class="chat-action-btn" style="padding:10px 16px; font-size:0.9rem; flex:1; border-radius:10px;">Accept</button>
+            </div>
+          `;
+          
+          modalOverlay.appendChild(card);
+          document.body.appendChild(modalOverlay);
+          
+          document.getElementById('customConfirmCancelBtn').addEventListener('click', () => {
+            modalOverlay.remove();
+          });
+          
+          document.getElementById('customConfirmAcceptBtn').addEventListener('click', () => {
+            modalOverlay.remove();
+            onConfirm();
+          });
+        }
+
+        // 1. Minimize / Maximize Dock Toggle Animation Logic
+        if (header) {
+          header.addEventListener('click', () => {
+            const isMin = dock.classList.toggle('minimized');
+            toggleIcon.textContent = isMin ? '▲' : '—';
+            if (!isMin) {
+              refreshSocialLoop();
+              if (!syncIntervalId) syncIntervalId = setInterval(refreshSocialLoop, 3000);
+            } else {
+              if (syncIntervalId) { 
+                clearInterval(syncIntervalId); 
+                syncIntervalId = null; 
+              }
+            }
+          });
+        }
+
+        // 2. Add Username Verification & Friend Request Generation
+        if (addBtn) {
+          addBtn.addEventListener('click', async () => {
+            const targetName = contactInput.value.trim();
+            const targetKey = cleanKey(targetName);
+
+            if (!targetName || targetKey === myKey) {
+              showCustomAlert("Invalid Target", "Please input a valid username different from your own.");
+              return;
+            }
+
+            try {
+              const checkRes = await fetch(`${DB_URL}/users/${targetKey}.json`);
+              const targetProfile = await checkRes.json();
+
+              if (!targetProfile) {
+                showCustomAlert("User Not Found", `The username "${targetName}" does not exist in the platform data directory.`);
+                return;
+              }
+
+              const sortedRoomKey = myKey < targetKey ? `${myKey}_vs_${targetKey}` : `${targetKey}_vs_${myKey}`;
+
+              await fetch(`${DB_URL}/chats/${sortedRoomKey}/status.json`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                  requester: myUsername, 
+                  responder: targetProfile.username || targetName, 
+                  accepted: false 
+                })
+              });
+
+              showCustomAlert("Success", `Connection invitation successfully dispatched to ${targetName}!`);
+              contactInput.value = "";
+              refreshSocialLoop();
+            } catch (e) {
+              console.error("Error setting up dynamic invitation request:", e);
+            }
+          });
+        }
+
+        // 3. Dynamic Synchronization of Contact Relationships Listing
+        async function refreshSocialLoop() {
+          try {
+            const res = await fetch(`${DB_URL}/chats.json`);
+            const allChats = await res.json() || {};
+            if (!contactsBox) return;
+            contactsBox.innerHTML = "";
+
+            Object.keys(allChats).forEach(roomKey => {
+              if (roomKey.includes(myKey)) {
+                const room = allChats[roomKey];
+                const status = room.status || {};
+                const isRequester = cleanKey(status.requester) === myKey;
+                const peerName = isRequester ? status.responder : status.requester;
+                
+                const item = document.createElement('div');
+                item.className = 'contact-item';
+
+                const info = document.createElement('div');
+                info.className = 'contact-info';
+                
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'contact-name';
+                nameSpan.textContent = peerName;
+                info.appendChild(nameSpan);
+
+                const statusSpan = document.createElement('span');
+                statusSpan.className = 'contact-status';
+
+                if (status.accepted) {
+                  statusSpan.textContent = "🟢 Connected - Click to Chat";
+                  item.addEventListener('click', () => openDirectMessaging(roomKey, peerName));
+                } else {
+                  if (isRequester) {
+                    statusSpan.textContent = "⏳ Sent - Pending Verification";
+                  } else {
+                    statusSpan.textContent = "📥 Request Received - Click to Accept";
+                    item.style.borderLeft = "3px solid var(--accent)";
+                    item.addEventListener('click', () => handleAcceptRequest(roomKey, peerName));
+                  }
+                }
+                info.appendChild(statusSpan);
+                item.appendChild(info);
+                contactsBox.appendChild(item);
+              }
+            });
+
+            if (activeChatTarget) {
+              renderLiveMessages(allChats[activeChatTarget.roomKey]?.messages || {});
+            }
+          } catch(err) {
+            console.error("Error retrieving background updates:", err);
+          }
+        }
+
+        // 4. Accept Mutual Agreement Handshake using Custom Styled Confirm Modals
+        async function handleAcceptRequest(roomKey, peerName) {
+          showCustomConfirm(
+            "Accept Connection", 
+            `Would you like to accept the chat invitation and open transmissions with ${peerName}?`, 
+            async () => {
+              await fetch(`${DB_URL}/chats/${roomKey}/status/accepted.json`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(true)
+              });
+              refreshSocialLoop();
+            }
+          );
+        }
+
+        // 5. Interface View Changes
+        function openDirectMessaging(roomKey, peerName) {
+          activeChatTarget = { roomKey, peerName };
+          contactsView.classList.add('hidden');
+          messagingView.classList.remove('hidden');
+          refreshSocialLoop();
+        }
+
+        if (backBtn) {
+          backBtn.addEventListener('click', () => {
+            activeChatTarget = null;
+            messagingView.classList.add('hidden');
+            contactsView.classList.remove('hidden');
+          });
+        }
+
+        // 6. Transmit Messages Payload Loop
+        async function transmitChatMessage() {
+          const text = messageInput.value.trim();
+          if (!text || !activeChatTarget) return;
+
+          const payload = {
+            sender: myUsername,
+            text: text,
+            timestamp: new Date().toISOString()
+          };
+
+          messageInput.value = "";
+          await fetch(`${DB_URL}/chats/${activeChatTarget.roomKey}/messages.json`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          refreshSocialLoop();
+        }
+
+        if (sendMsgBtn) sendMsgBtn.addEventListener('click', transmitChatMessage);
+        if (messageInput) {
+          messageInput.addEventListener('keydown', (e) => { 
+            if (e.key === 'Enter') transmitChatMessage(); 
+          });
+        }
+
+        // 7. Render Chat History Output Container
+        function renderLiveMessages(messagesObj) {
+          if (!messagesBox) return;
+          messagesBox.innerHTML = "";
+          
+          Object.values(messagesObj).forEach(msg => {
+            const bubble = document.createElement('div');
+            bubble.className = `message-bubble ${cleanKey(msg.sender) === myKey ? 'outgoing' : 'incoming'}`;
+            bubble.textContent = msg.text;
+            messagesBox.appendChild(bubble);
+          });
+          
+          messagesBox.scrollTop = messagesBox.scrollHeight;
+        }
+      })();
   </script>
 </body>
 </html>

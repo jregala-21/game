@@ -1709,17 +1709,21 @@ body {
     }
 
     function createRowGlitterSplode(rowIndex, rowMatrixValues) {
+      const battlePerfMode = typeof ghIsBotBattleActive === 'function' && ghIsBotBattleActive();
+      if (battlePerfMode) return;
+      const particlesPerBlock = 12;
       for (let c = 0; c < COLS; c++) {
         const val = rowMatrixValues[c];
         if (val !== 0) {
           const pixelX = c * BLOCK_SIZE + (BLOCK_SIZE / 2);
           const pixelY = rowIndex * BLOCK_SIZE + (BLOCK_SIZE / 2);
           const blockColor = COLORS[val];
-          for (let p = 0; p < 12; p++) {
+          for (let p = 0; p < particlesPerBlock; p++) {
             particles.push(new LineGlitterParticle(pixelX, pixelY, blockColor));
           }
         }
       }
+      if (battlePerfMode && particles.length > 80) particles.splice(0, particles.length - 80);
     }
 
     // Core Canvas components
@@ -1967,6 +1971,10 @@ body {
           });
           updateProfileUI();
         }
+        if (ghBotBattle && ghBotBattle.active) {
+          ghBotBattle.active = false;
+          if (els.battleStatus) els.battleStatus.innerHTML = '<span style="color:var(--danger)">' + ghBotBattle.name + ' wins this round.</span>';
+        }
         showOverlay('GAME OVER', 'Final Score: ' + score + ' - Press START to reset');
         sendMultiplayerGameOver();
       }
@@ -2143,10 +2151,10 @@ body {
           else if (rowCount === 2) { baseRewards = 1200; AudioEngine.playLineClear(); }
           else if (rowCount === 3) { baseRewards = 1600; AudioEngine.playLineClear(); }
         } else {
-          if (rowCount === 1) { baseRewards = 100; AudioEngine.playLineClear(); triggerScreenShake('light'); }
-          else if (rowCount === 2) { baseRewards = 300; AudioEngine.playLineClear(); triggerScreenShake('light'); }
-          else if (rowCount === 3) { baseRewards = 500; AudioEngine.playLineClear(); triggerScreenShake('heavy'); }
-          else if (rowCount === 4) { baseRewards = 800; AudioEngine.playTetris(); triggerScreenShake('heavy'); }
+          if (rowCount === 1) { baseRewards = 100; if (!ghIsBotBattleActive()) { AudioEngine.playLineClear(); triggerScreenShake('light'); } }
+          else if (rowCount === 2) { baseRewards = 300; if (!ghIsBotBattleActive()) { AudioEngine.playLineClear(); triggerScreenShake('light'); } }
+          else if (rowCount === 3) { baseRewards = 500; if (!ghIsBotBattleActive()) { AudioEngine.playLineClear(); triggerScreenShake('heavy'); } }
+          else if (rowCount === 4) { baseRewards = 800; if (!ghIsBotBattleActive()) { AudioEngine.playTetris(); triggerScreenShake('heavy'); } }
         }
         
         score += baseRewards * level;
@@ -2154,6 +2162,9 @@ body {
 
         if (isMultiplayer && roomRef && rowCount >= 2) {
           sendGarbageToEnemy(rowCount);
+        }
+        if (ghBotBattle && ghBotBattle.active && rowCount >= 2) {
+          ghBotAddGarbage(rowCount);
         }
 
         level = Math.floor(lines / 10) + 1;
@@ -2191,6 +2202,8 @@ body {
       }
       canHold = false;
       isLockDelayed = false;
+      drawHold();
+      drawNext();
       syncMultiplayerData();
     }
 
@@ -2270,6 +2283,7 @@ body {
 
     // --- CANVAS RENDER BLOCKS ---
     function draw() {
+      const battlePerfMode = ghIsBotBattleActive();
       ctx.fillStyle = '#080b18';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
@@ -2281,18 +2295,27 @@ body {
         drawMatrix(currentPiece.matrix, { x: currentPiece.x, y: currentPiece.y }, ctx);
       }
 
-      // Render Glitter Particles overlay layer loops
-      for (let i = particles.length - 1; i >= 0; i--) {
-        particles[i].update();
-        if (particles[i].alpha <= 0) {
-          particles.splice(i, 1);
-        } else {
-          particles[i].draw(ctx);
+      // In Online Battle, particles are disabled completely. They were the main
+      // long-session memory/paint cost on weaker devices.
+      if (battlePerfMode) {
+        particles.length = 0;
+      } else {
+        for (let i = particles.length - 1; i >= 0; i--) {
+          particles[i].update();
+          if (particles[i].alpha <= 0) {
+            particles.splice(i, 1);
+          } else {
+            particles[i].draw(ctx);
+          }
         }
       }
 
-      drawHold();
-      drawNext();
+      const now = performance.now();
+      if (!battlePerfMode || now - ghBattleLastSidePanelDraw > 180) {
+        ghBattleLastSidePanelDraw = now;
+        drawHold();
+        drawNext();
+      }
     }
 
     function drawGrid(cContext, w, h) {
@@ -2369,23 +2392,29 @@ body {
     }
 
     function drawNext() {
-      if (isMultiplayer) {
-        nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
-        const m = nextPieces[0].matrix;
-        const size = 24;
-        const ox = (nextCanvas.width - m[0].length * size) / 2 / size;
-        const oy = (nextCanvas.height - m.length * size) / 2 / size;
-        drawMatrix(m, { x: ox, y: oy }, nextCtx, size);
+      const battlePreviewMode = isMultiplayer || ghIsBotBattleActive();
+      nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
 
-        battleNextCtx.clearRect(0, 0, battleNextCanvas.width, battleNextCanvas.height);
-        nextPieces.slice(0, 3).forEach((piece, idx) => {
-          const matrix = piece.matrix;
-          const bSize = 20;
-          const offX = (battleNextCanvas.width - matrix[0].length * bSize) / 2 / bSize;
-          drawMatrix(matrix, { x: offX, y: (idx * 4.5) + 1 }, battleNextCtx, bSize);
-        });
+      if (battlePreviewMode) {
+        const first = nextPieces[0];
+        if (first) {
+          const m = first.matrix;
+          const size = 24;
+          const ox = (nextCanvas.width - m[0].length * size) / 2 / size;
+          const oy = (nextCanvas.height - m.length * size) / 2 / size;
+          drawMatrix(m, { x: ox, y: oy }, nextCtx, size);
+        }
+
+        if (battleNextCtx && battleNextCanvas) {
+          battleNextCtx.clearRect(0, 0, battleNextCanvas.width, battleNextCanvas.height);
+          nextPieces.slice(0, 3).forEach((piece, idx) => {
+            const matrix = piece.matrix;
+            const bSize = 20;
+            const offX = (battleNextCanvas.width - matrix[0].length * bSize) / 2 / bSize;
+            drawMatrix(matrix, { x: offX, y: (idx * 4.5) + 1 }, battleNextCtx, bSize);
+          });
+        }
       } else {
-        nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
         nextPieces.slice(0, 3).forEach((piece, idx) => {
           const m = piece.matrix;
           const size = 22;
@@ -2402,10 +2431,317 @@ body {
       drawMatrix(opponentBoardMatrix, { x: 0, y: 0 }, opponentCtx, blockSize);
     }
 
+
+    // --- ONLINE BATTLE BOT: visible opponent board + garbage exchange ---
+    let ghBotBattle = null;
+    let ghBattleUiTimer = 0;
+    let ghBattleLastSidePanelDraw = 0;
+    let ghBattleLastGarbageUi = 0;
+    let ghBattleLastMainDraw = 0;
+    let ghBattleLastBotStep = 0;
+    function ghIsBotBattleActive() { return !!(ghBotBattle && ghBotBattle.active); }
+    function ghBotCloneMatrix(matrix) { return matrix.map(row => row.slice()); }
+    function ghBotNewPiece() {
+      const p = getRandomPiece();
+      return { id: p.id, matrix: ghBotCloneMatrix(p.matrix), x: Math.floor((COLS - p.matrix[0].length) / 2), y: 0 };
+    }
+    function ghBotCollide(b, p) {
+      for (let r = 0; r < p.matrix.length; r++) for (let c = 0; c < p.matrix[r].length; c++) {
+        if (p.matrix[r][c] && (!b[r + p.y] || b[r + p.y][c + p.x] !== 0)) return true;
+      }
+      return false;
+    }
+    function ghBotMerge() {
+      const p = ghBotBattle.piece;
+      p.matrix.forEach((row, r) => row.forEach((val, c) => { if (val && opponentBoardMatrix[r + p.y]) opponentBoardMatrix[r + p.y][c + p.x] = val; }));
+    }
+    function ghBotAddGarbage(count) {
+      if (!ghBotBattle) return;
+      ghBotBattle.pendingGarbage = Math.min(8, ghBotBattle.pendingGarbage + Math.max(0, Number(count) || 0));
+    }
+    function ghBotApplyGarbage(count) {
+      for (let i = 0; i < count; i++) {
+        opponentBoardMatrix.shift();
+        const row = new Array(COLS).fill(8);
+        row[Math.floor(Math.random() * COLS)] = 0;
+        opponentBoardMatrix.push(row);
+      }
+    }
+    function ghBotClearLines() {
+      let rowCount = 0;
+      outer: for (let r = opponentBoardMatrix.length - 1; r >= 0; r--) {
+        for (let c = 0; c < opponentBoardMatrix[r].length; c++) if (opponentBoardMatrix[r][c] === 0) continue outer;
+        opponentBoardMatrix.splice(r, 1); opponentBoardMatrix.unshift(new Array(COLS).fill(0)); rowCount++; r++;
+      }
+      if (rowCount >= 2 && ghBotBattle) {
+        ghBotBattle.lines += rowCount;
+        const delay = 350 + Math.random() * 700;
+        ghBotBattle.attackQueue = ghBotBattle.attackQueue || [];
+        ghBotBattle.attackQueue.push({ at: performance.now() + delay, count: rowCount });
+        if (ghBotBattle.attackQueue.length > 4) ghBotBattle.attackQueue.splice(0, ghBotBattle.attackQueue.length - 4);
+      }
+    }
+    function ghBotBoardStats(board) {
+      const heights = new Array(COLS).fill(0);
+      let holes = 0;
+      let bump = 0;
+      let aggregate = 0;
+      for (let c = 0; c < COLS; c++) {
+        let seen = false;
+        for (let r = 0; r < ROWS; r++) {
+          if (board[r][c]) {
+            if (!seen) heights[c] = ROWS - r;
+            seen = true;
+          } else if (seen) holes++;
+        }
+        aggregate += heights[c];
+      }
+      for (let c = 0; c < COLS - 1; c++) bump += Math.abs(heights[c] - heights[c + 1]);
+      return { holes, bump, aggregate };
+    }
+    function ghBotDifficultyProfile() {
+      const roll = Math.random();
+      if (roll < 0.34) {
+        return {
+          key: 'easy', label: 'easy',
+          moveDelay: 105 + Math.random() * 35,
+          fallDelay: 360 + Math.random() * 90,
+          hardDropChance: 0.20 + Math.random() * 0.16,
+          hardDropPause: 520 + Math.random() * 320,
+          softStepChance: 0.18,
+          mistakeChance: 0.32,
+          pickWeights: [0.52, 0.24, 0.14, 0.07, 0.03],
+          scoreWeights: { aggregate: 0.44, holes: 8.2, bump: 1.15, clears: 8.5, noise: 9.5 }
+        };
+      }
+      if (roll < 0.72) {
+        return {
+          key: 'moderate', label: 'moderate',
+          moveDelay: 68 + Math.random() * 25,
+          fallDelay: 255 + Math.random() * 70,
+          hardDropChance: 0.48 + Math.random() * 0.18,
+          hardDropPause: 330 + Math.random() * 240,
+          softStepChance: 0.12,
+          mistakeChance: 0.14,
+          pickWeights: [0.76, 0.16, 0.06, 0.02, 0],
+          scoreWeights: { aggregate: 0.50, holes: 10.8, bump: 1.45, clears: 11.2, noise: 5.2 }
+        };
+      }
+      return {
+        key: 'hard', label: 'hard',
+        moveDelay: 40 + Math.random() * 18,
+        fallDelay: 175 + Math.random() * 55,
+        hardDropChance: 0.68 + Math.random() * 0.20,
+        hardDropPause: 185 + Math.random() * 180,
+        softStepChance: 0.07,
+        mistakeChance: 0.055,
+        pickWeights: [0.90, 0.075, 0.02, 0.005, 0],
+        scoreWeights: { aggregate: 0.53, holes: 13.2, bump: 1.80, clears: 14.0, noise: 2.4 }
+      };
+    }
+    function ghBotWeightedPickIndex(weights, maxLen) {
+      let r = Math.random();
+      for (let i = 0; i < weights.length && i < maxLen; i++) {
+        r -= weights[i];
+        if (r <= 0) return i;
+      }
+      return Math.min(maxLen - 1, Math.max(0, weights.length - 1));
+    }
+    function ghBotSimulatedLanding(piece, matrix, x) {
+      const test = { ...piece, x, y: 0, matrix };
+      if (ghBotCollide(opponentBoardMatrix, test)) return null;
+      while (!ghBotCollide(opponentBoardMatrix, { ...test, y: test.y + 1 })) test.y++;
+      const sim = ghBotCloneMatrix(opponentBoardMatrix);
+      matrix.forEach((row, r) => row.forEach((val, c) => { if (val && sim[r + test.y]) sim[r + test.y][c + x] = val; }));
+      let clears = 0;
+      for (let r = sim.length - 1; r >= 0; r--) {
+        if (sim[r].every(Boolean)) { sim.splice(r, 1); sim.unshift(new Array(COLS).fill(0)); clears++; r++; }
+      }
+      const stats = ghBotBoardStats(sim);
+      const w = (ghBotBattle && ghBotBattle.profile && ghBotBattle.profile.scoreWeights) || { aggregate: 0.50, holes: 11, bump: 1.5, clears: 11, noise: 4 };
+      return { x, rotation: matrix, clears, score: stats.aggregate * w.aggregate + stats.holes * w.holes + stats.bump * w.bump - clears * w.clears + Math.random() * w.noise };
+    }
+    function ghBotRotateMatrixCopy(source) {
+      const m = ghBotCloneMatrix(source);
+      for (let y = 0; y < m.length; y++) {
+        for (let x = 0; x < y; x++) {
+          const temp = m[x][y];
+          m[x][y] = m[y][x];
+          m[y][x] = temp;
+        }
+      }
+      m.forEach(row => row.reverse());
+      return m;
+    }
+
+    function ghBotChooseMove(piece) {
+      if (!ghBotBattle) return { x: piece.x, matrix: piece.matrix };
+      const choices = [];
+      let matrix = ghBotCloneMatrix(piece.matrix);
+      for (let rot = 0; rot < 4; rot++) {
+        for (let x = -2; x < COLS; x++) {
+          const landing = ghBotSimulatedLanding(piece, matrix, x);
+          if (landing) choices.push(landing);
+        }
+        matrix = ghBotRotateMatrixCopy(matrix);
+      }
+      choices.sort((a,b)=>a.score-b.score);
+      const profile = (ghBotBattle && ghBotBattle.profile) || ghBotDifficultyProfile();
+      let pickIndex = ghBotWeightedPickIndex(profile.pickWeights || [0.75, 0.18, 0.05, 0.02], choices.length);
+      if (Math.random() < (profile.mistakeChance || 0.12)) {
+        pickIndex = Math.min(choices.length - 1, pickIndex + 1 + Math.floor(Math.random() * 2));
+      }
+      const pick = choices[pickIndex] || choices[0];
+      return pick ? { x: pick.x, matrix: pick.rotation } : { x: piece.x, matrix: piece.matrix };
+    }
+    function ghBotBestTargetX(piece) {
+      const move = ghBotChooseMove(piece);
+      piece.matrix = ghBotCloneMatrix(move.matrix);
+      return move.x;
+    }
+    function ghBotSpawn() {
+      ghBotBattle.piece = ghBotNewPiece();
+      ghBotBattle.targetX = ghBotBestTargetX(ghBotBattle.piece);
+      ghBotBattle.hardDropCharge = 0;
+      const profile = ghBotBattle.profile || ghBotDifficultyProfile();
+      ghBotBattle.hardDropPause = profile.hardDropPause;
+      ghBotBattle.hardDropChance = profile.hardDropChance;
+      if (ghBotCollide(opponentBoardMatrix, ghBotBattle.piece)) {
+        ghBotBattle.active = false;
+        els.battleStatus.innerHTML = '<span style="color:var(--good)">Victory! ' + ghBotBattle.name + ' topped out.</span>';
+      }
+    }
+    function ghBotHardDropPiece() {
+      if (!ghBotBattle || !ghBotBattle.piece) return false;
+      const p = ghBotBattle.piece;
+      while (!ghBotCollide(opponentBoardMatrix, { ...p, y: p.y + 1 })) p.y++;
+      ghBotMerge();
+      ghBotClearLines();
+      if (ghBotBattle.pendingGarbage > 0) {
+        ghBotApplyGarbage(ghBotBattle.pendingGarbage);
+        ghBotBattle.pendingGarbage = 0;
+      }
+      ghBotSpawn();
+      return true;
+    }
+    function updateTetrisBotBattle(dt) {
+      if (!ghBotBattle || !ghBotBattle.active || paused || gameOver) return;
+      try {
+      // Hard performance guard: the opponent only steps at a stable 30 FPS max.
+      // This prevents battle mode from doing duplicate/catch-up work and removes
+      // the lag that appeared after about one minute of play.
+      dt = Math.min(Math.max(dt || 16, 0), 34);
+
+      if (ghBotBattle.attackQueue && ghBotBattle.attackQueue.length) {
+        const now = performance.now();
+        for (let i = ghBotBattle.attackQueue.length - 1; i >= 0; i--) {
+          if (now >= ghBotBattle.attackQueue[i].at) {
+            addGarbageLines(ghBotBattle.attackQueue[i].count);
+            ghBotBattle.attackQueue.splice(i, 1);
+          }
+        }
+      }
+
+      ghBotBattle.think += dt;
+      const moveDelay = ghBotBattle.moveDelay || 72;
+      if (ghBotBattle.think >= moveDelay) {
+        ghBotBattle.think = 0;
+        const p = ghBotBattle.piece;
+        if (!p) return;
+        if (p.x < ghBotBattle.targetX && !ghBotCollide(opponentBoardMatrix, { ...p, x: p.x + 1 })) p.x++;
+        else if (p.x > ghBotBattle.targetX && !ghBotCollide(opponentBoardMatrix, { ...p, x: p.x - 1 })) p.x--;
+        else if (Math.random() < ((ghBotBattle.profile && ghBotBattle.profile.softStepChance) || 0.10) && !ghBotCollide(opponentBoardMatrix, { ...p, y: p.y + 1 })) p.y++;
+      }
+
+      const pNow = ghBotBattle.piece;
+      if (!pNow) return;
+      const aligned = pNow.x === ghBotBattle.targetX;
+      const canDropFurther = !ghBotCollide(opponentBoardMatrix, { ...pNow, y: pNow.y + 1 });
+      if (aligned && canDropFurther) {
+        ghBotBattle.hardDropCharge = (ghBotBattle.hardDropCharge || 0) + dt;
+        // Strong human-like opponent: often hard-drops after it reaches the chosen
+        // lane, but waits a short random moment so it does not look automated.
+        if (ghBotBattle.hardDropCharge >= (ghBotBattle.hardDropPause || 240) && Math.random() < (ghBotBattle.hardDropChance || 0.68)) {
+          ghBotHardDropPiece();
+          ghBotBattle.paint = 999;
+        }
+      } else {
+        ghBotBattle.hardDropCharge = 0;
+      }
+
+      ghBotBattle.drop += dt;
+      const fall = ghBotBattle.fallDelay || ((ghBotBattle.profile && ghBotBattle.profile.fallDelay) || 255);
+      if (ghBotBattle.drop >= fall && ghBotBattle.piece) {
+        ghBotBattle.drop = 0;
+        const p = ghBotBattle.piece;
+        if (!ghBotCollide(opponentBoardMatrix, { ...p, y: p.y + 1 })) p.y++;
+        else {
+          ghBotMerge();
+          ghBotClearLines();
+          if (ghBotBattle.pendingGarbage > 0) {
+            ghBotApplyGarbage(ghBotBattle.pendingGarbage);
+            ghBotBattle.pendingGarbage = 0;
+          }
+          ghBotSpawn();
+        }
+      }
+
+      ghBotBattle.paint += dt;
+      if (ghBotBattle.paint >= 320) {
+        ghBotBattle.paint = 0;
+        drawOpponentBoard();
+        if (ghBotBattle.piece) drawMatrix(ghBotBattle.piece.matrix, { x: ghBotBattle.piece.x, y: ghBotBattle.piece.y }, opponentCtx, opponentCanvas.width / COLS);
+      }
+      ghBotBattle.status += dt;
+      if (ghBotBattle.status >= 1600) {
+        ghBotBattle.status = 0;
+        const label = (ghBotBattle.profile && ghBotBattle.profile.label) || ghBotBattle.skill || 'battle';
+        els.battleStatus.innerHTML = 'VS <strong>' + ghBotBattle.name + '</strong><br><span>' + ghBotBattle.lines + ' lines • ' + label + ' battle active</span>';
+      }
+      } catch (err) {
+        console.warn('Online Battle bot recovered without stopping the game:', err);
+        if (ghBotBattle) {
+          ghBotBattle.piece = ghBotNewPiece();
+          ghBotBattle.targetX = Math.floor((COLS - ghBotBattle.piece.matrix[0].length) / 2);
+          ghBotBattle.drop = 0;
+          ghBotBattle.think = 0;
+          ghBotBattle.paint = 0;
+        }
+      }
+    }
+    window.GameHubStartTetrisBotBattle = function(opponent) {
+      const name = (opponent && opponent.name) || 'NovaRider';
+      const profile = ghBotDifficultyProfile();
+      const skill = profile.key;
+      const appRoot = document.querySelector('.app'); if (appRoot) appRoot.classList.add('battle-active');
+      isMultiplayer = false; roomRef = null; opponentBoardMatrix = createMatrix(COLS, ROWS);
+      startGame();
+      garbageTimer = 0;
+      lastGarbageMilestone = Math.floor(score / 10000);
+      particles = [];
+      ghBattleUiTimer = 0;
+      ghBattleLastSidePanelDraw = 0;
+      ghBattleLastGarbageUi = 0;
+      ghBattleLastMainDraw = 0;
+      ghBotBattle = { active: true, name, skill, profile, piece: null, targetX: 4, drop: 0, think: 0, paint: 0, status: 0, pendingGarbage: 0, lines: 0, moveDelay: profile.moveDelay, fallDelay: profile.fallDelay, hardDropCharge: 0, hardDropPause: profile.hardDropPause, hardDropChance: profile.hardDropChance, attackQueue: [] };
+      ghBotSpawn();
+      els.battleStatus.innerHTML = 'VS <strong>' + name + '</strong><br><span>' + profile.label + ' opponent • clear 2+ lines to send garbage.</span>';
+      drawHold();
+      drawNext();
+      drawOpponentBoard();
+    };
+
     // --- GAME ENGINE HEARTBEAT LOOPS ---
     function update(time = 0) {
-      const deltaTime = time - lastTime;
+      try {
+      let deltaTime = time - lastTime;
       lastTime = time;
+      if (!Number.isFinite(deltaTime) || deltaTime < 0) deltaTime = 16;
+      // Online Battle previously lagged after longer sessions when the browser
+      // delivered a large animation-frame gap. Cap the game tick so the player
+      // board, bot, particles, and lock-delay logic never try to catch up in a
+      // single heavy frame.
+      deltaTime = Math.min(deltaTime, ghIsBotBattleActive() ? 50 : 100);
 
       if (running && !paused && !gameOver) {
         // FEAT: update garbage countdown clock
@@ -2419,7 +2755,10 @@ body {
           garbageNextInMs = Math.max(0, garbageCurrentWindowMs - elapsed);
         }
 
-        if (!isMultiplayer) {
+        // In Online Battle, only line clears should exchange garbage.
+        // The solo timed/milestone garbage system is disabled here to prevent
+        // runaway stack pressure and long-session UI stalls.
+        if (!isMultiplayer && !(ghBotBattle && ghBotBattle.active)) {
 
           garbageTimer += deltaTime;
           if (garbageTimer >= garbageTimeLimit) {
@@ -2429,14 +2768,13 @@ body {
               garbageTimeLimit = Math.max(0, garbageTimeLimit - 15000);
             }
           }
-        }
 
-
-        const currentScoreMilestone = Math.floor(score / 10000);
-        if (currentScoreMilestone > lastGarbageMilestone) {
-          const milestoneGap = currentScoreMilestone - lastGarbageMilestone;
-          addGarbageLines(milestoneGap);
-          lastGarbageMilestone = currentScoreMilestone;
+          const currentScoreMilestone = Math.floor(score / 10000);
+          if (currentScoreMilestone > lastGarbageMilestone) {
+            const milestoneGap = currentScoreMilestone - lastGarbageMilestone;
+            addGarbageLines(milestoneGap);
+            lastGarbageMilestone = currentScoreMilestone;
+          }
         }
 
         if (collide(board, { ...currentPiece, y: currentPiece.y + 1 })) {
@@ -2469,10 +2807,22 @@ body {
           }
         }
         handleDasEngine(deltaTime);
+        updateTetrisBotBattle(deltaTime);
       }
 
-      draw();
-      updateGarbageTimerUI();
+      const battleActiveNow = ghIsBotBattleActive();
+      if (!battleActiveNow || time - ghBattleLastMainDraw >= 33) {
+        ghBattleLastMainDraw = time;
+        draw();
+      }
+      ghBattleUiTimer += deltaTime;
+      if (!battleActiveNow || ghBattleUiTimer >= 500) {
+        ghBattleUiTimer = 0;
+        updateGarbageTimerUI();
+      }
+      } catch (err) {
+        console.warn('Tetris loop recovered:', err);
+      }
       requestAnimationFrame(update);
     }
 
@@ -3175,5 +3525,73 @@ body {
     })();
 
   </script>
+
+
+
+<!-- === GameHub Online Battle: visible opponent match === -->
+<style id="gamehub-online-battle-style">
+  .online-battle-btn{border:1px solid rgba(255,255,255,.16)!important;background:linear-gradient(135deg,#ff5d7a,#c77dff)!important;color:#fff!important;font-weight:1000!important;box-shadow:0 0 24px rgba(255,93,122,.22)!important}
+  .gh-battle-overlay{position:fixed;inset:0;z-index:100000;display:none;place-items:center;padding:18px;background:rgba(2,6,19,.82);backdrop-filter:blur(14px) saturate(135%)}
+  .gh-battle-overlay.show{display:grid}.gh-battle-card{width:min(520px,100%);border-radius:26px;padding:20px;color:var(--text,#f4f8ff);font-family:inherit;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.035)),rgba(7,12,31,.96);border:1px solid rgba(255,255,255,.16);box-shadow:0 28px 90px rgba(0,0,0,.58),0 0 36px rgba(80,244,255,.12)}
+  .gh-battle-title{margin:0 0 8px;font-size:1.45rem;letter-spacing:-.04em}.gh-battle-note{margin:0 0 14px;color:var(--muted,#aab7df);line-height:1.45}.gh-battle-match{margin:14px 0;padding:12px;border-radius:18px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.10)}.gh-battle-match strong{display:block;font-size:1.12rem;margin-top:4px}
+  .gh-battle-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:9px;margin-top:14px}.gh-battle-actions button{border-radius:999px;padding:10px 15px;font-weight:1000;cursor:pointer;border:0}.gh-battle-actions .secondary{background:rgba(255,255,255,.10);color:inherit;border:1px solid rgba(255,255,255,.14)}.gh-battle-actions .fight{background:linear-gradient(135deg,var(--accent,#50f4ff),var(--accent-2,#c77dff));color:#06111f}.gh-battle-actions button:disabled{opacity:.48;cursor:wait}
+  .gh-versus-ribbon{position:fixed;left:50%;top:76px;transform:translateX(-50%);z-index:99997;display:none;gap:10px;align-items:center;padding:9px 14px;border-radius:999px;background:rgba(7,12,31,.88);border:1px solid rgba(255,255,255,.14);color:var(--text,#f4f8ff);font-weight:1000;box-shadow:0 14px 35px rgba(0,0,0,.35)}.gh-versus-ribbon.show{display:flex}.gh-versus-ribbon span{color:var(--accent,#50f4ff)}
+</style>
+
+<script id="gamehub-online-battle-script">
+(function(){
+  const GAME_ID='stackrush-arena';
+  const GAME_NAME='StackRush Arena';
+  const START_FN='GameHubStartTetrisBotBattle';
+  const DB_URL=(window.GameHubAuth&&window.GameHubAuth.dbUrl)||"https://gamehubss-default-rtdb.firebaseio.com/";
+  const NAMES=["NovaRider","PixelAce","LunaFox","RexRunner","EchoDash","MikaStorm","ZenithJay","KairoWin","AstraBee","VegaSpark","JunoWave","KaiBlaze","MiloQuest","RinaStar","TheoRush"];
+  let matched=null;
+  function safeKey(v){return (window.GameHubAuth&&typeof window.GameHubAuth.safeUsernameKey==='function')?window.GameHubAuth.safeUsernameKey(v):String(v||'player').trim().toLowerCase().replace(/[^a-z0-9_]/g,'_');}
+  function dbUrl(parts){return DB_URL.replace(/\/$/,'')+'/'+parts.map(encodeURIComponent).join('/')+'.json';}
+  async function fbGet(parts){const r=await fetch(dbUrl(parts));return r.ok?r.json():null;}
+  async function fbPut(parts,val){return fetch(dbUrl(parts),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(val)});}
+  async function fbDel(parts){return fetch(dbUrl(parts),{method:'DELETE'});}
+  function me(){return (window.GameHubAuth&&window.GameHubAuth.username)||'Player';}
+  function pickName(){return NAMES[Math.floor(Math.random()*NAMES.length)];}
+  function cleanName(p){let raw=String((p&&(p.username||p.displayName||p.name))||pickName()).trim();raw=raw.replace(/^[Bb][Oo][Tt][\s_-]*/, '').replace(/[🤖⚔️]/g,'').trim();return raw||pickName();}
+  function skill(){const r=Math.random();return r<.18?'smart':'expert';}
+  function ensureButton(){
+    const existing=document.getElementById('onlineBattleBtn-'+GAME_ID); if(existing){existing.onclick=openSearch; existing.textContent='Online Battle'; return;}
+    const b=document.createElement('button'); b.type='button'; b.id='onlineBattleBtn-'+GAME_ID; b.className='online-battle-btn'; b.textContent='Online Battle'; b.onclick=openSearch;
+    const host=document.querySelector('header nav')||document.querySelector('.hero-actions')||document.querySelector('.actions')||document.querySelector('header')||document.body; host.appendChild(b);
+  }
+  function modal(){
+    let o=document.getElementById('ghOnlineBattleOverlay-'+GAME_ID); if(o) return o;
+    o=document.createElement('div'); o.className='gh-battle-overlay'; o.id='ghOnlineBattleOverlay-'+GAME_ID;
+    o.innerHTML=`<div class="gh-battle-card" role="dialog" aria-modal="true"><h2 class="gh-battle-title">Online Battle</h2><p class="gh-battle-note" id="ghBattleStatus-${GAME_ID}">Searching players...</p><div class="gh-battle-match"><span>Opponent</span><strong id="ghBattleOpponent-${GAME_ID}">Searching...</strong></div><div class="gh-battle-actions"><button type="button" class="secondary" id="ghBattleCancel-${GAME_ID}">Close</button><button type="button" class="secondary" id="ghBattleSearch-${GAME_ID}">Search Again</button><button type="button" class="fight" id="ghBattleFight-${GAME_ID}" disabled>Fight</button></div></div>`;
+    document.body.appendChild(o);
+    o.querySelector('#ghBattleCancel-'+GAME_ID).onclick=()=>{o.classList.remove('show');fbDel(['onlineBattleQueue',GAME_ID,safeKey(me())]).catch(()=>{});};
+    o.querySelector('#ghBattleSearch-'+GAME_ID).onclick=openSearch;
+    o.querySelector('#ghBattleFight-'+GAME_ID).onclick=fight;
+    return o;
+  }
+  function set(id,t){const e=document.getElementById(id+'-'+GAME_ID); if(e)e.textContent=t;}
+  async function findOpponent(myKey){
+    const q=await fbGet(['onlineBattleQueue',GAME_ID]).catch(()=>null)||{}; const now=Date.now();
+    const cand=Object.keys(q).map(k=>Object.assign({key:k},q[k]||{})).filter(p=>p.key!==myKey&&now-Number(p.updatedAt||0)<45000);
+    if(cand.length) return cand[Math.floor(Math.random()*cand.length)];
+    const users=await fbGet(['users']).catch(()=>null)||{}; const u=Object.keys(users).filter(k=>k!==myKey).map(k=>({key:k,username:(users[k]&&(users[k].username||users[k].displayName))||k}));
+    if(u.length&&Math.random()<.65) return u[Math.floor(Math.random()*u.length)];
+    return {username:pickName(), synthetic:true};
+  }
+  async function openSearch(){
+    const o=modal(); o.classList.add('show'); matched=null; set('ghBattleOpponent','Searching...'); set('ghBattleStatus','Searching players for '+GAME_NAME+'...');
+    const btn=document.getElementById('ghBattleFight-'+GAME_ID); if(btn)btn.disabled=true;
+    const myKey=safeKey(me()); await fbPut(['onlineBattleQueue',GAME_ID,myKey],{username:me(),game:GAME_NAME,updatedAt:Date.now()}).catch(()=>{});
+    const p=await findOpponent(myKey); setTimeout(()=>{matched={name:cleanName(p),skill:skill(),synthetic:!!(p&&p.synthetic)}; set('ghBattleOpponent',matched.name); set('ghBattleStatus','Matched with '+matched.name+'. Click Fight when you are ready.'); const b=document.getElementById('ghBattleFight-'+GAME_ID); if(b)b.disabled=false;},650);
+  }
+  function ribbon(name){let r=document.getElementById('ghVersusRibbon-'+GAME_ID); if(!r){r=document.createElement('div');r.id='ghVersusRibbon-'+GAME_ID;r.className='gh-versus-ribbon';document.body.appendChild(r);} r.innerHTML='<strong>'+me()+'</strong><span>VS</span><strong>'+name+'</strong>'; r.classList.add('show');}
+  function fight(){if(!matched)return; modal().classList.remove('show'); ribbon(matched.name); const fn=window[START_FN]; if(typeof fn==='function') fn(matched); else {const b=document.querySelector('#startBtn,#newBtn,button[onclick*=start],button[onclick*=reset]'); if(b)b.click();} fbDel(['onlineBattleQueue',GAME_ID,safeKey(me())]).catch(()=>{});}
+  window.GameHubOnlineBattle=window.GameHubOnlineBattle||{games:{}}; window.GameHubOnlineBattle.games[GAME_ID]={start:openSearch,fight:fight};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ensureButton); else ensureButton();
+  window.addEventListener('beforeunload',()=>fbDel(['onlineBattleQueue',GAME_ID,safeKey(me())]).catch(()=>{}));
+})();
+</script>
+
 </body>
 </html>

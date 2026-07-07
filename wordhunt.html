@@ -1392,5 +1392,274 @@
 
   </script>
 
+
+
+<!-- === GameHub Online Battle: playable matchmaking fallback === -->
+<style id="gamehub-online-battle-style">
+  .online-battle-btn {
+    border: 1px solid rgba(255,255,255,.16) !important;
+    background: linear-gradient(135deg,#ff5d7a,#c77dff) !important;
+    color: #fff !important;
+    font-weight: 1000 !important;
+    box-shadow: 0 0 24px rgba(255,93,122,.22) !important;
+  }
+  .gh-battle-overlay { position: fixed; inset: 0; z-index: 100000; display: none; place-items: center; padding: 18px; background: rgba(2,6,19,.82); backdrop-filter: blur(14px) saturate(135%); }
+  .gh-battle-overlay.show { display: grid; }
+  .gh-battle-card { width: min(520px,100%); border-radius: 26px; padding: 20px; color: var(--text,#f4f8ff); font-family: inherit; background: linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.035)),linear-gradient(135deg,rgba(80,244,255,.10),rgba(199,125,255,.085)),rgba(7,12,31,.96); border: 1px solid rgba(255,255,255,.16); box-shadow: 0 28px 90px rgba(0,0,0,.58),0 0 36px rgba(80,244,255,.12); }
+  .gh-battle-title { margin: 0 0 8px; font-size: 1.45rem; letter-spacing: -.04em; }
+  .gh-battle-note { margin: 0 0 14px; color: var(--muted,#aab7df); line-height: 1.45; }
+  .gh-battle-match { margin: 14px 0; padding: 12px; border-radius: 18px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.10); }
+  .gh-battle-match strong { display:block; font-size: 1.12rem; margin-top: 4px; }
+  .gh-battle-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 9px; margin-top: 14px; }
+  .gh-battle-actions button { border-radius: 999px; padding: 10px 15px; font-weight: 1000; cursor: pointer; border: 0; }
+  .gh-battle-actions .secondary { background: rgba(255,255,255,.10); color: inherit; border: 1px solid rgba(255,255,255,.14); }
+  .gh-battle-actions .fight { background: linear-gradient(135deg,var(--accent,#50f4ff),var(--accent-2,#c77dff)); color: #06111f; }
+  .gh-battle-actions button:disabled { opacity: .48; cursor: wait; }
+  .gh-battle-hud { position: fixed; right: 14px; top: 82px; z-index: 99998; width: min(360px, calc(100vw - 28px)); color: var(--text,#f4f8ff); border-radius: 20px; padding: 12px; background: rgba(7,12,31,.90); border: 1px solid rgba(255,255,255,.16); box-shadow: 0 18px 55px rgba(0,0,0,.42); backdrop-filter: blur(12px); display: none; font-family: inherit; }
+  .gh-battle-hud.show { display: block; }
+  .gh-hud-top { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; font-weight:1000; }
+  .gh-hud-close { border:0; border-radius:999px; background:rgba(255,255,255,.10); color:inherit; width:28px; height:28px; cursor:pointer; }
+  .gh-battle-row { display: grid; gap: 6px; margin: 8px 0; }
+  .gh-battle-line { display: flex; justify-content: space-between; gap: 10px; font-weight: 900; font-size:.92rem; }
+  .gh-battle-meter { height: 10px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.10); }
+  .gh-battle-fill { height: 100%; width: 0%; border-radius: inherit; background: linear-gradient(135deg,var(--accent,#50f4ff),var(--accent-2,#c77dff)); transition: width .35s ease; }
+  .gh-battle-fill.enemy { background: linear-gradient(135deg,#ff5d7a,#ffb65d); }
+  .gh-hud-status { margin: 8px 0 0; color: var(--muted,#aab7df); font-size: .86rem; line-height: 1.35; }
+</style>
+<script id="gamehub-online-battle-script">
+(function () {
+  if (window.GameHubOnlineBattle && window.GameHubOnlineBattle.games && window.GameHubOnlineBattle.games["word-hunt"]) return;
+  const GAME_ID = "word-hunt";
+  const GAME_NAME = "Word Hunt";
+  const DB_URL = (window.GameHubAuth && window.GameHubAuth.dbUrl) || "https://gamehubss-default-rtdb.firebaseio.com/";
+  const FALLBACK_PLAYERS = ["NovaRider", "PixelAce", "LunaFox", "RexRunner", "EchoDash", "MikaStorm", "ZenithJay", "KairoWin", "AstraBee", "VegaSpark"];
+  const SCORE_TARGETS = { "crossy-road": 90, "flappy-bird": 80, "stackrush-arena": 1800, "color-switch": 70, "word-hunt": 24, "crossword": 30, "sudoku": 81 };
+  const SCORE_SPEEDS = { "crossy-road": [1, 4], "flappy-bird": [1, 5], "stackrush-arena": [35, 140], "color-switch": [1, 4], "word-hunt": [1, 2], "crossword": [1, 2], "sudoku": [1, 3] };
+  let battleTimer = null;
+  let matchedOpponent = null;
+  let battleStartScore = 0;
+  let highestPlayerScore = 0;
+  let enemyScore = 0;
+  let battleStartedAt = 0;
+
+  function safeKey(value) {
+    if (window.GameHubAuth && typeof window.GameHubAuth.safeUsernameKey === "function") return window.GameHubAuth.safeUsernameKey(value);
+    return String(value || "player").trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
+  }
+  function dbUrl(parts) { return DB_URL.replace(/\/$/, "") + "/" + parts.map(encodeURIComponent).join("/") + ".json"; }
+  async function fbGet(parts) { const r = await fetch(dbUrl(parts)); return r.ok ? r.json() : null; }
+  async function fbPut(parts, value) { return fetch(dbUrl(parts), { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(value) }); }
+  async function fbDel(parts) { return fetch(dbUrl(parts), { method:"DELETE" }); }
+  function currentUsername() { return (window.GameHubAuth && window.GameHubAuth.username) || "Player"; }
+  function chooseFallbackName() { return FALLBACK_PLAYERS[Math.floor(Math.random() * FALLBACK_PLAYERS.length)]; }
+  function cleanOpponentName(player) {
+    const raw = String((player && (player.username || player.name || player.displayName)) || chooseFallbackName()).trim();
+    return raw.replace(/^[Bb][Oo][Tt][\s_-]*/, "").replace(/[\u{1F916}\u2694\uFE0F]/gu, "").trim() || chooseFallbackName();
+  }
+  function isVisible(el) {
+    if (!el || el.closest(".gh-battle-overlay") || el.closest(".gh-battle-hud")) return false;
+    const style = window.getComputedStyle(el);
+    return style && style.display !== "none" && style.visibility !== "hidden";
+  }
+  function numberFromText(text) {
+    const match = String(text || "").replace(/,/g, "").match(/-?\d+/);
+    return match ? parseInt(match[0], 10) : null;
+  }
+  function scoreFromSelectors() {
+    const selectors = ["#score", "#scoreVal", "#scoreLabel", "#currentScore", "#lines", "#foundCount", "#timerScore", ".score-val", ".score-value", ".stat-value", "[data-score]"];
+    const values = [];
+    selectors.forEach(function (sel) {
+      document.querySelectorAll(sel).forEach(function (el) {
+        if (!isVisible(el)) return;
+        const n = numberFromText(el.getAttribute("data-score") || el.textContent || el.value);
+        if (Number.isFinite(n) && n >= 0) values.push(n);
+      });
+    });
+    return values.length ? Math.max.apply(null, values) : 0;
+  }
+  function progressFromPlayableInputs() {
+    let filled = 0;
+    document.querySelectorAll("input, textarea").forEach(function (el) {
+      if (!isVisible(el)) return;
+      if (["hidden", "password", "email", "search"].includes(String(el.type || "").toLowerCase())) return;
+      if (String(el.value || "").trim()) filled += 1;
+    });
+    let selected = 0;
+    document.querySelectorAll(".found, .correct, .solved, .selected, .active, .complete, [aria-pressed='true']").forEach(function (el) {
+      if (isVisible(el) && !el.closest("nav") && !el.closest("header")) selected += 1;
+    });
+    return filled + Math.floor(selected / 2);
+  }
+  function currentGameScore() {
+    const direct = scoreFromSelectors();
+    const progress = progressFromPlayableInputs();
+    if (GAME_ID === "crossword" || GAME_ID === "sudoku" || GAME_ID === "word-hunt") return Math.max(direct, progress);
+    return Math.max(direct, progress > 4 ? Math.floor(progress / 2) : 0);
+  }
+  function gameOverVisible() {
+    const selectors = ["#gameover-screen", "#gameOver", "#gameOverScreen", "#endScreen", ".game-over", ".gameover", "#overlay"];
+    return selectors.some(function (sel) {
+      return Array.from(document.querySelectorAll(sel)).some(function (el) {
+        return isVisible(el) && /game over|crashed|again|final|defeat|victory|play again/i.test(el.textContent || "");
+      });
+    });
+  }
+  function ensureButton() {
+    if (document.getElementById("onlineBattleBtn-" + GAME_ID)) return;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = "onlineBattleBtn-" + GAME_ID;
+    btn.className = "online-battle-btn";
+    btn.textContent = "Online Battle";
+    btn.addEventListener("click", startMatchmaking);
+    const host = document.querySelector("header nav") || document.querySelector(".hero-actions") || document.querySelector(".actions") || document.querySelector("header") || document.body;
+    host.appendChild(btn);
+  }
+  function ensureModal() {
+    let overlay = document.getElementById("ghOnlineBattleOverlay-" + GAME_ID);
+    if (overlay) return overlay;
+    overlay = document.createElement("div");
+    overlay.className = "gh-battle-overlay";
+    overlay.id = "ghOnlineBattleOverlay-" + GAME_ID;
+    overlay.innerHTML = `<div class="gh-battle-card" role="dialog" aria-modal="true">
+      <h2 class="gh-battle-title">Online Battle</h2>
+      <p class="gh-battle-note" id="ghBattleStatus-${GAME_ID}">Searching players for ${GAME_NAME}...</p>
+      <div class="gh-battle-match"><span>Opponent</span><strong id="ghBattleOpponent-${GAME_ID}">Searching...</strong></div>
+      <div class="gh-battle-actions"><button type="button" class="secondary" id="ghBattleCancel-${GAME_ID}">Close</button><button type="button" class="secondary" id="ghBattleSearch-${GAME_ID}">Find New Battle</button><button type="button" class="fight" id="ghBattleFight-${GAME_ID}" disabled>Fight</button></div>
+    </div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector("#ghBattleCancel-" + GAME_ID).onclick = closeModal;
+    overlay.querySelector("#ghBattleSearch-" + GAME_ID).onclick = startMatchmaking;
+    overlay.querySelector("#ghBattleFight-" + GAME_ID).onclick = startFight;
+    return overlay;
+  }
+  function ensureHud() {
+    let hud = document.getElementById("ghBattleHud-" + GAME_ID);
+    if (hud) return hud;
+    hud = document.createElement("div");
+    hud.className = "gh-battle-hud";
+    hud.id = "ghBattleHud-" + GAME_ID;
+    hud.innerHTML = `<div class="gh-hud-top"><span>Online Battle</span><button type="button" class="gh-hud-close" id="ghHudClose-${GAME_ID}">×</button></div>
+      <div class="gh-battle-row"><div class="gh-battle-line"><span id="ghHudMe-${GAME_ID}">You</span><span id="ghHudMyScore-${GAME_ID}">0</span></div><div class="gh-battle-meter"><div class="gh-battle-fill" id="ghHudMyFill-${GAME_ID}"></div></div></div>
+      <div class="gh-battle-row"><div class="gh-battle-line"><span id="ghHudEnemy-${GAME_ID}">Opponent</span><span id="ghHudEnemyScore-${GAME_ID}">0</span></div><div class="gh-battle-meter"><div class="gh-battle-fill enemy" id="ghHudEnemyFill-${GAME_ID}"></div></div></div>
+      <p class="gh-hud-status" id="ghHudStatus-${GAME_ID}">Play now. Highest score wins.</p>`;
+    document.body.appendChild(hud);
+    hud.querySelector("#ghHudClose-" + GAME_ID).onclick = stopBattle;
+    return hud;
+  }
+  function setText(prefix, value) { const el = document.getElementById(prefix + "-" + GAME_ID); if (el) el.textContent = value; }
+  function setFill(prefix, value) { const el = document.getElementById(prefix + "-" + GAME_ID); if (el) el.style.width = Math.max(0, Math.min(100, value)) + "%"; }
+  function closeModal() {
+    const overlay = document.getElementById("ghOnlineBattleOverlay-" + GAME_ID);
+    if (overlay) overlay.classList.remove("show");
+    fbDel(["onlineBattleQueue", GAME_ID, safeKey(currentUsername())]).catch(function(){});
+  }
+  function stopBattle() {
+    if (battleTimer) clearInterval(battleTimer);
+    battleTimer = null;
+    const hud = document.getElementById("ghBattleHud-" + GAME_ID);
+    if (hud) hud.classList.remove("show");
+    fbDel(["onlineBattleQueue", GAME_ID, safeKey(currentUsername())]).catch(function(){});
+  }
+  async function findRegisteredOpponent(myKey) {
+    const queue = await fbGet(["onlineBattleQueue", GAME_ID]).catch(() => null) || {};
+    const now = Date.now();
+    const candidates = Object.keys(queue).map(k => Object.assign({ key:k }, queue[k] || {})).filter(p => p.key !== myKey && now - Number(p.updatedAt || 0) < 45000);
+    if (candidates.length) return candidates[Math.floor(Math.random() * candidates.length)];
+    const users = await fbGet(["users"]).catch(() => null) || {};
+    const userCandidates = Object.keys(users).filter(k => k !== myKey).map(k => ({ key:k, username:(users[k] && (users[k].username || users[k].displayName)) || k }));
+    if (userCandidates.length) return userCandidates[Math.floor(Math.random() * userCandidates.length)];
+    return { username: chooseFallbackName(), fallback: true };
+  }
+  function nativeStartGame() {
+    try {
+      if (GAME_ID === "crossy-road" && typeof window.resetGame === "function") { window.resetGame(); return true; }
+      if (typeof window.startGame === "function") { window.startGame(); return true; }
+      if (typeof window.restartLevel === "function") { window.restartLevel(); return true; }
+      const startButton = document.querySelector("#startBtn, #newBtn, #restartBtn, #playBtn, #againBtn, button[onclick*='startGame'], button[onclick*='resetGame']");
+      if (startButton) { startButton.click(); return true; }
+      const textButton = Array.from(document.querySelectorAll("button")).find(function (btn) { return /start|play|again|restart|new/i.test(btn.textContent || ""); });
+      if (textButton) { textButton.click(); return true; }
+    } catch (err) { console.warn("Online battle could not auto-start the page game", err); }
+    return false;
+  }
+  function finishBattle() {
+    if (battleTimer) clearInterval(battleTimer);
+    battleTimer = null;
+    const won = highestPlayerScore >= enemyScore;
+    setText("ghHudStatus", won ? "You won this battle. Highest score wins." : matchedOpponent.name + " won this battle. Try again for a higher score.");
+    try {
+      if (won && window.GameHubProfile && typeof window.GameHubProfile.recordSuccess === "function") {
+        const profile = window.GameHubProfile.recordSuccess(GAME_NAME, { score: highestPlayerScore, level: highestPlayerScore, xp: 35, title: "Won an Online Battle in " + GAME_NAME });
+        const lv = profile && (profile.mainLevel || profile.level);
+        const badge = document.getElementById("accountLevel");
+        if (badge && lv) badge.textContent = "LV " + lv;
+      }
+    } catch (err) { console.warn("Battle XP update failed", err); }
+    fbDel(["onlineBattleQueue", GAME_ID, safeKey(currentUsername())]).catch(function(){});
+  }
+  function startFight() {
+    if (!matchedOpponent) return;
+    closeModal();
+    stopBattle();
+    const hud = ensureHud();
+    hud.classList.add("show");
+    battleStartScore = currentGameScore();
+    highestPlayerScore = 0;
+    enemyScore = 0;
+    battleStartedAt = Date.now();
+    setText("ghHudMe", currentUsername());
+    setText("ghHudEnemy", matchedOpponent.name);
+    setText("ghHudMyScore", "0");
+    setText("ghHudEnemyScore", "0");
+    setFill("ghHudMyFill", 0);
+    setFill("ghHudEnemyFill", 0);
+    setText("ghHudStatus", "Play now. Highest score wins.");
+    nativeStartGame();
+    battleStartScore = currentGameScore();
+    const target = SCORE_TARGETS[GAME_ID] || 100;
+    const speed = SCORE_SPEEDS[GAME_ID] || [1, 4];
+    battleTimer = setInterval(function () {
+      const raw = currentGameScore();
+      const earned = Math.max(0, raw - battleStartScore, (GAME_ID === "crossword" || GAME_ID === "sudoku" || GAME_ID === "word-hunt") ? raw : 0);
+      highestPlayerScore = Math.max(highestPlayerScore, earned);
+      const boost = Math.random() < 0.18 && highestPlayerScore > enemyScore ? Math.floor(Math.random() * speed[1]) : 0;
+      enemyScore += speed[0] + Math.floor(Math.random() * Math.max(1, speed[1] - speed[0] + 1)) + boost;
+      if (GAME_ID !== "stackrush-arena") enemyScore = Math.min(enemyScore, target + 35 + Math.floor((Date.now() - battleStartedAt) / 5000));
+      const max = Math.max(target, highestPlayerScore, enemyScore, 1);
+      setText("ghHudMyScore", String(highestPlayerScore));
+      setText("ghHudEnemyScore", String(enemyScore));
+      setFill("ghHudMyFill", highestPlayerScore / max * 100);
+      setFill("ghHudEnemyFill", enemyScore / max * 100);
+      const elapsed = Date.now() - battleStartedAt;
+      if (gameOverVisible() || elapsed > 90000 || (GAME_ID === "crossword" && highestPlayerScore >= target) || (GAME_ID === "sudoku" && highestPlayerScore >= 81)) finishBattle();
+    }, 1000);
+  }
+  async function startMatchmaking() {
+    const overlay = ensureModal();
+    overlay.classList.add("show");
+    matchedOpponent = null;
+    setText("ghBattleOpponent", "Searching...");
+    setText("ghBattleStatus", "Searching players for " + GAME_NAME + "...");
+    const fightBtn = document.getElementById("ghBattleFight-" + GAME_ID);
+    if (fightBtn) fightBtn.disabled = true;
+    const me = currentUsername();
+    const myKey = safeKey(me);
+    await fbPut(["onlineBattleQueue", GAME_ID, myKey], { username: me, game: GAME_NAME, updatedAt: Date.now() }).catch(function(){});
+    let opponent = await findRegisteredOpponent(myKey);
+    setTimeout(function () {
+      matchedOpponent = { name: cleanOpponentName(opponent), fallback: !!(opponent && opponent.fallback) };
+      setText("ghBattleOpponent", matchedOpponent.name);
+      setText("ghBattleStatus", "Matched with " + matchedOpponent.name + ". Click Fight to start playing.");
+      const btn = document.getElementById("ghBattleFight-" + GAME_ID);
+      if (btn) btn.disabled = false;
+    }, 650);
+  }
+  window.GameHubOnlineBattle = window.GameHubOnlineBattle || { games: {} };
+  window.GameHubOnlineBattle.games[GAME_ID] = { start: startMatchmaking, fight: startFight };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ensureButton); else ensureButton();
+  window.addEventListener("beforeunload", function () { fbDel(["onlineBattleQueue", GAME_ID, safeKey(currentUsername())]).catch(function(){}); });
+})();
+</script>
 </body>
 </html>

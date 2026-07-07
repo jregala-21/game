@@ -2389,6 +2389,7 @@ body.chicken-hop #game-wrapper { animation: hopGlow .22s ease; }
             const spawnInterval = Math.max(0.65, 2.4 - difficulty * 1.25 + Math.random() * (1.0 - difficulty * 0.35));
             rows[rowIndex] = { index: rowIndex, type: type, speed: speed, direction: direction, lastSpawned: 0, spawnInterval: spawnInterval, blockedCells: Array.from(blockedCells) };
             rowObjects[rowIndex] = rowGroup;
+            if (type === TYPE_RIVER) seedRiverLogsForRow(rowIndex);
             refreshStreetLampsForRows();
         }
 
@@ -2610,6 +2611,58 @@ body.chicken-hop #game-wrapper { animation: hopGlow .22s ease; }
         }
 
 
+        function logCountOnRow(rowIndex) {
+            return logs.filter(unit => unit.row === rowIndex).length;
+        }
+
+        function getLogLimitForRow(rowIndex) {
+            const difficulty = Math.min(1, Math.max(0, rowIndex / 120));
+            if (rowIndex < 28) return 3;
+            if (rowIndex < 55) return difficulty > 0.55 ? 4 : 3;
+            return 4;
+        }
+
+        function hasSafeLogSpawnGap(rowIndex) {
+            const row = rows[rowIndex];
+            if (!row) return false;
+            const startX = row.direction > 0 ? -24 : 24;
+            const neededGap = 4.1;
+            return logs.every(unit => unit.row !== rowIndex || Math.abs(unit.mesh.position.x - startX) >= neededGap);
+        }
+
+        function spawnLogForRow(rowIndex, forcedX) {
+            const row = rows[rowIndex];
+            if (!row || row.type !== TYPE_RIVER || !rowObjects[rowIndex]) return false;
+            if (logCountOnRow(rowIndex) >= getLogLimitForRow(rowIndex)) return false;
+            if (typeof forcedX !== "number" && !hasSafeLogSpawnGap(rowIndex)) return false;
+            generateIceUnit(rowIndex);
+            const spawned = logs[logs.length - 1];
+            if (spawned && typeof forcedX === "number") spawned.mesh.position.x = forcedX;
+            return true;
+        }
+
+        function seedRiverLogsForRow(rowIndex) {
+            const row = rows[rowIndex];
+            if (!row || row.type !== TYPE_RIVER) return;
+            const target = Math.min(getLogLimitForRow(rowIndex), rowIndex < 28 ? 3 : 4);
+            const phase = (rowIndex % 4) * 1.15;
+            const positions = row.direction > 0
+                ? [-8 - phase, 0.5 + phase * 0.25, 9.5 + phase * 0.35, 18]
+                : [8 + phase, -0.5 - phase * 0.25, -9.5 - phase * 0.35, -18];
+            for (let i = 0; i < target; i++) spawnLogForRow(rowIndex, positions[i]);
+        }
+
+        function ensureRiverHasForwardCarrier(rowIndex) {
+            const row = rows[rowIndex];
+            if (!row || row.type !== TYPE_RIVER) return;
+            const nearPlayerLane = logs.some(unit => unit.row === rowIndex && Math.abs(unit.mesh.position.x - playerSideIndex) < 3.4);
+            if (!nearPlayerLane && logCountOnRow(rowIndex) < getLogLimitForRow(rowIndex)) {
+                const offset = row.direction > 0 ? -2.2 : 2.2;
+                spawnLogForRow(rowIndex, Math.max(-18, Math.min(18, playerSideIndex + offset)));
+            }
+        }
+
+
         function trafficCountOnRow(rowIndex) {
             return cars.filter(unit => unit.row === rowIndex).length;
         }
@@ -2652,9 +2705,8 @@ body.chicken-hop #game-wrapper { animation: hopGlow .22s ease; }
                         cars[cars.length - 1].mesh.position.x = (Math.random() * 24) - 12;
                     }
                 }
-                if (rows[i].type === TYPE_RIVER && logs.filter(l => l.row === i).length === 0 && Math.random() < 0.52) {
-                    generateIceUnit(i);
-                    logs[logs.length - 1].mesh.position.x = (Math.random() * 24) - 12;
+                if (rows[i].type === TYPE_RIVER && logCountOnRow(i) < Math.min(3, getLogLimitForRow(i))) {
+                    seedRiverLogsForRow(i);
                 }
             }
         }
@@ -2680,9 +2732,8 @@ body.chicken-hop #game-wrapper { animation: hopGlow .22s ease; }
                     if (row.type === TYPE_ROAD || row.type === TYPE_RAIL) {
                         if (spawnTrafficForRow(row.index)) row.lastSpawned = elapsed;
                     } else {
-                        const activeLogs = logs.filter(unit => unit.row === row.index).length;
-                        if (activeLogs < 2) {
-                            generateIceUnit(row.index);
+                        const activeLogs = logCountOnRow(row.index);
+                        if (activeLogs < getLogLimitForRow(row.index) && spawnLogForRow(row.index)) {
                             row.lastSpawned = elapsed;
                         }
                     }
@@ -2870,6 +2921,7 @@ body.chicken-hop #game-wrapper { animation: hopGlow .22s ease; }
             }
 
             if (flag) {
+                ensureRiverHasForwardCarrier(nextF);
                 lastMoveTime = clock.getElapsedTime();
                 document.body.classList.remove('chicken-hop');
                 void document.body.offsetWidth;
@@ -2911,6 +2963,90 @@ body.chicken-hop #game-wrapper { animation: hopGlow .22s ease; }
             document.getElementById('gameover-screen').style.display = 'flex';
             handleLevelUpTracking(score);
         }
+
+
+
+        // --- ONLINE BATTLE BOT: visible racing chicken with real map collisions ---
+        let ghCrossyBotTimer = null;
+        let ghCrossyBotState = null;
+        function ghCrossyVehicleThreat(rowIndex, sideIndex) {
+            return cars.some(unit => unit.row === rowIndex && Math.abs(sideIndex - unit.mesh.position.x) < ((unit.hitWidth || 1.05) + 0.45));
+        }
+        function ghCrossyLogCarrier(rowIndex, sideIndex) {
+            return logs.find(unit => unit.row === rowIndex && Math.abs(sideIndex - unit.mesh.position.x) < 1.35) || null;
+        }
+        function ghCrossyCanStand(rowIndex, sideIndex) {
+            while (rows.length <= rowIndex + 4) generateRowStructure(rows.length);
+            if (sideIndex < -7 || sideIndex > 7) return false;
+            if (isBlockedCell(rowIndex, sideIndex)) return false;
+            const row = rows[rowIndex];
+            if (!row) return false;
+            if (row.type === TYPE_ROAD || row.type === TYPE_RAIL) return !ghCrossyVehicleThreat(rowIndex, sideIndex);
+            if (row.type === TYPE_RIVER) return !!ghCrossyLogCarrier(rowIndex, sideIndex);
+            return true;
+        }
+        function ghCrossyTryMove(df, dx) {
+            const nr = Math.max(0, ghCrossyBotState.row + df);
+            const nx = Math.round(Math.max(-7, Math.min(7, ghCrossyBotState.x + dx)));
+            if (!ghCrossyCanStand(nr, nx)) return false;
+            ghCrossyBotState.row = nr;
+            ghCrossyBotState.x = nx;
+            ghCrossyBotState.rotationY = dx < 0 ? Math.PI / 2 : dx > 0 ? -Math.PI / 2 : df < 0 ? Math.PI : 0;
+            ghCrossyBotState.score = Math.max(ghCrossyBotState.score || 0, nr);
+            return true;
+        }
+        function ghCrossyBotStep() {
+            if (!ghCrossyBotState || isGameOver) return;
+            const row = rows[ghCrossyBotState.row];
+            if (row && row.type === TYPE_RIVER) {
+                const carrier = ghCrossyLogCarrier(ghCrossyBotState.row, ghCrossyBotState.x);
+                if (carrier) ghCrossyBotState.x = Math.max(-7, Math.min(7, carrier.mesh.position.x));
+                else return;
+            }
+            const moves = [];
+            // Expert-but-beatable racing: strongly prefers safe forward moves,
+            // sidesteps when traffic/log timing blocks progress, and rarely backs up.
+            if (ghCrossyCanStand(ghCrossyBotState.row + 1, Math.round(ghCrossyBotState.x))) moves.push([1, 0, 10]);
+            if (ghCrossyCanStand(ghCrossyBotState.row, Math.round(ghCrossyBotState.x) - 1)) moves.push([0, -1, 2.5]);
+            if (ghCrossyCanStand(ghCrossyBotState.row, Math.round(ghCrossyBotState.x) + 1)) moves.push([0, 1, 2.5]);
+            if (ghCrossyBotState.row > 0 && ghCrossyCanStand(ghCrossyBotState.row - 1, Math.round(ghCrossyBotState.x)) && Math.random() < 0.035) moves.push([-1, 0, 1]);
+            if (moves.length) {
+                const total = moves.reduce((a,m)=>a+m[2],0);
+                let pick = Math.random() * total;
+                for (const m of moves) { pick -= m[2]; if (pick <= 0) { ghCrossyTryMove(m[0], m[1]); break; } }
+            }
+            const id = ghCrossyBotState.id;
+            multiplayerPlayers[id] = {
+                id,
+                name: ghCrossyBotState.name,
+                x: ghCrossyBotState.x,
+                row: ghCrossyBotState.row,
+                y: 0.375,
+                rotationY: ghCrossyBotState.rotationY || 0,
+                score: ghCrossyBotState.score || ghCrossyBotState.row,
+                rank: getRankLevel(ghCrossyBotState.score || ghCrossyBotState.row),
+                updatedAt: Date.now()
+            };
+            updateMultiplayerUI();
+            renderRemotePlayers();
+        }
+        window.GameHubStartCrossyBattle = function(opponent) {
+            const name = (opponent && opponent.name) || 'NovaRider';
+            const skill = 'expert';
+            resetGame();
+            multiplayerRoomCode = 'ONLINE_MATCH';
+            multiplayerIsHost = true;
+            ghCrossyBotState = { id: 'r_' + Math.random().toString(36).slice(2, 9), name, skill, row: 0, x: 0, score: 0, rotationY: 0 };
+            multiplayerPlayers = {};
+            multiplayerPlayers[multiplayerPlayerId] = getLocalMultiplayerState();
+            multiplayerPlayers[ghCrossyBotState.id] = { id: ghCrossyBotState.id, name, x: 0, row: 0, y: 0.375, rotationY: 0, score: 0, rank: getRankLevel(0), updatedAt: Date.now() };
+            updateMultiplayerUI();
+            renderRemotePlayers();
+            clearInterval(ghCrossyBotTimer);
+            const base = 360 + Math.floor(Math.random() * 190);
+            ghCrossyBotTimer = setInterval(ghCrossyBotStep, base);
+            showMultiplayerMessage('Racing against ' + name + '. Highest distance wins.');
+        };
 
         function resetGame() {
             cars.forEach(c => { if (c.mesh.parent) c.mesh.parent.remove(c.mesh); });
@@ -3284,5 +3420,73 @@ body.chicken-hop #game-wrapper { animation: hopGlow .22s ease; }
         })();
 
     </script>
+
+
+
+<!-- === GameHub Online Battle: visible opponent match === -->
+<style id="gamehub-online-battle-style">
+  .online-battle-btn{border:1px solid rgba(255,255,255,.16)!important;background:linear-gradient(135deg,#ff5d7a,#c77dff)!important;color:#fff!important;font-weight:1000!important;box-shadow:0 0 24px rgba(255,93,122,.22)!important}
+  .gh-battle-overlay{position:fixed;inset:0;z-index:100000;display:none;place-items:center;padding:18px;background:rgba(2,6,19,.82);backdrop-filter:blur(14px) saturate(135%)}
+  .gh-battle-overlay.show{display:grid}.gh-battle-card{width:min(520px,100%);border-radius:26px;padding:20px;color:var(--text,#f4f8ff);font-family:inherit;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.035)),rgba(7,12,31,.96);border:1px solid rgba(255,255,255,.16);box-shadow:0 28px 90px rgba(0,0,0,.58),0 0 36px rgba(80,244,255,.12)}
+  .gh-battle-title{margin:0 0 8px;font-size:1.45rem;letter-spacing:-.04em}.gh-battle-note{margin:0 0 14px;color:var(--muted,#aab7df);line-height:1.45}.gh-battle-match{margin:14px 0;padding:12px;border-radius:18px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.10)}.gh-battle-match strong{display:block;font-size:1.12rem;margin-top:4px}
+  .gh-battle-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:9px;margin-top:14px}.gh-battle-actions button{border-radius:999px;padding:10px 15px;font-weight:1000;cursor:pointer;border:0}.gh-battle-actions .secondary{background:rgba(255,255,255,.10);color:inherit;border:1px solid rgba(255,255,255,.14)}.gh-battle-actions .fight{background:linear-gradient(135deg,var(--accent,#50f4ff),var(--accent-2,#c77dff));color:#06111f}.gh-battle-actions button:disabled{opacity:.48;cursor:wait}
+  .gh-versus-ribbon{position:fixed;left:50%;top:76px;transform:translateX(-50%);z-index:99997;display:none;gap:10px;align-items:center;padding:9px 14px;border-radius:999px;background:rgba(7,12,31,.88);border:1px solid rgba(255,255,255,.14);color:var(--text,#f4f8ff);font-weight:1000;box-shadow:0 14px 35px rgba(0,0,0,.35)}.gh-versus-ribbon.show{display:flex}.gh-versus-ribbon span{color:var(--accent,#50f4ff)}
+</style>
+
+<script id="gamehub-online-battle-script">
+(function(){
+  const GAME_ID='crossy-road';
+  const GAME_NAME='Crossy Road';
+  const START_FN='GameHubStartCrossyBattle';
+  const DB_URL=(window.GameHubAuth&&window.GameHubAuth.dbUrl)||"https://gamehubss-default-rtdb.firebaseio.com/";
+  const NAMES=["NovaRider","PixelAce","LunaFox","RexRunner","EchoDash","MikaStorm","ZenithJay","KairoWin","AstraBee","VegaSpark","JunoWave","KaiBlaze","MiloQuest","RinaStar","TheoRush"];
+  let matched=null;
+  function safeKey(v){return (window.GameHubAuth&&typeof window.GameHubAuth.safeUsernameKey==='function')?window.GameHubAuth.safeUsernameKey(v):String(v||'player').trim().toLowerCase().replace(/[^a-z0-9_]/g,'_');}
+  function dbUrl(parts){return DB_URL.replace(/\/$/,'')+'/'+parts.map(encodeURIComponent).join('/')+'.json';}
+  async function fbGet(parts){const r=await fetch(dbUrl(parts));return r.ok?r.json():null;}
+  async function fbPut(parts,val){return fetch(dbUrl(parts),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(val)});}
+  async function fbDel(parts){return fetch(dbUrl(parts),{method:'DELETE'});}
+  function me(){return (window.GameHubAuth&&window.GameHubAuth.username)||'Player';}
+  function pickName(){return NAMES[Math.floor(Math.random()*NAMES.length)];}
+  function cleanName(p){let raw=String((p&&(p.username||p.displayName||p.name))||pickName()).trim();raw=raw.replace(/^[Bb][Oo][Tt][\s_-]*/, '').replace(/[🤖⚔️]/g,'').trim();return raw||pickName();}
+  function skill(){const r=Math.random();return r<.78?'normal':'smart';}
+  function ensureButton(){
+    const existing=document.getElementById('onlineBattleBtn-'+GAME_ID); if(existing){existing.onclick=openSearch; existing.textContent='Online Battle'; return;}
+    const b=document.createElement('button'); b.type='button'; b.id='onlineBattleBtn-'+GAME_ID; b.className='online-battle-btn'; b.textContent='Online Battle'; b.onclick=openSearch;
+    const host=document.querySelector('header nav')||document.querySelector('.hero-actions')||document.querySelector('.actions')||document.querySelector('header')||document.body; host.appendChild(b);
+  }
+  function modal(){
+    let o=document.getElementById('ghOnlineBattleOverlay-'+GAME_ID); if(o) return o;
+    o=document.createElement('div'); o.className='gh-battle-overlay'; o.id='ghOnlineBattleOverlay-'+GAME_ID;
+    o.innerHTML=`<div class="gh-battle-card" role="dialog" aria-modal="true"><h2 class="gh-battle-title">Online Battle</h2><p class="gh-battle-note" id="ghBattleStatus-${GAME_ID}">Searching players...</p><div class="gh-battle-match"><span>Opponent</span><strong id="ghBattleOpponent-${GAME_ID}">Searching...</strong></div><div class="gh-battle-actions"><button type="button" class="secondary" id="ghBattleCancel-${GAME_ID}">Close</button><button type="button" class="secondary" id="ghBattleSearch-${GAME_ID}">Search Again</button><button type="button" class="fight" id="ghBattleFight-${GAME_ID}" disabled>Fight</button></div></div>`;
+    document.body.appendChild(o);
+    o.querySelector('#ghBattleCancel-'+GAME_ID).onclick=()=>{o.classList.remove('show');fbDel(['onlineBattleQueue',GAME_ID,safeKey(me())]).catch(()=>{});};
+    o.querySelector('#ghBattleSearch-'+GAME_ID).onclick=openSearch;
+    o.querySelector('#ghBattleFight-'+GAME_ID).onclick=fight;
+    return o;
+  }
+  function set(id,t){const e=document.getElementById(id+'-'+GAME_ID); if(e)e.textContent=t;}
+  async function findOpponent(myKey){
+    const q=await fbGet(['onlineBattleQueue',GAME_ID]).catch(()=>null)||{}; const now=Date.now();
+    const cand=Object.keys(q).map(k=>Object.assign({key:k},q[k]||{})).filter(p=>p.key!==myKey&&now-Number(p.updatedAt||0)<45000);
+    if(cand.length) return cand[Math.floor(Math.random()*cand.length)];
+    const users=await fbGet(['users']).catch(()=>null)||{}; const u=Object.keys(users).filter(k=>k!==myKey).map(k=>({key:k,username:(users[k]&&(users[k].username||users[k].displayName))||k}));
+    if(u.length&&Math.random()<.65) return u[Math.floor(Math.random()*u.length)];
+    return {username:pickName(), synthetic:true};
+  }
+  async function openSearch(){
+    const o=modal(); o.classList.add('show'); matched=null; set('ghBattleOpponent','Searching...'); set('ghBattleStatus','Searching players for '+GAME_NAME+'...');
+    const btn=document.getElementById('ghBattleFight-'+GAME_ID); if(btn)btn.disabled=true;
+    const myKey=safeKey(me()); await fbPut(['onlineBattleQueue',GAME_ID,myKey],{username:me(),game:GAME_NAME,updatedAt:Date.now()}).catch(()=>{});
+    const p=await findOpponent(myKey); setTimeout(()=>{matched={name:cleanName(p),skill:skill(),synthetic:!!(p&&p.synthetic)}; set('ghBattleOpponent',matched.name); set('ghBattleStatus','Matched with '+matched.name+'. Click Fight when you are ready.'); const b=document.getElementById('ghBattleFight-'+GAME_ID); if(b)b.disabled=false;},650);
+  }
+  function ribbon(name){let r=document.getElementById('ghVersusRibbon-'+GAME_ID); if(!r){r=document.createElement('div');r.id='ghVersusRibbon-'+GAME_ID;r.className='gh-versus-ribbon';document.body.appendChild(r);} r.innerHTML='<strong>'+me()+'</strong><span>VS</span><strong>'+name+'</strong>'; r.classList.add('show');}
+  function fight(){if(!matched)return; modal().classList.remove('show'); ribbon(matched.name); const fn=window[START_FN]; if(typeof fn==='function') fn(matched); else {const b=document.querySelector('#startBtn,#newBtn,button[onclick*=start],button[onclick*=reset]'); if(b)b.click();} fbDel(['onlineBattleQueue',GAME_ID,safeKey(me())]).catch(()=>{});}
+  window.GameHubOnlineBattle=window.GameHubOnlineBattle||{games:{}}; window.GameHubOnlineBattle.games[GAME_ID]={start:openSearch,fight:fight};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ensureButton); else ensureButton();
+  window.addEventListener('beforeunload',()=>fbDel(['onlineBattleQueue',GAME_ID,safeKey(me())]).catch(()=>{}));
+})();
+</script>
+
 </body>
 </html>

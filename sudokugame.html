@@ -2362,5 +2362,158 @@ html, body {
     })();
 
   </script>
+
+
+
+<style id="gh-sudoku-battle-style">
+  body.sudoku-battle-active .layout{grid-template-columns:minmax(280px,1fr) minmax(280px,1fr) minmax(260px,330px)!important;gap:16px!important;align-items:start!important}
+  .gh-sudoku-opponent-wrap{display:none;border:1px solid rgba(255,255,255,.12);background:linear-gradient(180deg,var(--panel,rgba(16,20,40,.9)),rgba(6,9,24,.88));border-radius:28px;box-shadow:var(--shadow,0 20px 60px rgba(0,0,0,.35));backdrop-filter:blur(14px);padding:clamp(12px,2vw,24px)}
+  body.sudoku-battle-active .gh-sudoku-opponent-wrap{display:grid;place-items:center}.gh-sudoku-opponent-title{width:100%;display:flex;justify-content:space-between;gap:10px;margin-bottom:10px;font-weight:1000;color:var(--text,#fff)}
+  .gh-sudoku-opponent-board{display:grid;grid-template-columns:repeat(9,1fr);width:min(100%,620px);aspect-ratio:1;border:3px solid rgba(255,255,255,.45);background:rgba(0,0,0,.24);overflow:hidden;border-radius:18px}.gh-sudoku-opponent-cell{display:grid;place-items:center;border:1px solid rgba(255,255,255,.11);font-weight:900;color:var(--accent,#50f4ff);font-size:clamp(.9rem,2.3vw,1.5rem)}.gh-sudoku-opponent-cell.given{color:var(--text,#fff);background:rgba(255,255,255,.09)}.gh-sudoku-opponent-cell:nth-child(3n){border-right-color:rgba(255,255,255,.38)}.gh-sudoku-opponent-cell:nth-child(n+19):nth-child(-n+27),.gh-sudoku-opponent-cell:nth-child(n+46):nth-child(-n+54){border-bottom-color:rgba(255,255,255,.38)}
+  @media(max-width:1000px){body.sudoku-battle-active .layout{grid-template-columns:1fr!important}}
+</style>
+<script id="gh-sudoku-visible-battle-script">
+(function(){
+  let timer=null, start=0, botRevealCount=0, botTargetMs=0, opponentName='Opponent', finished=false, blankOrder=[];
+  function ensureBoard(){
+    let wrap=document.getElementById('ghSudokuOpponentWrap'); if(wrap)return wrap;
+    wrap=document.createElement('div'); wrap.id='ghSudokuOpponentWrap'; wrap.className='gh-sudoku-opponent-wrap';
+    wrap.innerHTML='<div class="gh-sudoku-opponent-title"><span id="ghSudokuOppName">Opponent</span><span id="ghSudokuOppTimer">00:00</span></div><div class="gh-sudoku-opponent-board" id="ghSudokuOpponentBoard"></div>';
+    const layout=document.querySelector('.layout'); const side=document.querySelector('.side'); if(layout&&side)layout.insertBefore(wrap,side); else document.body.appendChild(wrap);
+    return wrap;
+  }
+  function visibleCells(){return Array.from(document.querySelectorAll('#board .cell,#board input,#board button,#board div')).filter(el=>!el.closest('#ghSudokuOpponentWrap')).slice(0,81)}
+  function getPuzzleSnapshot(){
+    if (typeof puzzle === 'string' && typeof solution === 'string' && puzzle.length === 81 && solution.length === 81) {
+      return puzzle.split('').map((v,i)=>({ given:v !== '0' && v !== '.', val:solution[i] || '' }));
+    }
+    const cells=visibleCells();return cells.map((el,i)=>{const t=(el.value||el.textContent||'').trim().match(/[1-9]/);return {given:!!t, val:t?t[0]:String((i*7+Math.floor(i/9)*3)%9+1)};});
+  }
+  function buildHumanOrder(snapshot){
+    const blanks=[];
+    for(let box=0;box<9;box++){
+      const br=Math.floor(box/3)*3, bc=(box%3)*3;
+      for(let r=0;r<3;r++)for(let c=0;c<3;c++){
+        const i=(br+r)*9+bc+c;
+        if(snapshot[i]&&!snapshot[i].given) blanks.push(i);
+      }
+    }
+    // Expert solvers do not simply fill left-to-right. Use seeded-looking shuffles
+    // inside box groups so the board looks human and fair: no blank is prefilled
+    // before the battle timer starts.
+    for(let i=blanks.length-1;i>0;i--){
+      if(Math.random()<0.62){ const j=Math.floor(Math.random()*(i+1)); [blanks[i],blanks[j]]=[blanks[j],blanks[i]]; }
+    }
+    return blanks;
+  }
+  function draw(snapshot){
+    const b=document.getElementById('ghSudokuOpponentBoard'); if(!b)return;
+    const revealed=new Set(blankOrder.slice(0,botRevealCount));
+    b.innerHTML='';
+    snapshot.forEach((c,i)=>{const d=document.createElement('div');d.className='gh-sudoku-opponent-cell'+(c.given?' given':''); d.textContent=(c.given||revealed.has(i))?c.val:''; b.appendChild(d);});
+  }
+  function countPlayerFilled(){let n=0; visibleCells().forEach(el=>{if(/[1-9]/.test((el.value||el.textContent||'').trim()))n++;}); return n;}
+  function fmt(ms){const s=Math.floor(ms/1000),m=Math.floor(s/60);return String(m).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
+  window.GameHubStartSudokuBattle=function(opponent){
+    opponentName=(opponent&&opponent.name)||'LunaFox';
+    document.body.classList.add('sudoku-battle-active'); ensureBoard(); document.getElementById('ghSudokuOppName').textContent=opponentName;
+    if(!gameActive || !puzzle || !solution) startGame(false);
+    setTimeout(()=>{
+      const snap=getPuzzleSnapshot();
+      blankOrder=buildHumanOrder(snap);
+      const base=snap.filter(x=>x.given).length;
+      botRevealCount=0;
+      // Expert but beatable: usually 3-5 minutes, with thinking pauses and small mistakes.
+      botTargetMs=175000+Math.random()*135000;
+      start=Date.now(); finished=false; clearInterval(timer); draw(snap);
+      timer=setInterval(()=>{
+        const elapsed=Date.now()-start;
+        const pauseWave=(Math.sin(elapsed/8700)+1)*0.028;
+        const burst=(Math.sin(elapsed/5200)+1)*0.035;
+        const progress=Math.max(0,Math.min(1,elapsed/botTargetMs-pauseWave+burst));
+        const targetReveal=Math.min(blankOrder.length,Math.floor(blankOrder.length*progress));
+        // Avoid robotic constant speed; sometimes the opponent pauses, sometimes solves two.
+        if(targetReveal>botRevealCount && Math.random()>0.18) botRevealCount=Math.min(targetReveal, botRevealCount+(Math.random()<0.22?2:1));
+        draw(snap);
+        const tt=document.getElementById('ghSudokuOppTimer'); if(tt)tt.textContent=fmt(elapsed);
+        const player=countPlayerFilled();
+        if(!finished&&(player>=81||botRevealCount>=blankOrder.length)){
+          finished=true;
+          const msg=player>=81&&botRevealCount<blankOrder.length?'You finished first.':' '+opponentName+' finished first.';
+          const m=document.getElementById('message'); if(m)m.textContent='Online Battle: '+msg+' Shortest completion time wins.';
+          clearInterval(timer);
+        }
+      },850);
+    },250);
+  };
+})();
+</script>
+
+
+<!-- === GameHub Online Battle: visible opponent match === -->
+<style id="gamehub-online-battle-style">
+  .online-battle-btn{border:1px solid rgba(255,255,255,.16)!important;background:linear-gradient(135deg,#ff5d7a,#c77dff)!important;color:#fff!important;font-weight:1000!important;box-shadow:0 0 24px rgba(255,93,122,.22)!important}
+  .gh-battle-overlay{position:fixed;inset:0;z-index:100000;display:none;place-items:center;padding:18px;background:rgba(2,6,19,.82);backdrop-filter:blur(14px) saturate(135%)}
+  .gh-battle-overlay.show{display:grid}.gh-battle-card{width:min(520px,100%);border-radius:26px;padding:20px;color:var(--text,#f4f8ff);font-family:inherit;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.035)),rgba(7,12,31,.96);border:1px solid rgba(255,255,255,.16);box-shadow:0 28px 90px rgba(0,0,0,.58),0 0 36px rgba(80,244,255,.12)}
+  .gh-battle-title{margin:0 0 8px;font-size:1.45rem;letter-spacing:-.04em}.gh-battle-note{margin:0 0 14px;color:var(--muted,#aab7df);line-height:1.45}.gh-battle-match{margin:14px 0;padding:12px;border-radius:18px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.10)}.gh-battle-match strong{display:block;font-size:1.12rem;margin-top:4px}
+  .gh-battle-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:9px;margin-top:14px}.gh-battle-actions button{border-radius:999px;padding:10px 15px;font-weight:1000;cursor:pointer;border:0}.gh-battle-actions .secondary{background:rgba(255,255,255,.10);color:inherit;border:1px solid rgba(255,255,255,.14)}.gh-battle-actions .fight{background:linear-gradient(135deg,var(--accent,#50f4ff),var(--accent-2,#c77dff));color:#06111f}.gh-battle-actions button:disabled{opacity:.48;cursor:wait}
+  .gh-versus-ribbon{position:fixed;left:50%;top:76px;transform:translateX(-50%);z-index:99997;display:none;gap:10px;align-items:center;padding:9px 14px;border-radius:999px;background:rgba(7,12,31,.88);border:1px solid rgba(255,255,255,.14);color:var(--text,#f4f8ff);font-weight:1000;box-shadow:0 14px 35px rgba(0,0,0,.35)}.gh-versus-ribbon.show{display:flex}.gh-versus-ribbon span{color:var(--accent,#50f4ff)}
+</style>
+
+<script id="gamehub-online-battle-script">
+(function(){
+  const GAME_ID='sudoku';
+  const GAME_NAME='Sudoku';
+  const START_FN='GameHubStartSudokuBattle';
+  const DB_URL=(window.GameHubAuth&&window.GameHubAuth.dbUrl)||"https://gamehubss-default-rtdb.firebaseio.com/";
+  const NAMES=["NovaRider","PixelAce","LunaFox","RexRunner","EchoDash","MikaStorm","ZenithJay","KairoWin","AstraBee","VegaSpark","JunoWave","KaiBlaze","MiloQuest","RinaStar","TheoRush"];
+  let matched=null;
+  function safeKey(v){return (window.GameHubAuth&&typeof window.GameHubAuth.safeUsernameKey==='function')?window.GameHubAuth.safeUsernameKey(v):String(v||'player').trim().toLowerCase().replace(/[^a-z0-9_]/g,'_');}
+  function dbUrl(parts){return DB_URL.replace(/\/$/,'')+'/'+parts.map(encodeURIComponent).join('/')+'.json';}
+  async function fbGet(parts){const r=await fetch(dbUrl(parts));return r.ok?r.json():null;}
+  async function fbPut(parts,val){return fetch(dbUrl(parts),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(val)});}
+  async function fbDel(parts){return fetch(dbUrl(parts),{method:'DELETE'});}
+  function me(){return (window.GameHubAuth&&window.GameHubAuth.username)||'Player';}
+  function pickName(){return NAMES[Math.floor(Math.random()*NAMES.length)];}
+  function cleanName(p){let raw=String((p&&(p.username||p.displayName||p.name))||pickName()).trim();raw=raw.replace(/^[Bb][Oo][Tt][\s_-]*/, '').replace(/[🤖⚔️]/g,'').trim();return raw||pickName();}
+  function skill(){const r=Math.random();return r<.78?'normal':'smart';}
+  function ensureButton(){
+    const existing=document.getElementById('onlineBattleBtn-'+GAME_ID); if(existing){existing.onclick=openSearch; existing.textContent='Online Battle'; return;}
+    const b=document.createElement('button'); b.type='button'; b.id='onlineBattleBtn-'+GAME_ID; b.className='online-battle-btn'; b.textContent='Online Battle'; b.onclick=openSearch;
+    const host=document.querySelector('header nav')||document.querySelector('.hero-actions')||document.querySelector('.actions')||document.querySelector('header')||document.body; host.appendChild(b);
+  }
+  function modal(){
+    let o=document.getElementById('ghOnlineBattleOverlay-'+GAME_ID); if(o) return o;
+    o=document.createElement('div'); o.className='gh-battle-overlay'; o.id='ghOnlineBattleOverlay-'+GAME_ID;
+    o.innerHTML=`<div class="gh-battle-card" role="dialog" aria-modal="true"><h2 class="gh-battle-title">Online Battle</h2><p class="gh-battle-note" id="ghBattleStatus-${GAME_ID}">Searching players...</p><div class="gh-battle-match"><span>Opponent</span><strong id="ghBattleOpponent-${GAME_ID}">Searching...</strong></div><div class="gh-battle-actions"><button type="button" class="secondary" id="ghBattleCancel-${GAME_ID}">Close</button><button type="button" class="secondary" id="ghBattleSearch-${GAME_ID}">Search Again</button><button type="button" class="fight" id="ghBattleFight-${GAME_ID}" disabled>Fight</button></div></div>`;
+    document.body.appendChild(o);
+    o.querySelector('#ghBattleCancel-'+GAME_ID).onclick=()=>{o.classList.remove('show');fbDel(['onlineBattleQueue',GAME_ID,safeKey(me())]).catch(()=>{});};
+    o.querySelector('#ghBattleSearch-'+GAME_ID).onclick=openSearch;
+    o.querySelector('#ghBattleFight-'+GAME_ID).onclick=fight;
+    return o;
+  }
+  function set(id,t){const e=document.getElementById(id+'-'+GAME_ID); if(e)e.textContent=t;}
+  async function findOpponent(myKey){
+    const q=await fbGet(['onlineBattleQueue',GAME_ID]).catch(()=>null)||{}; const now=Date.now();
+    const cand=Object.keys(q).map(k=>Object.assign({key:k},q[k]||{})).filter(p=>p.key!==myKey&&now-Number(p.updatedAt||0)<45000);
+    if(cand.length) return cand[Math.floor(Math.random()*cand.length)];
+    const users=await fbGet(['users']).catch(()=>null)||{}; const u=Object.keys(users).filter(k=>k!==myKey).map(k=>({key:k,username:(users[k]&&(users[k].username||users[k].displayName))||k}));
+    if(u.length&&Math.random()<.65) return u[Math.floor(Math.random()*u.length)];
+    return {username:pickName(), synthetic:true};
+  }
+  async function openSearch(){
+    const o=modal(); o.classList.add('show'); matched=null; set('ghBattleOpponent','Searching...'); set('ghBattleStatus','Searching players for '+GAME_NAME+'...');
+    const btn=document.getElementById('ghBattleFight-'+GAME_ID); if(btn)btn.disabled=true;
+    const myKey=safeKey(me()); await fbPut(['onlineBattleQueue',GAME_ID,myKey],{username:me(),game:GAME_NAME,updatedAt:Date.now()}).catch(()=>{});
+    const p=await findOpponent(myKey); setTimeout(()=>{matched={name:cleanName(p),skill:skill(),synthetic:!!(p&&p.synthetic)}; set('ghBattleOpponent',matched.name); set('ghBattleStatus','Matched with '+matched.name+'. Click Fight when you are ready.'); const b=document.getElementById('ghBattleFight-'+GAME_ID); if(b)b.disabled=false;},650);
+  }
+  function ribbon(name){let r=document.getElementById('ghVersusRibbon-'+GAME_ID); if(!r){r=document.createElement('div');r.id='ghVersusRibbon-'+GAME_ID;r.className='gh-versus-ribbon';document.body.appendChild(r);} r.innerHTML='<strong>'+me()+'</strong><span>VS</span><strong>'+name+'</strong>'; r.classList.add('show');}
+  function fight(){if(!matched)return; modal().classList.remove('show'); ribbon(matched.name); const fn=window[START_FN]; if(typeof fn==='function') fn(matched); else {const b=document.querySelector('#startBtn,#newBtn,button[onclick*=start],button[onclick*=reset]'); if(b)b.click();} fbDel(['onlineBattleQueue',GAME_ID,safeKey(me())]).catch(()=>{});}
+  window.GameHubOnlineBattle=window.GameHubOnlineBattle||{games:{}}; window.GameHubOnlineBattle.games[GAME_ID]={start:openSearch,fight:fight};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ensureButton); else ensureButton();
+  window.addEventListener('beforeunload',()=>fbDel(['onlineBattleQueue',GAME_ID,safeKey(me())]).catch(()=>{}));
+})();
+</script>
+
 </body>
 </html>

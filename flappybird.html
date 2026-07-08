@@ -1493,271 +1493,69 @@
   </script>
 
 
-<!-- === GameHub Online Battle: playable matchmaking fallback === -->
+
+<!-- === GameHub Online Battle: ready countdown 5-player ranked flappy battle === -->
 <style id="gamehub-online-battle-style">
-  .online-battle-btn {
-    border: 1px solid rgba(255,255,255,.16) !important;
-    background: linear-gradient(135deg,#ff5d7a,#c77dff) !important;
-    color: #fff !important;
-    font-weight: 1000 !important;
-    box-shadow: 0 0 24px rgba(255,93,122,.22) !important;
-  }
-  .gh-battle-overlay { position: fixed; inset: 0; z-index: 100000; display: none; place-items: center; padding: 18px; background: rgba(2,6,19,.82); backdrop-filter: blur(14px) saturate(135%); }
-  .gh-battle-overlay.show { display: grid; }
-  .gh-battle-card { width: min(520px,100%); border-radius: 26px; padding: 20px; color: var(--text,#f4f8ff); font-family: inherit; background: linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.035)),linear-gradient(135deg,rgba(80,244,255,.10),rgba(199,125,255,.085)),rgba(7,12,31,.96); border: 1px solid rgba(255,255,255,.16); box-shadow: 0 28px 90px rgba(0,0,0,.58),0 0 36px rgba(80,244,255,.12); }
-  .gh-battle-title { margin: 0 0 8px; font-size: 1.45rem; letter-spacing: -.04em; }
-  .gh-battle-note { margin: 0 0 14px; color: var(--muted,#aab7df); line-height: 1.45; }
-  .gh-battle-match { margin: 14px 0; padding: 12px; border-radius: 18px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.10); }
-  .gh-battle-match strong { display:block; font-size: 1.12rem; margin-top: 4px; }
-  .gh-battle-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 9px; margin-top: 14px; }
-  .gh-battle-actions button { border-radius: 999px; padding: 10px 15px; font-weight: 1000; cursor: pointer; border: 0; }
-  .gh-battle-actions .secondary { background: rgba(255,255,255,.10); color: inherit; border: 1px solid rgba(255,255,255,.14); }
-  .gh-battle-actions .fight { background: linear-gradient(135deg,var(--accent,#50f4ff),var(--accent-2,#c77dff)); color: #06111f; }
-  .gh-battle-actions button:disabled { opacity: .48; cursor: wait; }
-  .gh-battle-hud { position: fixed; right: 14px; top: 82px; z-index: 99998; width: min(360px, calc(100vw - 28px)); color: var(--text,#f4f8ff); border-radius: 20px; padding: 12px; background: rgba(7,12,31,.90); border: 1px solid rgba(255,255,255,.16); box-shadow: 0 18px 55px rgba(0,0,0,.42); backdrop-filter: blur(12px); display: none; font-family: inherit; }
-  .gh-battle-hud.show { display: block; }
-  .gh-hud-top { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; font-weight:1000; }
-  .gh-hud-close { border:0; border-radius:999px; background:rgba(255,255,255,.10); color:inherit; width:28px; height:28px; cursor:pointer; }
-  .gh-battle-row { display: grid; gap: 6px; margin: 8px 0; }
-  .gh-battle-line { display: flex; justify-content: space-between; gap: 10px; font-weight: 900; font-size:.92rem; }
-  .gh-battle-meter { height: 10px; overflow: hidden; border-radius: 999px; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.10); }
-  .gh-battle-fill { height: 100%; width: 0%; border-radius: inherit; background: linear-gradient(135deg,var(--accent,#50f4ff),var(--accent-2,#c77dff)); transition: width .35s ease; }
-  .gh-battle-fill.enemy { background: linear-gradient(135deg,#ff5d7a,#ffb65d); }
-  .gh-hud-status { margin: 8px 0 0; color: var(--muted,#aab7df); font-size: .86rem; line-height: 1.35; }
+  .online-battle-btn{border:1px solid rgba(255,255,255,.16)!important;background:linear-gradient(135deg,#ff5d7a,#c77dff)!important;color:#fff!important;font-weight:1000!important;box-shadow:0 0 24px rgba(255,93,122,.22)!important}
+  .gh-battle-overlay{position:fixed;inset:0;z-index:100000;display:none;place-items:center;padding:18px;background:rgba(2,6,19,.82);backdrop-filter:blur(14px) saturate(135%)}.gh-battle-overlay.show{display:grid}
+  .gh-battle-card{width:min(560px,100%);border-radius:26px;padding:20px;color:var(--text,#f4f8ff);font-family:inherit;background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.035)),rgba(7,12,31,.96);border:1px solid rgba(255,255,255,.16);box-shadow:0 28px 90px rgba(0,0,0,.58),0 0 36px rgba(80,244,255,.12)}
+  .gh-battle-title{margin:0 0 8px;font-size:1.45rem;letter-spacing:-.04em}.gh-battle-note{margin:0 0 14px;color:var(--muted,#aab7df);line-height:1.45}.gh-battle-match{margin:14px 0;padding:12px;border-radius:18px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.10)}.gh-battle-match strong{display:block;font-size:1.04rem;margin-top:4px;line-height:1.45}.gh-battle-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:9px;margin-top:14px}.gh-battle-actions button{border-radius:999px;padding:10px 15px;font-weight:1000;cursor:pointer;border:0}.gh-battle-actions .secondary{background:rgba(255,255,255,.10);color:inherit;border:1px solid rgba(255,255,255,.14)}.gh-battle-actions .fight{background:linear-gradient(135deg,var(--accent,#50f4ff),var(--accent-2,#c77dff));color:#06111f}.gh-battle-actions button:disabled{opacity:.48;cursor:wait}
+  .flappy-rank-panel{display:none;margin-top:12px;padding:12px;border-radius:18px;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.12)}.flappy-rank-panel.show{display:block}.flappy-rank-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.flappy-mini{padding:7px;border-radius:14px;background:rgba(2,6,19,.55);border:1px solid rgba(255,255,255,.10)}.flappy-mini h3{margin:0 0 5px;font-size:.68rem;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.flappy-mini canvas{width:100%;border-radius:10px;aspect-ratio:9/14}.flappy-standings{margin:8px 0 0;display:grid;gap:4px;color:var(--muted);font-size:.78rem;font-weight:900}.flappy-standings div{display:flex;justify-content:space-between;padding:4px 7px;border-radius:999px;background:rgba(255,255,255,.055)}.flappy-standings .me{color:var(--accent);border:1px solid rgba(80,244,255,.20)}
+  .flappy-countdown{position:fixed;inset:0;z-index:100001;display:none;place-items:center;background:rgba(2,6,19,.55);backdrop-filter:blur(7px);font:1000 clamp(4rem,18vw,10rem) Inter,system-ui,sans-serif;color:var(--accent,#50f4ff);text-shadow:0 0 40px rgba(80,244,255,.55)}.flappy-countdown.show{display:grid}.flappy-mini.out{opacity:.72}.flappy-mini.pro{border-color:rgba(93,255,176,.24)}
 </style>
 <script id="gamehub-online-battle-script">
-(function () {
-  if (window.GameHubOnlineBattle && window.GameHubOnlineBattle.games && window.GameHubOnlineBattle.games["flappy-bird"]) return;
-  const GAME_ID = "flappy-bird";
-  const GAME_NAME = "Flappy Bird";
-  const DB_URL = (window.GameHubAuth && window.GameHubAuth.dbUrl) || "https://gamehubss-default-rtdb.firebaseio.com/";
-  const FALLBACK_PLAYERS = ["NovaRider", "PixelAce", "LunaFox", "RexRunner", "EchoDash", "MikaStorm", "ZenithJay", "KairoWin", "AstraBee", "VegaSpark"];
-  const SCORE_TARGETS = { "crossy-road": 90, "flappy-bird": 80, "stackrush-arena": 1800, "color-switch": 70, "word-hunt": 24, "crossword": 30, "sudoku": 81 };
-  const SCORE_SPEEDS = { "crossy-road": [1, 4], "flappy-bird": [1, 5], "stackrush-arena": [35, 140], "color-switch": [1, 4], "word-hunt": [1, 2], "crossword": [1, 2], "sudoku": [1, 3] };
-  let battleTimer = null;
-  let matchedOpponent = null;
-  let battleStartScore = 0;
-  let highestPlayerScore = 0;
-  let enemyScore = 0;
-  let battleStartedAt = 0;
-
-  function safeKey(value) {
-    if (window.GameHubAuth && typeof window.GameHubAuth.safeUsernameKey === "function") return window.GameHubAuth.safeUsernameKey(value);
-    return String(value || "player").trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
-  }
-  function dbUrl(parts) { return DB_URL.replace(/\/$/, "") + "/" + parts.map(encodeURIComponent).join("/") + ".json"; }
-  async function fbGet(parts) { const r = await fetch(dbUrl(parts)); return r.ok ? r.json() : null; }
-  async function fbPut(parts, value) { return fetch(dbUrl(parts), { method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify(value) }); }
-  async function fbDel(parts) { return fetch(dbUrl(parts), { method:"DELETE" }); }
-  function currentUsername() { return (window.GameHubAuth && window.GameHubAuth.username) || "Player"; }
-  function chooseFallbackName() { return FALLBACK_PLAYERS[Math.floor(Math.random() * FALLBACK_PLAYERS.length)]; }
-  function cleanOpponentName(player) {
-    const raw = String((player && (player.username || player.name || player.displayName)) || chooseFallbackName()).trim();
-    return raw.replace(/^[Bb][Oo][Tt][\s_-]*/, "").replace(/[\u{1F916}\u2694\uFE0F]/gu, "").trim() || chooseFallbackName();
-  }
-  function isVisible(el) {
-    if (!el || el.closest(".gh-battle-overlay") || el.closest(".gh-battle-hud")) return false;
-    const style = window.getComputedStyle(el);
-    return style && style.display !== "none" && style.visibility !== "hidden";
-  }
-  function numberFromText(text) {
-    const match = String(text || "").replace(/,/g, "").match(/-?\d+/);
-    return match ? parseInt(match[0], 10) : null;
-  }
-  function scoreFromSelectors() {
-    const selectors = ["#score", "#scoreVal", "#scoreLabel", "#currentScore", "#lines", "#foundCount", "#timerScore", ".score-val", ".score-value", ".stat-value", "[data-score]"];
-    const values = [];
-    selectors.forEach(function (sel) {
-      document.querySelectorAll(sel).forEach(function (el) {
-        if (!isVisible(el)) return;
-        const n = numberFromText(el.getAttribute("data-score") || el.textContent || el.value);
-        if (Number.isFinite(n) && n >= 0) values.push(n);
-      });
-    });
-    return values.length ? Math.max.apply(null, values) : 0;
-  }
-  function progressFromPlayableInputs() {
-    let filled = 0;
-    document.querySelectorAll("input, textarea").forEach(function (el) {
-      if (!isVisible(el)) return;
-      if (["hidden", "password", "email", "search"].includes(String(el.type || "").toLowerCase())) return;
-      if (String(el.value || "").trim()) filled += 1;
-    });
-    let selected = 0;
-    document.querySelectorAll(".found, .correct, .solved, .selected, .active, .complete, [aria-pressed='true']").forEach(function (el) {
-      if (isVisible(el) && !el.closest("nav") && !el.closest("header")) selected += 1;
-    });
-    return filled + Math.floor(selected / 2);
-  }
-  function currentGameScore() {
-    const direct = scoreFromSelectors();
-    const progress = progressFromPlayableInputs();
-    if (GAME_ID === "crossword" || GAME_ID === "sudoku" || GAME_ID === "word-hunt") return Math.max(direct, progress);
-    return Math.max(direct, progress > 4 ? Math.floor(progress / 2) : 0);
-  }
-  function gameOverVisible() {
-    const selectors = ["#gameover-screen", "#gameOver", "#gameOverScreen", "#endScreen", ".game-over", ".gameover", "#overlay"];
-    return selectors.some(function (sel) {
-      return Array.from(document.querySelectorAll(sel)).some(function (el) {
-        return isVisible(el) && /game over|crashed|again|final|defeat|victory|play again/i.test(el.textContent || "");
-      });
-    });
-  }
-  function ensureButton() {
-    if (document.getElementById("onlineBattleBtn-" + GAME_ID)) return;
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.id = "onlineBattleBtn-" + GAME_ID;
-    btn.className = "online-battle-btn";
-    btn.textContent = "Online Battle";
-    btn.addEventListener("click", startMatchmaking);
-    const host = document.querySelector("header nav") || document.querySelector(".hero-actions") || document.querySelector(".actions") || document.querySelector("header") || document.body;
-    host.appendChild(btn);
-  }
-  function ensureModal() {
-    let overlay = document.getElementById("ghOnlineBattleOverlay-" + GAME_ID);
-    if (overlay) return overlay;
-    overlay = document.createElement("div");
-    overlay.className = "gh-battle-overlay";
-    overlay.id = "ghOnlineBattleOverlay-" + GAME_ID;
-    overlay.innerHTML = `<div class="gh-battle-card" role="dialog" aria-modal="true">
-      <h2 class="gh-battle-title">Online Battle</h2>
-      <p class="gh-battle-note" id="ghBattleStatus-${GAME_ID}">Searching players for ${GAME_NAME}...</p>
-      <div class="gh-battle-match"><span>Opponent</span><strong id="ghBattleOpponent-${GAME_ID}">Searching...</strong></div>
-      <div class="gh-battle-actions"><button type="button" class="secondary" id="ghBattleCancel-${GAME_ID}">Close</button><button type="button" class="secondary" id="ghBattleSearch-${GAME_ID}">Find New Battle</button><button type="button" class="fight" id="ghBattleFight-${GAME_ID}" disabled>Fight</button></div>
-    </div>`;
-    document.body.appendChild(overlay);
-    overlay.querySelector("#ghBattleCancel-" + GAME_ID).onclick = closeModal;
-    overlay.querySelector("#ghBattleSearch-" + GAME_ID).onclick = startMatchmaking;
-    overlay.querySelector("#ghBattleFight-" + GAME_ID).onclick = startFight;
-    return overlay;
-  }
-  function ensureHud() {
-    let hud = document.getElementById("ghBattleHud-" + GAME_ID);
-    if (hud) return hud;
-    hud = document.createElement("div");
-    hud.className = "gh-battle-hud";
-    hud.id = "ghBattleHud-" + GAME_ID;
-    hud.innerHTML = `<div class="gh-hud-top"><span>Online Battle</span><button type="button" class="gh-hud-close" id="ghHudClose-${GAME_ID}">×</button></div>
-      <div class="gh-battle-row"><div class="gh-battle-line"><span id="ghHudMe-${GAME_ID}">You</span><span id="ghHudMyScore-${GAME_ID}">0</span></div><div class="gh-battle-meter"><div class="gh-battle-fill" id="ghHudMyFill-${GAME_ID}"></div></div></div>
-      <div class="gh-battle-row"><div class="gh-battle-line"><span id="ghHudEnemy-${GAME_ID}">Opponent</span><span id="ghHudEnemyScore-${GAME_ID}">0</span></div><div class="gh-battle-meter"><div class="gh-battle-fill enemy" id="ghHudEnemyFill-${GAME_ID}"></div></div></div>
-      <p class="gh-hud-status" id="ghHudStatus-${GAME_ID}">Play now. Highest score wins.</p>`;
-    document.body.appendChild(hud);
-    hud.querySelector("#ghHudClose-" + GAME_ID).onclick = stopBattle;
-    return hud;
-  }
-  function setText(prefix, value) { const el = document.getElementById(prefix + "-" + GAME_ID); if (el) el.textContent = value; }
-  function setFill(prefix, value) { const el = document.getElementById(prefix + "-" + GAME_ID); if (el) el.style.width = Math.max(0, Math.min(100, value)) + "%"; }
-  function closeModal() {
-    const overlay = document.getElementById("ghOnlineBattleOverlay-" + GAME_ID);
-    if (overlay) overlay.classList.remove("show");
-    fbDel(["onlineBattleQueue", GAME_ID, safeKey(currentUsername())]).catch(function(){});
-  }
-  function stopBattle() {
-    if (battleTimer) clearInterval(battleTimer);
-    battleTimer = null;
-    const hud = document.getElementById("ghBattleHud-" + GAME_ID);
-    if (hud) hud.classList.remove("show");
-    fbDel(["onlineBattleQueue", GAME_ID, safeKey(currentUsername())]).catch(function(){});
-  }
-  async function findRegisteredOpponent(myKey) {
-    const queue = await fbGet(["onlineBattleQueue", GAME_ID]).catch(() => null) || {};
-    const now = Date.now();
-    const candidates = Object.keys(queue).map(k => Object.assign({ key:k }, queue[k] || {})).filter(p => p.key !== myKey && now - Number(p.updatedAt || 0) < 45000);
-    if (candidates.length) return candidates[Math.floor(Math.random() * candidates.length)];
-    const users = await fbGet(["users"]).catch(() => null) || {};
-    const userCandidates = Object.keys(users).filter(k => k !== myKey).map(k => ({ key:k, username:(users[k] && (users[k].username || users[k].displayName)) || k }));
-    if (userCandidates.length) return userCandidates[Math.floor(Math.random() * userCandidates.length)];
-    return { username: chooseFallbackName(), fallback: true };
-  }
-  function nativeStartGame() {
-    try {
-      if (GAME_ID === "crossy-road" && typeof window.resetGame === "function") { window.resetGame(); return true; }
-      if (typeof window.startGame === "function") { window.startGame(); return true; }
-      if (typeof window.restartLevel === "function") { window.restartLevel(); return true; }
-      const startButton = document.querySelector("#startBtn, #newBtn, #restartBtn, #playBtn, #againBtn, button[onclick*='startGame'], button[onclick*='resetGame']");
-      if (startButton) { startButton.click(); return true; }
-      const textButton = Array.from(document.querySelectorAll("button")).find(function (btn) { return /start|play|again|restart|new/i.test(btn.textContent || ""); });
-      if (textButton) { textButton.click(); return true; }
-    } catch (err) { console.warn("Online battle could not auto-start the page game", err); }
-    return false;
-  }
-  function finishBattle() {
-    if (battleTimer) clearInterval(battleTimer);
-    battleTimer = null;
-    const won = highestPlayerScore >= enemyScore;
-    setText("ghHudStatus", won ? "You won this battle. Highest score wins." : matchedOpponent.name + " won this battle. Try again for a higher score.");
-    try {
-      if (won && window.GameHubProfile && typeof window.GameHubProfile.recordSuccess === "function") {
-        const profile = window.GameHubProfile.recordSuccess(GAME_NAME, { score: highestPlayerScore, level: highestPlayerScore, xp: 35, title: "Won an Online Battle in " + GAME_NAME });
-        const lv = profile && (profile.mainLevel || profile.level);
-        const badge = document.getElementById("accountLevel");
-        if (badge && lv) badge.textContent = "LV " + lv;
-      }
-    } catch (err) { console.warn("Battle XP update failed", err); }
-    fbDel(["onlineBattleQueue", GAME_ID, safeKey(currentUsername())]).catch(function(){});
-  }
-  function startFight() {
-    if (!matchedOpponent) return;
-    closeModal();
-    stopBattle();
-    const hud = ensureHud();
-    hud.classList.add("show");
-    battleStartScore = currentGameScore();
-    highestPlayerScore = 0;
-    enemyScore = 0;
-    battleStartedAt = Date.now();
-    setText("ghHudMe", currentUsername());
-    setText("ghHudEnemy", matchedOpponent.name);
-    setText("ghHudMyScore", "0");
-    setText("ghHudEnemyScore", "0");
-    setFill("ghHudMyFill", 0);
-    setFill("ghHudEnemyFill", 0);
-    setText("ghHudStatus", "Play now. Highest score wins.");
-    nativeStartGame();
-    battleStartScore = currentGameScore();
-    const target = SCORE_TARGETS[GAME_ID] || 100;
-    const speed = SCORE_SPEEDS[GAME_ID] || [1, 4];
-    battleTimer = setInterval(function () {
-      const raw = currentGameScore();
-      const earned = Math.max(0, raw - battleStartScore, (GAME_ID === "crossword" || GAME_ID === "sudoku" || GAME_ID === "word-hunt") ? raw : 0);
-      highestPlayerScore = Math.max(highestPlayerScore, earned);
-      const boost = Math.random() < 0.18 && highestPlayerScore > enemyScore ? Math.floor(Math.random() * speed[1]) : 0;
-      enemyScore += speed[0] + Math.floor(Math.random() * Math.max(1, speed[1] - speed[0] + 1)) + boost;
-      if (GAME_ID !== "stackrush-arena") enemyScore = Math.min(enemyScore, target + 35 + Math.floor((Date.now() - battleStartedAt) / 5000));
-      const max = Math.max(target, highestPlayerScore, enemyScore, 1);
-      setText("ghHudMyScore", String(highestPlayerScore));
-      setText("ghHudEnemyScore", String(enemyScore));
-      setFill("ghHudMyFill", highestPlayerScore / max * 100);
-      setFill("ghHudEnemyFill", enemyScore / max * 100);
-      const elapsed = Date.now() - battleStartedAt;
-      if (gameOverVisible() || elapsed > 90000 || (GAME_ID === "crossword" && highestPlayerScore >= target) || (GAME_ID === "sudoku" && highestPlayerScore >= 81)) finishBattle();
-    }, 1000);
-  }
-  async function startMatchmaking() {
-    const overlay = ensureModal();
-    overlay.classList.add("show");
-    matchedOpponent = null;
-    setText("ghBattleOpponent", "Searching...");
-    setText("ghBattleStatus", "Searching players for " + GAME_NAME + "...");
-    const fightBtn = document.getElementById("ghBattleFight-" + GAME_ID);
-    if (fightBtn) fightBtn.disabled = true;
-    const me = currentUsername();
-    const myKey = safeKey(me);
-    await fbPut(["onlineBattleQueue", GAME_ID, myKey], { username: me, game: GAME_NAME, updatedAt: Date.now() }).catch(function(){});
-    let opponent = await findRegisteredOpponent(myKey);
-    setTimeout(function () {
-      matchedOpponent = { name: cleanOpponentName(opponent), fallback: !!(opponent && opponent.fallback) };
-      setText("ghBattleOpponent", matchedOpponent.name);
-      setText("ghBattleStatus", "Matched with " + matchedOpponent.name + ". Click Fight to start playing.");
-      const btn = document.getElementById("ghBattleFight-" + GAME_ID);
-      if (btn) btn.disabled = false;
-    }, 650);
-  }
-  window.GameHubOnlineBattle = window.GameHubOnlineBattle || { games: {} };
-  window.GameHubOnlineBattle.games[GAME_ID] = { start: startMatchmaking, fight: startFight };
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", ensureButton); else ensureButton();
-  window.addEventListener("beforeunload", function () { fbDel(["onlineBattleQueue", GAME_ID, safeKey(currentUsername())]).catch(function(){}); });
+(function(){
+  const GAME_ID='flappy-bird';
+  const GAME_NAME='Flappy Bird';
+  const DB_URL=(window.GameHubAuth&&window.GameHubAuth.dbUrl)||'https://gamehubss-default-rtdb.firebaseio.com/';
+  const NAMES=['NovaRider','PixelAce','LunaFox','RexRunner','EchoDash','MikaStorm','ZenithJay','KairoWin','AstraBee','VegaSpark','JunoWave','KaiBlaze','MiloQuest','RinaStar','TheoRush','AriWing','NicoJet','ZaraFly'];
+  let matched=[];
+  let rankTimer=null;
+  let readyTimer=null;
+  let countdownTimer=null;
+  let rankBots=[];
+  let rankBattle=false;
+  let raceStarted=false;
+  let rankFinished=false;
+  let playerFinalScore=null;
+  let battleSeed=0;
+  const oldEndGame=endGame;
+  const oldLeaveBattle=leaveBattle;
+  function safeKey(v){return (window.GameHubAuth&&typeof window.GameHubAuth.safeUsernameKey==='function')?window.GameHubAuth.safeUsernameKey(v):String(v||'player').trim().toLowerCase().replace(/[^a-z0-9_]/g,'_');}
+  function dbPath(parts){return DB_URL.replace(/\/$/,'')+'/'+parts.map(encodeURIComponent).join('/')+'.json';}
+  async function fbGet(parts){const r=await fetch(dbPath(parts));return r.ok?r.json():null;}
+  async function fbPut(parts,v){return fetch(dbPath(parts),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(v)});}
+  async function fbDel(parts){return fetch(dbPath(parts),{method:'DELETE'});}
+  function me(){return (window.GameHubAuth&&window.GameHubAuth.username)||'Player';}
+  function pickName(used){let n=NAMES[Math.floor(Math.random()*NAMES.length)],g=0;while(used.has(n)&&g++<50)n=NAMES[Math.floor(Math.random()*NAMES.length)];used.add(n);return n;}
+  function cleanName(p,used){let raw=String((p&&(p.username||p.displayName||p.name))||pickName(used)).trim().replace(/^[Bb][Oo][Tt][\s_-]*/,'').replace(/[🤖⚔️]/g,'').trim();if(!raw||used.has(raw))raw=pickName(used);used.add(raw);return raw;}
+  function ensureButton(){let b=document.getElementById('onlineBattleBtn-'+GAME_ID);if(!b){b=document.createElement('button');b.type='button';b.id='onlineBattleBtn-'+GAME_ID;b.className='online-battle-btn';b.textContent='Online Battle';(document.querySelector('header nav')||document.querySelector('.hero-actions')||document.body).appendChild(b);}b.onclick=openSearch;}
+  function modal(){let o=document.getElementById('ghOnlineBattleOverlay-'+GAME_ID);if(o)return o;o=document.createElement('div');o.className='gh-battle-overlay';o.id='ghOnlineBattleOverlay-'+GAME_ID;o.innerHTML='<div class="gh-battle-card" role="dialog" aria-modal="true"><h2 class="gh-battle-title">Online Battle Ranking</h2><p class="gh-battle-note" id="ghBattleStatus-'+GAME_ID+'">Searching 5-player race...</p><div class="gh-battle-match"><span>Players</span><strong id="ghBattleOpponent-'+GAME_ID+'">Searching...</strong></div><div class="gh-battle-actions"><button type="button" class="secondary" id="ghBattleCancel-'+GAME_ID+'">Close</button><button type="button" class="secondary" id="ghBattleSearch-'+GAME_ID+'">Search Again</button><button type="button" class="fight" id="ghBattleFight-'+GAME_ID+'" disabled>Ready</button></div></div>';document.body.appendChild(o);o.querySelector('#ghBattleCancel-'+GAME_ID).onclick=function(){o.classList.remove('show');fbDel(['onlineBattleQueue',GAME_ID,safeKey(me())]).catch(function(){});};o.querySelector('#ghBattleSearch-'+GAME_ID).onclick=openSearch;o.querySelector('#ghBattleFight-'+GAME_ID).onclick=readyUp;return o;}
+  function set(id,t){const e=document.getElementById(id+'-'+GAME_ID);if(e)e.textContent=t;}
+  async function findPlayers(){const used=new Set([me()]);const out=[];const myKey=safeKey(me());const users=await fbGet(['users']).catch(function(){return null;})||{};Object.keys(users).filter(k=>k!==myKey).sort(()=>Math.random()-.5).slice(0,4).forEach(k=>out.push({name:cleanName({username:(users[k]&&(users[k].username||users[k].displayName))||k},used),human:true}));while(out.length<4)out.push({name:pickName(used),human:false});return out.slice(0,4);}
+  async function openSearch(){cleanupReadyTimers();const o=modal();o.classList.add('show');matched=[];set('ghBattleOpponent','Searching...');set('ghBattleStatus','Searching for four opponents...');const btn=document.getElementById('ghBattleFight-'+GAME_ID);if(btn){btn.disabled=true;btn.textContent='Ready';}await fbPut(['onlineBattleQueue',GAME_ID,safeKey(me())],{username:me(),game:GAME_NAME,updatedAt:Date.now()}).catch(function(){});const players=await findPlayers();setTimeout(function(){matched=players;set('ghBattleOpponent',[me()].concat(players.map(p=>p.name)).join(' • '));set('ghBattleStatus','5-player match found. Click Ready. Bots/players must become ready before countdown.');const b=document.getElementById('ghBattleFight-'+GAME_ID);if(b)b.disabled=false;},650);}
+  function ensureRankPanel(){let p=document.getElementById('flappyRankPanel');if(p)return p;p=document.createElement('div');p.id='flappyRankPanel';p.className='flappy-rank-panel';p.innerHTML='<h2>Ranking Battle</h2><div class="flappy-rank-grid" id="flappyRankGrid"></div><div class="flappy-standings" id="flappyStandings"></div>';const card=document.querySelector('.card');if(card)card.appendChild(p);else document.body.appendChild(p);return p;}
+  function initMiniBoards(){const panel=ensureRankPanel();panel.classList.add('show');const grid=document.getElementById('flappyRankGrid');grid.innerHTML='';rankBots.forEach(function(bot,i){const box=document.createElement('div');box.className='flappy-mini '+(bot.pro?'pro':'');box.innerHTML='<h3>'+(i+2)+'. '+bot.name+'</h3><canvas width="180" height="280" id="flappyMini'+i+'"></canvas>';grid.appendChild(box);bot.box=box;bot.canvas=box.querySelector('canvas');bot.ctx=bot.canvas.getContext('2d');});}
+  function makeBot(p,i){const skill=Math.random();const pro=skill>.55;return {name:p.name,y:H/2+Math.random()*54-27,vy:0,rot:0,score:0,level:1,speed:1,frame:0,alive:true,finished:false,pro:pro,reaction:pro?(0.82+Math.random()*0.16):(0.55+Math.random()*0.25),mistake:pro?(0.006+Math.random()*0.012):(0.018+Math.random()*0.032),lateChance:pro?0.045:0.105,pipes:[],pipeTimer:0,rng:seededRandom((battleSeed+i*9973+17)%2147483647)};}
+  function botRand(bot,min,max){const old=rng;rng=bot.rng;const v=rand(min,max);bot.rng=rng;rng=old;return v;}
+  function botSpawn(bot){const gap=Math.max(132,205-(bot.level-1)*7);const top=botRand(bot,70,H-gap-150);bot.pipes.push({x:W+40,top:top,bottom:top+gap,w:76,scored:false});}
+  function botStep(bot){if(!bot.alive)return;bot.frame++;bot.vy+=0.46;bot.y+=bot.vy;bot.rot=Math.max(-.55,Math.min(.95,bot.vy/11));bot.speed=1+Math.floor(bot.score/5)*.13;bot.level=Math.floor(bot.score/5)+1;bot.pipeTimer+=1*bot.speed;if(!bot.pipes.length||bot.pipeTimer>Math.max(74,118-Math.min(24,bot.level*2))){botSpawn(bot);bot.pipeTimer=0;}const next=bot.pipes.find(p=>p.x+p.w>120)||bot.pipes[0];if(next){const target=(next.top+next.bottom)/2;const panic=bot.y>target+(bot.pro?10:18);const tooLow=bot.y>target+38-(bot.reaction*20);const shouldFlap=(panic||tooLow)&&Math.random()>bot.mistake&&Math.random()>bot.lateChance;if(shouldFlap)bot.vy=-8.8;}bot.pipes.forEach(function(pipe){pipe.x-=(2.5+bot.level*.08)*bot.speed;if(!pipe.scored&&pipe.x+pipe.w<120){pipe.scored=true;bot.score++;}});bot.pipes=bot.pipes.filter(p=>p.x+p.w>-30);if(bot.y-17<0||bot.y+17>H-54)bot.alive=false;for(const pipe of bot.pipes){if(rectCircleCollide(pipe.x,0,pipe.w,pipe.top,120,bot.y,17)||rectCircleCollide(pipe.x,pipe.bottom,pipe.w,H-pipe.bottom-54,120,bot.y,17)){bot.alive=false;break;}}if(!bot.alive){bot.finished=true;if(bot.box)bot.box.classList.add('out');}}
+  function drawMini(bot){const c=bot.ctx;if(!c)return;c.save();c.scale(bot.canvas.width/W,bot.canvas.height/H);drawBackground(c,bot.frame);bot.pipes.forEach(p=>drawPipe(c,p));drawBirdAt(c,120,bot.y,bot.rot);c.fillStyle='rgba(244,248,255,.92)';c.font='900 38px Inter,sans-serif';c.textAlign='center';c.fillText(bot.score,W/2,64);c.font='800 14px Inter,sans-serif';c.fillStyle='rgba(170,183,223,.9)';c.fillText((bot.pro?'PRO':'MODERATE')+' • '+bot.speed.toFixed(2)+'x',W/2,90);if(!bot.alive){c.fillStyle='rgba(2,6,19,.62)';c.fillRect(0,0,W,H);c.fillStyle='#ff5d7a';c.font='900 34px Inter,sans-serif';c.fillText('OUT',W/2,H/2);}c.restore();}
+  function myScoreForRank(){return playerFinalScore==null?score:playerFinalScore;}
+  function standings(){return [{name:me(),score:myScoreForRank(),me:true,alive:rankBattle&&raceStarted&&!gameOverState}].concat(rankBots.map(b=>({name:b.name,score:b.score,me:false,alive:b.alive}))).sort((a,b)=>b.score-a.score||Number(b.alive)-Number(a.alive));}
+  function updateStandings(){const s=standings();const box=document.getElementById('flappyStandings');if(box)box.innerHTML=s.map(function(p,i){return '<div class="'+(p.me?'me':'')+'"><span>#'+(i+1)+' '+(p.me?'You':p.name)+(p.alive?'':' OUT')+'</span><span>'+p.score+'</span></div>';}).join('');const mine=s.findIndex(p=>p.me)+1;battlePill.textContent='5-player battle • Current rank #'+mine+' • Top 3 get XP';return mine;}
+  function cleanupReadyTimers(){if(readyTimer)clearInterval(readyTimer);readyTimer=null;if(countdownTimer)clearInterval(countdownTimer);countdownTimer=null;const cd=document.getElementById('flappyCountdown');if(cd)cd.classList.remove('show');}
+  function resetSoloUi(){rankBattle=false;raceStarted=false;rankFinished=false;playerFinalScore=null;cleanupReadyTimers();if(rankTimer)clearInterval(rankTimer);rankTimer=null;rankBots=[];const p=document.getElementById('flappyRankPanel');if(p)p.classList.remove('show');gameShell.classList.remove('battle-mode');document.getElementById('opponentWrap').style.display='none';multiplayerBtn.style.display='';leaveBattleBtn.style.display='none';battlePill.textContent='';battleActive=false;battleRoomId=null;opponentKey=null;opponentUsername=null;lastOpponentState=null;setOverlay('Ready?','Press Space or Start Game',true);setMessage('Returned to single-player mode.');}
+  function showCountdown(n){let cd=document.getElementById('flappyCountdown');if(!cd){cd=document.createElement('div');cd.id='flappyCountdown';cd.className='flappy-countdown';document.body.appendChild(cd);}cd.textContent=n>0?String(n):'GO!';cd.classList.add('show');if(n<=0)setTimeout(function(){cd.classList.remove('show');},520);}
+  function readyUp(){if(!matched.length)return;const o=modal();const btn=document.getElementById('ghBattleFight-'+GAME_ID);if(btn){btn.disabled=true;btn.textContent='Ready ✓';}set('ghBattleStatus','You are ready. Waiting for the other 4 players...');let ready=1;const readyNames=new Set([me()]);readyTimer=setInterval(function(){if(ready>=5){cleanupReadyTimers();set('ghBattleStatus','All players ready. Starting countdown...');let n=3;showCountdown(n);countdownTimer=setInterval(function(){n--;showCountdown(n);if(n<0){cleanupReadyTimers();o.classList.remove('show');startRankFight();}},1000);return;}const next=matched[ready-1];const acceptDelay=Math.random()<(next.human?0.86:0.92);if(acceptDelay){readyNames.add(next.name);ready++;set('ghBattleStatus','Ready: '+ready+'/5 • '+Array.from(readyNames).join(', '));}else{set('ghBattleStatus',next.name+' is still preparing... Ready: '+ready+'/5');}},700+Math.random()*450);}
+  async function finishRankBattle(){if(rankFinished||!rankBattle)return;rankFinished=true;if(rankTimer)clearInterval(rankTimer);rankTimer=null;const place=updateStandings();let xp=0;if(place===1)xp=130;else if(place===2)xp=90;else if(place===3)xp=55;if(xp>0&&window.GameHubProfile&&typeof window.GameHubProfile.recordSuccess==='function'){const prof=window.GameHubProfile.recordSuccess(GAME_NAME,{score:myScoreForRank(),level:level,xp:xp,title:'Placed #'+place+' in Flappy Bird Online Battle'});const lv=prof&&(prof.mainLevel||prof.level);const badge=document.getElementById('accountLevel');if(badge&&lv)badge.textContent='LV '+lv;}const title=place===1?'Victory!':(place<=3?'Podium Finish':'Defeat');const msg='You placed #'+place+' of 5.\nFinal score: '+myScoreForRank()+'\nXP reward: '+xp+'\nTop 3 players receive XP.';const again=await GameHubModal.confirm(title,msg,{icon:place<=3?'🏆':'💥',confirmText:'Find Another Match',cancelText:'Back to Solo',danger:place>3});resetSoloUi();if(again)setTimeout(openSearch,120);}
+  endGame=function(){if(rankBattle){const gp=window.GameHubProfile;const originalRecord=gp&&gp.recordSuccess;if(gp&&originalRecord)gp.recordSuccess=function(){return gp.readProfile?gp.readProfile():null;};try{oldEndGame();}finally{if(gp&&originalRecord)gp.recordSuccess=originalRecord;}playerFinalScore=score;setMessage('You are out. Other players are still flying. Rankings can still change.','bad');setOverlay('You are out','Watching the remaining players...',true);updateStandings();return;}oldEndGame();};
+  leaveBattle=function(){if(rankBattle){resetSoloUi();return;}return oldLeaveBattle();};
+  function startRankFight(){if(!matched.length)return;modal().classList.remove('show');fbDel(['onlineBattleQueue',GAME_ID,safeKey(me())]).catch(function(){});battleSeed=Date.now()%2147483647;rankBattle=true;raceStarted=true;rankFinished=false;playerFinalScore=null;battleActive=false;battleRoomId=null;opponentKey=null;opponentUsername=null;lastOpponentState=null;rankBots=matched.slice(0,4).map(makeBot);initMiniBoards();gameShell.classList.remove('battle-mode');document.getElementById('opponentWrap').style.display='none';multiplayerBtn.style.display='none';leaveBattleBtn.style.display='';battlePill.textContent='5-player ranking battle • Top 3 get XP';resetGame(battleSeed);rankBots.forEach(function(b){botSpawn(b);drawMini(b);});rankTimer=setInterval(function(){if(!rankBattle||rankFinished)return;rankBots.forEach(function(b){botStep(b);drawMini(b);});updateStandings();if(gameOverState&&rankBots.every(b=>!b.alive))finishRankBattle();},16);}
+  window.GameHubStartFlappyRankBattle=function(players){matched=Array.isArray(players)?players:findPlayers();readyUp();};
+  window.GameHubOnlineBattle=window.GameHubOnlineBattle||{games:{}};window.GameHubOnlineBattle.games[GAME_ID]={start:openSearch,fight:readyUp};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ensureButton);else ensureButton();
+  window.addEventListener('beforeunload',function(){fbDel(['onlineBattleQueue',GAME_ID,safeKey(me())]).catch(function(){});});
 })();
 </script>
 </body>

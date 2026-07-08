@@ -1908,6 +1908,7 @@ body {
       lastGarbageMilestone = 0;
       garbagePhaseStartMs = 0;
       particles = [];
+      if (typeof ghBattleResultShown !== 'undefined') ghBattleResultShown = false;
       nextPieces = [getRandomPiece(), getRandomPiece(), getRandomPiece()];
       spawnPiece();
       updateStats();
@@ -1943,7 +1944,12 @@ body {
           gameOver = true;
           running = false;
           AudioEngine.playGameOver();
-          showOverlay('GAME OVER', 'Garbage overflow stack explosion!');
+          if (isMultiplayer) sendMultiplayerGameOver();
+          if ((typeof ghIsBotBattleActive === 'function' && ghIsBotBattleActive()) || isMultiplayer) {
+            ghFinishBattle('defeat', 'Your stack overflowed from incoming garbage.');
+          } else {
+            showOverlay('GAME OVER', 'Garbage overflow stack explosion!');
+          }
         }
       }
       syncMultiplayerData();
@@ -1963,20 +1969,20 @@ body {
         running = false;
         AudioEngine.playGameOver();
         triggerScreenShake('heavy');
-        if (window.GameHubProfile) {
-          window.GameHubProfile.recordSuccess('Tetris StackRush', {
-            score: score,
-            level: level,
-            title: 'Completed StackRush Board session match'
-          });
-          updateProfileUI();
+        if ((typeof ghIsBotBattleActive === 'function' && ghIsBotBattleActive()) || isMultiplayer) {
+          if (isMultiplayer) sendMultiplayerGameOver();
+          ghFinishBattle('defeat', 'Your stack topped out first.');
+        } else {
+          if (window.GameHubProfile) {
+            window.GameHubProfile.recordSuccess('Tetris StackRush', {
+              score: score,
+              level: level,
+              title: 'Completed StackRush Board session match'
+            });
+            updateProfileUI();
+          }
+          showOverlay('GAME OVER', 'Final Score: ' + score + ' - Press START to reset');
         }
-        if (ghBotBattle && ghBotBattle.active) {
-          ghBotBattle.active = false;
-          if (els.battleStatus) els.battleStatus.innerHTML = '<span style="color:var(--danger)">' + ghBotBattle.name + ' wins this round.</span>';
-        }
-        showOverlay('GAME OVER', 'Final Score: ' + score + ' - Press START to reset');
-        sendMultiplayerGameOver();
       }
       syncMultiplayerData();
     }
@@ -2439,7 +2445,153 @@ body {
     let ghBattleLastGarbageUi = 0;
     let ghBattleLastMainDraw = 0;
     let ghBattleLastBotStep = 0;
+    let ghBattleResultShown = false;
+    const GH_BATTLE_WIN_XP = 120;
     function ghIsBotBattleActive() { return !!(ghBotBattle && ghBotBattle.active); }
+    function ghBattleOpponentName() {
+      if (ghBotBattle && ghBotBattle.name) return ghBotBattle.name;
+      return 'Opponent';
+    }
+    function ghHideVersusRibbon() {
+      const r = document.getElementById('ghVersusRibbon-stackrush-arena');
+      if (r) r.classList.remove('show');
+    }
+    function ghReturnToSoloTetris() {
+      const appRoot = document.querySelector('.app');
+      if (appRoot) appRoot.classList.remove('battle-active');
+      ghHideVersusRibbon();
+      if (roomRef && typeof roomRef.off === 'function') {
+        try { roomRef.off(); } catch (err) {}
+      }
+      isMultiplayer = false;
+      roomRef = null;
+      ghBotBattle = null;
+      ghBattleResultShown = false;
+      opponentBoardMatrix = createMatrix(COLS, ROWS);
+      inputState.left = false;
+      inputState.right = false;
+      inputState.down = false;
+      reset();
+      running = false;
+      paused = false;
+      gameOver = false;
+      els.startBtn.textContent = 'Start Game';
+      els.pauseBtn.textContent = 'Pause';
+      if (els.battleStatus) els.battleStatus.textContent = 'Waiting for connection...';
+      hideOverlay();
+      draw();
+      drawHold();
+      drawNext();
+      drawOpponentBoard();
+    }
+    function ghBattleResultModal(opts) {
+      opts = opts || {};
+      const old = document.getElementById('ghTetrisBattleResultModal');
+      if (old) old.remove();
+      const overlay = document.createElement('div');
+      overlay.id = 'ghTetrisBattleResultModal';
+      overlay.className = 'gh-modal-overlay';
+      const won = opts.result === 'victory';
+      overlay.innerHTML = '' +
+        '<div class="gh-modal-card ' + (won ? '' : 'danger') + '" role="dialog" aria-modal="true">' +
+          '<div class="gh-modal-icon">' + (won ? '🏆' : '💥') + '</div>' +
+          '<h2 class="gh-modal-title">' + (won ? 'VICTORY' : 'DEFEAT') + '</h2>' +
+          '<p class="gh-modal-message">' + opts.message.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</p>' +
+          '<div class="gh-modal-actions">' +
+            '<button class="gh-modal-btn cancel" type="button" data-action="solo">Back to Solo</button>' +
+            '<button class="gh-modal-btn confirm" type="button" data-action="rematch">Rematch</button>' +
+          '</div>' +
+        '</div>';
+      document.body.appendChild(overlay);
+      overlay.querySelector('[data-action="solo"]').onclick = function () {
+        overlay.remove();
+        ghReturnToSoloTetris();
+      };
+      overlay.querySelector('[data-action="rematch"]').onclick = function () {
+        overlay.remove();
+        ghRequestRematch(opts.opponent || ghBattleOpponentName());
+      };
+    }
+    function ghRematchWaitingModal(opponentName) {
+      const old = document.getElementById('ghTetrisRematchWaitModal');
+      if (old) old.remove();
+      const overlay = document.createElement('div');
+      overlay.id = 'ghTetrisRematchWaitModal';
+      overlay.className = 'gh-modal-overlay';
+      overlay.innerHTML = '' +
+        '<div class="gh-modal-card" role="dialog" aria-modal="true">' +
+          '<div class="gh-modal-icon">⏳</div>' +
+          '<h2 class="gh-modal-title">Rematch Request</h2>' +
+          '<p class="gh-modal-message">Waiting for ' + String(opponentName || 'opponent').replace(/</g, '&lt;').replace(/>/g, '&gt;') + ' to accept the rematch...</p>' +
+          '<div class="gh-modal-actions"><button class="gh-modal-btn cancel" type="button">Cancel</button></div>' +
+        '</div>';
+      document.body.appendChild(overlay);
+      overlay.querySelector('button').onclick = function () {
+        overlay.remove();
+        ghReturnToSoloTetris();
+      };
+      return overlay;
+    }
+    function ghRequestRematch(opponentName) {
+      const wait = ghRematchWaitingModal(opponentName);
+      const acceptChance = 0.62 + Math.random() * 0.20;
+      const delay = 900 + Math.random() * 1800;
+      setTimeout(function () {
+        if (!document.body.contains(wait)) return;
+        const accepted = Math.random() < acceptChance;
+        wait.remove();
+        if (accepted) {
+          if (window.GameHubModal && typeof window.GameHubModal.toast === 'function') {
+            window.GameHubModal.toast(opponentName + ' accepted the rematch');
+          }
+          window.GameHubStartTetrisBotBattle({ name: opponentName, rematch: true });
+        } else {
+          if (window.GameHubModal && typeof window.GameHubModal.alert === 'function') {
+            window.GameHubModal.alert('No Rematch', opponentName + ' declined the rematch. Returning to single-player Tetris.');
+          }
+          ghReturnToSoloTetris();
+        }
+      }, delay);
+    }
+    function ghFinishBattle(result, reason) {
+      const wasBattle = (ghBotBattle && ghBotBattle.active) || isMultiplayer;
+      if (!wasBattle || ghBattleResultShown) return;
+      ghBattleResultShown = true;
+      const won = result === 'victory';
+      const opponentName = ghBattleOpponentName();
+      running = false;
+      paused = false;
+      gameOver = true;
+      inputState.left = false;
+      inputState.right = false;
+      inputState.down = false;
+      if (ghBotBattle) ghBotBattle.active = false;
+
+      let xpText = 'No XP gained.';
+      if (won && window.GameHubProfile) {
+        window.GameHubProfile.recordSuccess('Tetris StackRush', {
+          score: score,
+          level: level,
+          xp: GH_BATTLE_WIN_XP,
+          title: 'Won Online Tetris Battle',
+          successId: 'tetris_online_battle_' + Date.now() + '_' + Math.floor(Math.random() * 100000)
+        });
+        updateProfileUI();
+        xpText = '+' + GH_BATTLE_WIN_XP + ' XP gained.';
+      }
+
+      const title = won ? 'VICTORY' : 'DEFEAT';
+      const statusColor = won ? 'var(--good)' : 'var(--danger)';
+      const detail = reason || (won ? opponentName + ' topped out first.' : opponentName + ' wins this round.');
+      const message = detail + '\nScore: ' + score + ' • Lines: ' + lines + ' • Level: ' + level + '\n' + xpText;
+      if (els.battleStatus) {
+        els.battleStatus.innerHTML = '<span style="color:' + statusColor + '">' + title + '</span><br><span>' + (won ? xpText : 'Better luck next battle.') + '</span>';
+      }
+      showOverlay(title, message.replace(/\n/g, ' '));
+      setTimeout(function () {
+        ghBattleResultModal({ result: result, message: message, opponent: opponentName });
+      }, 100);
+    }
     function ghBotCloneMatrix(matrix) { return matrix.map(row => row.slice()); }
     function ghBotNewPiece() {
       const p = getRandomPiece();
@@ -2607,8 +2759,7 @@ body {
       ghBotBattle.hardDropPause = profile.hardDropPause;
       ghBotBattle.hardDropChance = profile.hardDropChance;
       if (ghBotCollide(opponentBoardMatrix, ghBotBattle.piece)) {
-        ghBotBattle.active = false;
-        els.battleStatus.innerHTML = '<span style="color:var(--good)">Victory! ' + ghBotBattle.name + ' topped out.</span>';
+        ghFinishBattle('victory', ghBotBattle.name + ' topped out first.');
       }
     }
     function ghBotHardDropPiece() {
@@ -2723,6 +2874,7 @@ body {
       ghBattleLastSidePanelDraw = 0;
       ghBattleLastGarbageUi = 0;
       ghBattleLastMainDraw = 0;
+      ghBattleResultShown = false;
       ghBotBattle = { active: true, name, skill, profile, piece: null, targetX: 4, drop: 0, think: 0, paint: 0, status: 0, pendingGarbage: 0, lines: 0, moveDelay: profile.moveDelay, fallDelay: profile.fallDelay, hardDropCharge: 0, hardDropPause: profile.hardDropPause, hardDropChance: profile.hardDropChance, attackQueue: [] };
       ghBotSpawn();
       els.battleStatus.innerHTML = 'VS <strong>' + name + '</strong><br><span>' + profile.label + ' opponent • clear 2+ lines to send garbage.</span>';
@@ -2921,6 +3073,7 @@ body {
       if (!roomKey) return;
 
       isMultiplayer = true;
+      ghBattleResultShown = false;
       const appRoot = document.querySelector('.app');
       if (appRoot) appRoot.classList.add('battle-active');
       els.battleStatus.textContent = 'Syncing match elements...';
@@ -2993,6 +3146,7 @@ body {
         }
         if (data.p2Over && !gameOver) {
           els.battleStatus.innerHTML = `<span style="color:var(--good)">Victory! ${data.player2} topped out!</span>`;
+          ghFinishBattle('victory', `${data.player2 || 'Opponent'} topped out first.`);
         }
       } else {
         els.battleStatus.innerHTML = `VS <strong>${data.player1}</strong>`;
@@ -3003,6 +3157,7 @@ body {
         }
         if (data.p1Over && !gameOver) {
           els.battleStatus.innerHTML = `<span style="color:var(--good)">Victory! ${data.player1} topped out!</span>`;
+          ghFinishBattle('victory', `${data.player1 || 'Opponent'} topped out first.`);
         }
       }
       drawOpponentBoard();

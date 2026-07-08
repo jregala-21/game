@@ -3488,5 +3488,206 @@ body.chicken-hop #game-wrapper { animation: hopGlow .22s ease; }
 })();
 </script>
 
+
+
+<!-- === Crossy Online Battle result/rematch patch === -->
+<script id="crossy-battle-result-rematch-patch">
+(function(){
+  const GAME_NAME = 'Crossy Road';
+  let battle = null;
+  let finished = false;
+  let originalTrigger = null;
+  let originalReset = null;
+  function profileXp(xp, title){
+    try {
+      if (window.GameHubProfile && typeof window.GameHubProfile.recordSuccess === 'function') {
+        const prof = window.GameHubProfile.recordSuccess(GAME_NAME, { score: Number(score||0), level: Number(score||0), xp: xp, title: title });
+        const lv = prof && (prof.mainLevel || prof.level);
+        const badge = document.getElementById('accountLevel');
+        if (badge && lv) badge.textContent = 'LV ' + lv;
+      }
+    } catch(e){ console.warn('Crossy battle XP failed', e); }
+  }
+  function hideVersus(){
+    const r = document.getElementById('ghVersusRibbon-crossy-road');
+    if (r) r.classList.remove('show');
+  }
+  function resetToSolo(){
+    finished = false;
+    battle = null;
+    try { clearInterval(ghCrossyBotTimer); } catch(e) {}
+    try { ghCrossyBotTimer = null; ghCrossyBotState = null; } catch(e) {}
+    try { multiplayerRoomCode = ''; multiplayerIsHost = false; multiplayerPlayers = {}; } catch(e) {}
+    try {
+      Object.keys(multiplayerMeshes || {}).forEach(function(id){
+        if (multiplayerMeshes[id] && multiplayerMeshes[id].parent) multiplayerMeshes[id].parent.remove(multiplayerMeshes[id]);
+      });
+      multiplayerMeshes = {};
+      updateMultiplayerUI();
+    } catch(e) {}
+    hideVersus();
+    if (typeof originalReset === 'function') originalReset();
+    else if (typeof resetGame === 'function') resetGame();
+  }
+  function botAccepts(){
+    return Math.random() < 0.58;
+  }
+  function resultMessage(won){
+    const yourScore = Number(score || 0);
+    const enemyScore = battle && battle.enemyScore != null ? Number(battle.enemyScore || 0) : 0;
+    if (won) return 'You survived longer than ' + (battle ? battle.name : 'the opponent') + '.\nYour distance: ' + yourScore + '\nOpponent distance: ' + enemyScore + '\nReward: +90 XP';
+    return (battle ? battle.name : 'Opponent') + ' survived longer this round.\nYour distance: ' + yourScore + '\nOpponent distance: ' + enemyScore + '\nReward: 0 XP';
+  }
+  async function showResult(won, reason){
+    if (finished || !battle) return;
+    finished = true;
+    try { clearInterval(ghCrossyBotTimer); ghCrossyBotTimer = null; } catch(e) {}
+    battle.enemyScore = battle.enemyScore != null ? battle.enemyScore : (ghCrossyBotState ? (ghCrossyBotState.score || ghCrossyBotState.row || 0) : 0);
+    if (won) profileXp(90, 'Won a Crossy Road Online Battle');
+    const answer = await openGameModal({
+      title: won ? 'Victory!' : 'Defeat',
+      message: resultMessage(won),
+      icon: won ? '🏆' : '💥',
+      danger: !won,
+      confirmText: 'Rematch',
+      cancelText: 'Find Another Player'
+    });
+    if (answer && answer.confirmed) {
+      await waitRematch();
+    } else {
+      resetToSolo();
+      if (window.GameHubOnlineBattle && window.GameHubOnlineBattle.games && window.GameHubOnlineBattle.games['crossy-road']) {
+        setTimeout(function(){ window.GameHubOnlineBattle.games['crossy-road'].start(); }, 120);
+      }
+    }
+  }
+  async function waitRematch(){
+    if (!battle) return resetToSolo();
+    showMultiplayerMessage('Waiting for ' + battle.name + ' to accept rematch...');
+    await new Promise(function(resolve){ setTimeout(resolve, 900 + Math.random() * 1100); });
+    if (botAccepts()) {
+      const same = { name: battle.name, synthetic: battle.synthetic, skill: battle.skill };
+      await showGameAlert('Rematch accepted', same.name + ' accepted the rematch. Get ready!', '✅');
+      if (typeof window.GameHubStartCrossyBattle === 'function') window.GameHubStartCrossyBattle(same);
+    } else {
+      await showGameAlert('No rematch', battle.name + ' declined the rematch. Returning to solo mode.', '🚪');
+      resetToSolo();
+    }
+  }
+  function botDied(reason){
+    if (!battle || finished) return;
+    battle.enemyScore = ghCrossyBotState ? (ghCrossyBotState.score || ghCrossyBotState.row || 0) : 0;
+    showResult(true, reason || 'opponent crashed');
+  }
+  function install(){
+    if (typeof triggerCollision === 'function' && !originalTrigger) {
+      originalTrigger = triggerCollision;
+      triggerCollision = function(reason){
+        if (battle && !finished) {
+          battle.enemyScore = ghCrossyBotState ? (ghCrossyBotState.score || ghCrossyBotState.row || 0) : 0;
+          showResult(false, reason || 'player crashed');
+          return;
+        }
+        return originalTrigger.apply(this, arguments);
+      };
+    }
+    if (typeof resetGame === 'function' && !originalReset) originalReset = resetGame;
+    const baseStart = window.GameHubStartCrossyBattle;
+    window.GameHubStartCrossyBattle = function(opponent){
+      finished = false;
+      battle = { name: (opponent && opponent.name) || 'NovaRider', synthetic: !!(opponent && opponent.synthetic), skill: (opponent && opponent.skill) || 'smart', enemyScore: 0 };
+      if (typeof baseStart === 'function') baseStart(opponent);
+      showMultiplayerMessage('Online Battle: first chicken to crash loses.');
+      const oldStep = ghCrossyBotStep;
+      if (!oldStep.__resultWrapped) {
+        ghCrossyBotStep = function(){
+          if (!ghCrossyBotState || finished) return;
+          const r = rows[ghCrossyBotState.row];
+          if (r && (r.type === TYPE_ROAD || r.type === TYPE_RAIL) && ghCrossyVehicleThreat(ghCrossyBotState.row, Math.round(ghCrossyBotState.x))) return botDied('hit by traffic');
+          if (r && r.type === TYPE_RIVER && !ghCrossyLogCarrier(ghCrossyBotState.row, Math.round(ghCrossyBotState.x))) return botDied('fell in river');
+          const beforeRow = ghCrossyBotState.row;
+          oldStep();
+          battle.enemyScore = Math.max(battle.enemyScore || 0, ghCrossyBotState ? (ghCrossyBotState.score || ghCrossyBotState.row || beforeRow) : beforeRow);
+          // Human-like mistakes: strong bots still sometimes mistime a crossing.
+          if (ghCrossyBotState && Math.random() < 0.008 && ghCrossyBotState.row > 6) botDied('mistimed a jump');
+        };
+        ghCrossyBotStep.__resultWrapped = true;
+      }
+    };
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install); else install();
+})();
+</script>
+
+
+
+<!-- === Crossy Online Battle clean UI patch === -->
+<style id="crossy-clean-online-battle-style">
+  body.crossy-online-battle #multiplayer-panel{
+    width:min(280px,calc(100% - 34px));
+    padding:10px 11px;
+    border-color:rgba(80,244,255,.24);
+    background:rgba(7,12,31,.76);
+    box-shadow:0 16px 46px rgba(0,0,0,.36),0 0 28px rgba(80,244,255,.10);
+  }
+  body.crossy-online-battle .multiplayer-title span:first-child{font-size:0;color:transparent;}
+  body.crossy-online-battle .multiplayer-title span:first-child::after{content:'Online Battle';font-size:.78rem;color:var(--accent);}
+  body.crossy-online-battle #room-status{color:var(--accent);}
+  body.crossy-online-battle .multiplayer-actions{display:none!important;}
+  body.crossy-online-battle .multiplayer-list{max-height:150px;}
+  body.crossy-online-battle .mp-player-row{padding:7px 9px;background:rgba(255,255,255,.07);}
+  body.crossy-online-battle #instructions{opacity:.82;}
+  body.crossy-online-battle .gh-versus-ribbon{top:86px;}
+  @media(max-width:760px){body.crossy-online-battle #multiplayer-panel{transform:scale(.88);width:min(270px,64vw)!important;}}
+</style>
+<script id="crossy-clean-online-battle-script">
+(function(){
+  function setBattleClass(on){ if(document.body) document.body.classList.toggle('crossy-online-battle', !!on); }
+  function refreshCleanStatus(){
+    try {
+      if (document.body && document.body.classList.contains('crossy-online-battle')) {
+        var status=document.getElementById('room-status');
+        if(status) status.textContent='Online Match';
+      }
+    } catch(e) {}
+  }
+  function install(){
+    var baseStart=window.GameHubStartCrossyBattle;
+    if(typeof baseStart==='function' && !baseStart.__cleanUiWrapped){
+      window.GameHubStartCrossyBattle=function(opponent){
+        setBattleClass(true);
+        var result=baseStart.apply(this, arguments);
+        refreshCleanStatus();
+        return result;
+      };
+      window.GameHubStartCrossyBattle.__cleanUiWrapped=true;
+    }
+    var baseReset=window.resetGame || (typeof resetGame==='function' ? resetGame : null);
+    if(typeof baseReset==='function' && !baseReset.__cleanUiWrapped){
+      window.resetGame=function(){
+        var result=baseReset.apply(this, arguments);
+        setTimeout(function(){
+          try {
+            if (typeof multiplayerRoomCode==='undefined' || multiplayerRoomCode !== 'ONLINE_MATCH') setBattleClass(false);
+            else refreshCleanStatus();
+          } catch(e) { setBattleClass(false); }
+        },30);
+        return result;
+      };
+      try { resetGame = window.resetGame; } catch(e) {}
+      window.resetGame.__cleanUiWrapped=true;
+    }
+    setInterval(function(){
+      try {
+        if (document.body && document.body.classList.contains('crossy-online-battle')) {
+          if (typeof multiplayerRoomCode==='undefined' || multiplayerRoomCode !== 'ONLINE_MATCH') setBattleClass(false);
+          else refreshCleanStatus();
+        }
+      } catch(e) {}
+    },1200);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install); else install();
+})();
+</script>
 </body>
 </html>
